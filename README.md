@@ -9,36 +9,6 @@ Astro Ops is a browser-based, isometric pixel-art strategy game built on Solana.
 
 ---
 
-## 📁 Repository Structure
-
-```
-astro-ops/
-├── Anchor.toml             # Anchor workspace & network config
-├── Cargo.toml              # Rust workspace config
-├── programs/astro_ops/     # On-chain Solana program (Anchor)
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs          # Entry point & instruction dispatch
-│       ├── state.rs        # Account/state definitions
-│       ├── errors.rs       # Custom error codes
-│       └── instructions/
-│           ├── buy_ship.rs
-│           ├── send_mission.rs
-│           ├── upgrade_ship.rs
-│           ├── raid_mission.rs
-│           └── claim_rewards.rs
-└── app/                     # Browser frontend (plain HTML/JS)
-    ├── index.html
-    ├── style.css
-    ├── app.js
-    ├── canvasController.js
-    └── assets/
-        ├── ship.png        # Pixel-art ship sprite
-        ├── tiles.png       # Isometric floor tile spritesheet
-        └── pixel-font.png  # Optional bitmap font
-```
-
----
 
 ## 🔧 Prerequisites
 
