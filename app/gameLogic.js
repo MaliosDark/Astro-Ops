@@ -11,12 +11,26 @@ import {
 export function setupGame(canvas) {
   const connectBtn  = document.getElementById('connect-btn');
   const statusPanel = document.getElementById('status-panel');
-  let   balanceAT   = 100.0;
+  const hud         = window.AstroUI;
 
-  // Helper: sleep for ms
+  // --- Game state ---
+  let balanceAT      = 100.0;
+  let shipLevel      = 1;        // starts at level 1
+  const maxLevel     = 7;
+  let lastMissionT   = 0;        // timestamp of last mission
+  const cooldown     = 8 * 3600; // seconds
+
+  // --- Performance & stats counters ---
+  let raidWins       = 0; // how many raids succeeded
+  let raidFails      = 0; // how many raids failed
+  let missionSuccess = 0; // how many missions succeeded
+  let missionFail    = 0; // how many missions failed
+  let killCount      = 0; // total enemy units killed in canvas battles
+
+  // helper: pause
   const sleep = ms => new Promise(res => setTimeout(res, ms));
 
-  // Center & float status panel
+  // center status panel on screen
   Object.assign(statusPanel.style, {
     position:      'fixed',
     top:           '50%',
@@ -26,35 +40,36 @@ export function setupGame(canvas) {
     pointerEvents: 'none'
   });
 
-  const hud = window.AstroUI;
-
-  // Wire HUD buttons → modals or actions
+  // --- Hook up HUD buttons ---
   hud.onMission(() => showModal('mission'));
   hud.onUpgrade(() => showModal('upgrade'));
   hud.onRaid   (() => showModal('raid'));
+  hud.onClaim  (() => showModal('claim'));
   hud.onHelp   (() => showModal('howto'));
-  hud.onClaim   (() => showModal('claim'));
-//   hud.onClaim  (() => { 
-//     window.performClaim();
-//     closeModal();
-//   });
 
-  // CONNECT WALLET
+  // --- Connect wallet handler ---
   connectBtn.addEventListener('click', () => {
     hud.setWallet('DemoWalletXYZ');
     hud.setBalance(balanceAT);
     hud.setStatus('Ready!');
-    document.getElementById('hero').style.display   = 'none';
-    canvas.style.display                            = 'block';
-    document.getElementById('gb-ui').style.display  = 'flex';
+
+    // Show the game UI
+    document.getElementById('hero').style.display  = 'none';
+    canvas.style.display                           = 'block';
+    document.getElementById('gb-ui').style.display = 'flex';
+
+    // Initialize all counters on HUD
+    hud.setRaidsWon(raidWins);
+    hud.setKills(killCount);
   });
 
-  // 1️⃣ MISSION logic with travel animation
-  const cooldown   = 8 * 3600;
-  let lastMissionT = 0;
-
-  window.startMission = async function(type) {
-    // close the mission modal right away
+  // --- 1️⃣ Missions ---
+  /**
+   * Start a mission.
+   * @param {string} type  "MiningRun" | "BlackMarket" | "ArtifactHunt"
+   * @param {string} mode  "unshielded" or "shielded"
+   */
+  window.startMission = async function(type, mode = 'unshielded') {
     closeModal();
 
     const now = Date.now() / 1000;
@@ -63,79 +78,129 @@ export function setupGame(canvas) {
       return;
     }
 
+    // launch animation
     hud.setStatus(`Launching ${type}…`);
-    await window.animateShipLaunch();
+    await animateShipLaunch();
+
+    // travel animation
     hud.setStatus('In transit…');
-    await window.animateRaidTo(type);
+    await animateRaidTo(type);
 
-    // simulate outcome
+    // mission parameters
     const configs = {
-      MiningRun:    { chance: 0.9,  reward: 10 },
-      BlackMarket:  { chance: 0.7,  reward: 30 },
-      ArtifactHunt: { chance: 0.5,  reward: 60 },
+      MiningRun:    { chance: 0.90, baseReward: 10 },
+      BlackMarket:  { chance: 0.70, baseReward: 30 },
+      ArtifactHunt: { chance: 0.50, baseReward: 60 },
     };
-    const cfg     = configs[type];
-    const ok      = Math.random() < cfg.chance;
-    const gain    = ok ? cfg.reward : 0;
+    const cfg = configs[type];
+    if (!cfg) {
+      hud.setStatus('Unknown mission');
+      return;
+    }
 
-    if (ok) {
-      balanceAT += gain;
-      hud.setStatus(`+${gain} AT`);
+    // determine success
+    const success = Math.random() < cfg.chance;
+    let reward = 0;
+
+    if (success) {
+      // reward scales with ship level
+      reward = cfg.baseReward * shipLevel;
+
+      // shielded penalty
+      if (mode === 'shielded') {
+        reward = Math.floor(reward * 0.8);
+      }
+
+      balanceAT += reward;
+      hud.setBalance(balanceAT);
+      hud.setStatus(`+${reward} AT`);
+
+      missionSuccess++;
     } else {
       hud.setStatus('Mission failed');
+      missionFail++;
     }
-    hud.setBalance(balanceAT);
 
+    // return animation
     hud.setStatus('Returning home…');
-    await window.animateShipReturn();
+    await animateShipReturn();
 
     lastMissionT = now;
+
+    // Optionally, you could display mission stats in the HUD
+    // e.g. hud.setMissionStats(missionSuccess, missionFail);
   };
 
-  // 2️⃣ UPGRADE
+  // --- 2️⃣ Upgrade ---
   window.performUpgrade = function(level) {
     closeModal();
-    const costs = [0, 50,100,150,225,300,400];
-    const cost  = costs[level-1]||0;
+
+    // enforce only next‐level upgrades
+    if (level !== shipLevel + 1) {
+      hud.setStatus(`Can only upgrade to L${shipLevel + 1}`);
+      return;
+    }
+
+    const costs = { 2:50, 3:100, 4:150, 5:225, 6:300, 7:400 };
+    const cost  = costs[level] || Infinity;
+
     if (balanceAT >= cost) {
       balanceAT -= cost;
+      shipLevel = level;
+      hud.setBalance(balanceAT);
       hud.setStatus(`Upgraded to L${level}`);
     } else {
       hud.setStatus('Not enough AT');
     }
-    hud.setBalance(balanceAT);
   };
 
-  // 3️⃣ RAID
+  // --- 3️⃣ Raiding other players ---
   window.performRaid = function(idx) {
     closeModal();
+
+    // raid targets are dummy here
     const targets = [
-      { chance:0,   loot:0 },
-      { chance:0.7, loot:20 },
-      { chance:0.5, loot:15 },
+      { chance: 0.0, loot: 0 },
+      { chance: 0.7, loot: 20 },
+      { chance: 0.5, loot: 15 },
     ];
-    const t       = targets[idx%targets.length];
-    const ok      = Math.random() < t.chance;
+    const t  = targets[idx % targets.length];
+    const ok = Math.random() < t.chance;
+
     if (ok) {
       balanceAT += t.loot;
+      hud.setBalance(balanceAT);
       hud.setStatus(`+${t.loot} AT`);
+      raidWins++;
     } else {
       hud.setStatus('Raid failed');
+      raidFails++;
     }
-    hud.setBalance(balanceAT);
+
+    hud.setRaidsWon(raidWins);
+    // optionally hud.setRaidsLost(raidFails);
   };
 
-  // 4️⃣ CLAIM
+  // --- 4️⃣ Claim periodic AT ---
   window.performClaim = function() {
     closeModal();
     const pts = 5;
     balanceAT += pts;
-    hud.setStatus(`+${pts} AT`);
     hud.setBalance(balanceAT);
+    hud.setStatus(`+${pts} AT`);
   };
 
-  // Animation stubs (attached to window by shipAnimator.js)
-  // window.animateShipLaunch
-  // window.animateRaidTo
-  // window.animateShipReturn
+  // --- 5️⃣ Canvas battle end event listener ---
+  window.addEventListener('battleEnd', event => {
+    const survivors = event.detail; 
+    // Each wave spawns 5 enemies → kills = 5 (all enemies died)
+    // if you wanted partial kills: kills = waveSize - survivors
+    const waveSize      = 5;
+    const enemiesDied   = waveSize; 
+    killCount += enemiesDied;
+    hud.setKills(killCount);
+  });
+
+  // Animation hooks (shipAnimator.js) already wired:
+  // window.animateShipLaunch, window.animateRaidTo, window.animateShipReturn
 }

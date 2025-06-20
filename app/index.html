@@ -6,26 +6,130 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="style.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* Make canvas fill the screen */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      font-family: 'Press Start 2P', monospace;
+      background: #000;
+      color: #0f0;
+    }
+    #game-canvas {
+      display: none;          /* hidden until we start */
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;           
+      height: 100vh;          
+      touch-action: none;     
+      image-rendering: pixelated;
+    }
+    .panel {
+      background: rgba(0, 40, 0, 0.5);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      backdrop-filter: blur(6px);
+      padding: 8px;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    #hero {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: url('assets/hero-background.png') center/cover no-repeat;
+      image-rendering: pixelated;
+    }
+    #hero h1, #hero p {
+      margin: 0; padding: 0;
+      color: #0f0;
+      text-align: center;
+    }
+    #hero button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #020;
+      border: 2px solid #0f0;
+      font-size: 14px;
+      color: #0f0;
+      cursor: pointer;
+      image-rendering: pixelated;
+    }
+    #gb-ui {
+      position: absolute;
+      top: 8px; left: 8px; right: 8px; bottom: 8px;
+      display: none;   /* show after connect */
+      flex-direction: column;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    #top-hud {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .info {
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    #status-panel {
+      position: fixed;
+      top: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,40,0,0.8);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    #bottom-hud {
+      display: flex;
+      justify-content: space-around;
+      pointer-events: none;
+    }
+    .gb-btn {
+      pointer-events: auto;
+      background: rgba(0,20,0,0.7);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #0f0;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s;
+      image-rendering: pixelated;
+    }
+    .gb-btn:active {
+      background: rgba(0,20,0,1);
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0,40,0,0.8);
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      visibility: hidden;
+      z-index: 10000;
+    }
+  </style>
 </head>
-<style>
-  /* 2) Make canvas fill the screen */
-  html, body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100%;
-  }
-  #myCanvas {
-    display: block;          /* remove inline gaps */
-    width: 100vw;            /* full viewport width */
-    height: 100vh;           /* full viewport height */
-    touch-action: none;      /* disable default gestures */
-  }
-</style>
 <body>
   <!-- Hero Screen -->
   <div id="hero">
-    <h1>ASTRO OPS</h1>
+    <h1>BONK RAIDERS</h1>
     <p>Explore. Raid. Earn.</p>
     <button id="connect-btn">CONNECT WALLET</button>
   </div>
@@ -35,16 +139,33 @@
 
   <!-- UI Overlay injected here -->
   <div id="gb-ui">
+    <!-- Top HUD: Wallet, Balance, Kills, Raids Won -->
     <div id="top-hud">
-      <div class="panel info" id="wallet-info">Wallet: <span id="wallet-id">—</span></div>
-      <div class="panel info" id="balance-info">AT: <span id="balance-val">0</span></div>
+      <div class="panel info" id="wallet-info">
+        Wallet: <span id="wallet-id">—</span>
+      </div>
+      <div class="panel info" id="balance-info">
+        AT: <span id="balance-val">0</span>
+      </div>
+      <div class="panel info" id="kill-count-info">
+        Kills: <span id="kill-count">0</span>
+      </div>
+      <div class="panel info" id="raid-wins-info">
+        Raids Won: <span id="raid-wins">0</span>
+      </div>
     </div>
-    <div class="panel info" id="status-panel">Status: <span id="status-msg"></span></div>
+
+    <!-- Status Panel: fixed, always on top -->
+    <div id="status-panel">
+      Status: <span id="status-msg"></span>
+    </div>
+
+    <!-- Bottom HUD: Action Buttons -->
     <div id="bottom-hud">
       <button class="gb-btn" id="btn-mission" data-tip="Send your ship on a mission">MISSION</button>
       <button class="gb-btn" id="btn-upgrade" data-tip="Upgrade your ship">UPGRADE</button>
       <button class="gb-btn" id="btn-raid"    data-tip="Raid another player">RAID</button>
-      <button class="gb-btn" id="btn-claim"   data-tip="Claim AT">CLAIM</button>
+      <button class="gb-btn" id="btn-claim"   data-tip="Claim accumulated AT">CLAIM</button>
       <button class="gb-btn" id="btn-help"    data-tip="How to Play">HELP</button>
     </div>
   </div>

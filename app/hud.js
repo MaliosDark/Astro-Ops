@@ -20,12 +20,15 @@ export function setupHUD() {
 
   // 3️⃣ Expose AstroUI API
   window.AstroUI = {
+    // Set the connected wallet address/ID
     setWallet(id) {
       document.getElementById('wallet-id').textContent = id;
     },
+    // Update the AT balance display
     setBalance(at) {
       document.getElementById('balance-val').textContent = at.toFixed(1);
     },
+    // Show a temporary status message
     setStatus(msg) {
       const panel = document.getElementById('status-panel');
       const span  = document.getElementById('status-msg');
@@ -40,10 +43,25 @@ export function setupHUD() {
         panel.style.visibility = 'hidden';
       }
     },
+    // Update the kill count display
+    setKills(count) {
+      const el = document.getElementById('kill-count');
+      if (el) el.textContent = count;
+    },
+    // Update the raids won display
+    setRaidsWon(count) {
+      const el = document.getElementById('raid-wins');
+      if (el) el.textContent = count;
+    },
+    // Hook mission button
     onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },
+    // Hook upgrade button
     onUpgrade(fn)  { document.getElementById('btn-upgrade').onclick = fn; },
+    // Hook raid button
     onRaid(fn)     { document.getElementById('btn-raid').onclick    = fn; },
+    // Hook claim button
     onClaim(fn)    { document.getElementById('btn-claim').onclick   = fn; },
-    onHelp(fn)     { document.getElementById('btn-help').onclick    = fn; },  // ← added here
+    // Hook how-to-play/help button
+    onHelp(fn)     { document.getElementById('btn-help').onclick    = fn; },
   };
 }

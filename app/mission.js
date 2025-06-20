@@ -1,15 +1,23 @@
-// app/mission.js
+// FILE: app/mission.js
 
-// Called automatically after mission.html is injected
 window.pageInit = () => {
-  // Attach click handlers to each “Launch” button
-  document.querySelectorAll('button[data-mission]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const type = btn.dataset.mission;
-      // Call into the parent game logic
-      window.parent.startMission(type);
-      // Close the modal after dispatch
-      window.parent.closeModal();
-    });
+  const form = document.getElementById('mission-form');
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const missionType = formData.get('mission');             // e.g. "MiningRun"
+    const mode        = formData.get('mode');                // "unshielded" or "shielded"
+
+    // Call into parent game logic with both mission and mode
+    window.parent.startMission(missionType, mode);
+
+    // Close the modal
+    window.parent.closeModal();
   });
 };
+
+// If this page is loaded directly (outside of modal), initialize immediately
+if (!window.opener) {
+  window.pageInit();
+}

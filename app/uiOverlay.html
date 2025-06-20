@@ -18,7 +18,7 @@
       pointer-events: none;  /* allow clicks on canvas behind */
     }
 
-    /* main UI container: no z-index here */
+    /* main UI container */
     #gb-ui {
       position: absolute;
       top: 8px;
@@ -44,10 +44,11 @@
       pointer-events: none;  /* panels ignore clicks */
     }
 
-    /* top HUD row: wallet & balance */
+    /* top HUD row: wallet, balance, kills, raids won */
     #top-hud {
       display: flex;
       justify-content: space-between;
+      gap: 8px;
     }
     .info {
       font-size: 16px;
@@ -72,7 +73,7 @@
       z-index: 9999;  /* above everything */
     }
 
-    /* bottom HUD row: buttons container */
+    /* bottom HUD row: action buttons */
     #bottom-hud {
       display: flex;
       justify-content: space-around;
@@ -116,13 +117,20 @@
 </head>
 <body>
   <div id="gb-ui">
-    <!-- Top HUD: Wallet & Balance -->
+
+    <!-- Top HUD: Wallet, Balance, Kills, Raids Won -->
     <div id="top-hud">
       <div class="panel info" id="wallet-info">
         Wallet: <span id="wallet-id">—</span>
       </div>
       <div class="panel info" id="balance-info">
         AT: <span id="balance-val">0</span>
+      </div>
+      <div class="panel info" id="kill-count-info">
+        Kills: <span id="kill-count">0</span>
+      </div>
+      <div class="panel info" id="raid-wins-info">
+        Raids Won: <span id="raid-wins">0</span>
       </div>
     </div>
 
@@ -137,6 +145,7 @@
       <button class="gb-btn" id="btn-claim"   data-tip="Claim accumulated AT">CLAIM</button>
       <button class="gb-btn" id="btn-help"    data-tip="How to Play">HOW TO PLAY</button>
     </div>
+
   </div>
 
   <!-- Tooltip -->
@@ -179,6 +188,12 @@
         } else {
           panel.style.visibility = 'hidden';
         }
+      },
+      setKills(count) {
+        document.getElementById('kill-count').textContent = count;
+      },
+      setRaidsWon(count) {
+        document.getElementById('raid-wins').textContent = count;
       },
       onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },
       onUpgrade(fn)  { document.getElementById('btn-upgrade').onclick = fn; },
