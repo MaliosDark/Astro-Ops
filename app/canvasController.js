@@ -28,15 +28,15 @@ export default async function initCanvas(canvas) {
     objectImg0, objectImg1, soldierImg, mechImg, shipFlyImg
   ].map(img => new Promise(r => { img.onload = r; })));
 
-  // — Tile dimensions —
+  // — Isometric tile size —
   const TILE_W = 64, TILE_H = 32;
 
-  // — Compute grid size so the diamond covers the floor image —
+  // — Derive grid dimensions so the diamond fits the floor image —
   const totalCells = Math.round((2 * marsImg.width) / TILE_W);
   const GRID_W     = Math.floor(totalCells / 2);
   const GRID_H     = GRID_W;
 
-  // — Convert grid coords to world (isometric) coords —
+  // — Raw world-space conversion —
   function raw(ix, iy) {
     return {
       x: (ix - iy) * (TILE_W / 2),
@@ -46,15 +46,15 @@ export default async function initCanvas(canvas) {
 
   // — Camera state (fixed zoom) —
   const scale = 1.5;
-  let offsetX = 0,
-      offsetY = 0;
+  let offsetX = 0;
+  let offsetY = 0;
 
-  // — Pan only, no zoom clamping —
+  // — Pan only, no zoom/clamp —
   function clampOffset() {
-    // no restrictions
+    /* intentionally empty */
   }
 
-  // — Random lower-half cell —
+  // — Helper to pick a random cell in the lower half —
   function randLowerCell() {
     return {
       ix: Math.floor(Math.random() * (GRID_W - 1)) + 1,
@@ -62,16 +62,30 @@ export default async function initCanvas(canvas) {
     };
   }
 
-  // — Place static sprites —
+  // — Scatter static sprites —
   const buildings = Array.from({ length: 5 }, randLowerCell);
   const objects0  = Array.from({ length: 7 }, randLowerCell);
   const objects1  = Array.from({ length: 7 }, randLowerCell);
 
   // — Ship & dog positions —
-  const shipPos = { ix: GRID_W/2 | 0, iy: GRID_H/2 | 0 };
-  const dogPos  = randLowerCell();
+  const baseShipPos = { ix: Math.floor(GRID_W/2), iy: Math.floor(GRID_H/2) };
+  const dogPos      = randLowerCell();
 
-  // — Roaming characters with health & shooting & blocking & grid-boundaries —
+  // — Initialize global for animator overlay —
+  window.shipPos = { ...baseShipPos };
+  window.__iso = {
+    TILE_W,
+    getScale: () => scale,
+    worldToScreen(ix, iy) {
+      const p = raw(ix, iy);
+      return {
+        x: p.x * scale + offsetX,
+        y: p.y * scale + offsetY
+      };
+    }
+  };
+
+  // — Roaming characters (soldiers & mechs) with health & shooting & blocking & bounds —
   const CHAR_COUNT = 8;
   const characters = Array.from({ length: CHAR_COUNT }, () => ({
     ix: Math.random() * GRID_W,
@@ -91,7 +105,7 @@ export default async function initCanvas(canvas) {
     const c = raw(ix, iy);
     offsetX = canvas.width  / 2 - c.x * scale;
     offsetY = canvas.height / 2 - c.y * scale + canvas.height * 0.30;
-  })(shipPos.ix, shipPos.iy);
+  })(baseShipPos.ix, baseShipPos.iy);
 
   let lastTime = performance.now() / 1000;
 
@@ -100,18 +114,19 @@ export default async function initCanvas(canvas) {
     const dt  = now - lastTime;
     lastTime   = now;
 
-    // --- Update characters ---
+    // --- Update roaming characters ---
     characters.forEach((ch, idx) => {
+      // propose new position
       const speed = 0.5;
       const nx = ch.ix + ch.dirX * dt * speed;
       const ny = ch.iy + ch.dirY * dt * speed;
 
-      // ensure grid bounds
+      // grid bounds check
       const inside = nx >= 0 && nx <= GRID_W && ny >= 0 && ny <= GRID_H;
 
       // obstacle check
       const obstacles = [
-        ...buildings, ...objects0, ...objects1, shipPos, dogPos
+        ...buildings, ...objects0, ...objects1, baseShipPos, dogPos
       ].map(o => raw(o.ix, o.iy));
       const worldNew = raw(nx, ny);
       const blocked  = obstacles.some(o => {
@@ -119,6 +134,7 @@ export default async function initCanvas(canvas) {
         return Math.hypot(dx, dy) < TILE_W * 0.5;
       });
 
+      // bounce or accept
       if (!inside || blocked) {
         ch.dirX *= -1;
         ch.dirY = (Math.random() - 0.5) || ch.dirY;
@@ -139,8 +155,9 @@ export default async function initCanvas(canvas) {
           const mag  = Math.hypot(dx, dy) || 1;
           projectiles.push({
             x: from.x, y: from.y,
-            vx: dx/mag * 200, vy: dy/mag * 200,
-            damage: (ch.type === 'soldier' ? 20 : 35),
+            vx: dx/mag * 200,
+            vy: dy/mag * 200,
+            damage: ch.type === 'soldier' ? 20 : 35,
             targetIdx: characters.indexOf(tgt)
           });
         }
@@ -156,47 +173,50 @@ export default async function initCanvas(canvas) {
         const pos = raw(tgt.ix, tgt.iy);
         if (Math.hypot(pr.x - pos.x, pr.y - pos.y) < 10) {
           tgt.health -= pr.damage;
-          projectiles.splice(i, 1);
+          projectiles.splice(i,1);
           if (tgt.health <= 0) {
+            // respawn bottom half
             tgt.ix     = Math.random() * GRID_W;
             tgt.iy     = GRID_H - Math.random() * (GRID_H/2);
             tgt.health = tgt.maxHealth;
           }
         }
       }
+      // discard off-world
       if (
         pr.x * scale + offsetX < -50 ||
         pr.x * scale + offsetX > canvas.width + 50 ||
         pr.y * scale + offsetY < -50 ||
         pr.y * scale + offsetY > canvas.height + 50
       ) {
-        projectiles.splice(i, 1);
+        projectiles.splice(i,1);
       }
     });
 
-    // --- Render ---
+    // --- Render all ---
     ctx.setTransform(1,0,0,1,0,0);
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.setTransform(scale,0,0,scale,offsetX,offsetY);
 
-    // compute floor center
-    const fc = raw(GRID_W/2, GRID_H/2);
-    const fx = fc.x - marsImg.width/2;
-    const fy = fc.y - marsImg.height/2;
+    // compute floor position
+    const centerCell = raw(GRID_W/2, GRID_H/2);
+    const floorX = centerCell.x - marsImg.width/2;
+    const floorY = centerCell.y - marsImg.height/2;
 
-    // clip to mars image rectangle
+    // clip everything to the mars floor bounds
     ctx.save();
     ctx.beginPath();
-    ctx.rect(fx, fy, marsImg.width, marsImg.height);
+    ctx.rect(floorX, floorY, marsImg.width, marsImg.height);
     ctx.clip();
 
     // 1) Floor
-    ctx.drawImage(marsImg, fx, fy);
+    ctx.drawImage(marsImg, floorX, floorY);
 
     // 2) Buildings
     buildings.forEach(({ix,iy}) => {
       const p = raw(ix,iy), s = 0.15;
-      ctx.drawImage(buildingImg,
+      ctx.drawImage(
+        buildingImg,
         p.x - buildingImg.width/2*s,
         p.y - buildingImg.height*s,
         buildingImg.width*s,
@@ -205,10 +225,11 @@ export default async function initCanvas(canvas) {
     });
 
     // 3) Objects
-    [[objectImg0, objects0],[objectImg1, objects1]].forEach(([img,arr]) => {
+    [[objectImg0, objects0],[objectImg1, objects1]].forEach(([img, arr]) => {
       arr.forEach(({ix,iy}) => {
         const p = raw(ix,iy), s = 0.10;
-        ctx.drawImage(img,
+        ctx.drawImage(
+          img,
           p.x - img.width/2*s,
           p.y - img.height*s,
           img.width*s,
@@ -219,8 +240,9 @@ export default async function initCanvas(canvas) {
 
     // 4) Dog
     {
-      const p=raw(dogPos.ix,dogPos.iy), s=0.10;
-      ctx.drawImage(dogImg,
+      const p = raw(dogPos.ix, dogPos.iy), s = 0.10;
+      ctx.drawImage(
+        dogImg,
         p.x - dogImg.width/2*s,
         p.y - dogImg.height*s,
         dogImg.width*s,
@@ -228,10 +250,12 @@ export default async function initCanvas(canvas) {
       );
     }
 
-    // 5) Ship
-    {
-      const p=raw(shipPos.ix,shipPos.iy), s=0.25;
-      ctx.drawImage(shipImg,
+    // 5) **Ship** — only if not in-flight overlay
+    if (!window.__shipInFlight) {
+      const drawPos = window.shipPos || baseShipPos;
+      const p = raw(drawPos.ix, drawPos.iy), s = 0.25;
+      ctx.drawImage(
+        shipImg,
         p.x - shipImg.width/2*s,
         p.y - shipImg.height*s,
         shipImg.width*s,
@@ -239,23 +263,27 @@ export default async function initCanvas(canvas) {
       );
     }
 
-    // 6) Characters & health bars
+    // 6) Characters + health bars
     characters.forEach(ch => {
-      const p=raw(ch.ix,ch.iy), s=0.10;
+      const p = raw(ch.ix, ch.iy), s = 0.10;
       // health bar
       const barW = 40, barH = 4;
       const hx = p.x - barW/2, hy = p.y - 18;
-      ctx.fillStyle = 'red';  ctx.fillRect(hx, hy, barW, barH);
+      ctx.fillStyle = 'red';
+      ctx.fillRect(hx, hy, barW, barH);
       ctx.fillStyle = 'lime';
       ctx.fillRect(hx, hy, barW * (ch.health/ch.maxHealth), barH);
       // sprite
-      const img = (ch.type==='soldier'? soldierImg : mechImg);
+      const img = ch.type==='soldier' ? soldierImg : mechImg;
       ctx.save();
       ctx.translate(p.x, p.y);
       if (ch.dirX < 0) ctx.scale(-1,1);
-      ctx.drawImage(img,
-        -img.width/2*s, -img.height*s,
-        img.width*s, img.height*s
+      ctx.drawImage(
+        img,
+        -img.width/2*s,
+        -img.height*s,
+        img.width*s,
+        img.height*s
       );
       ctx.restore();
     });
@@ -268,7 +296,7 @@ export default async function initCanvas(canvas) {
       ctx.fill();
     });
 
-    // restore to disable clipping
+    // restore clipping
     ctx.restore();
 
     requestAnimationFrame(draw);
@@ -276,10 +304,10 @@ export default async function initCanvas(canvas) {
 
   draw();
 
-  // — Disable zoom — fixed scale —
+  // — Disable zoom — keep scale fixed —
   canvas.addEventListener('wheel', e => e.preventDefault());
 
-  // — Pan with drag/touch over full map —
+  // — Pan with drag/touch over entire map —
   let dragging = false, last = { x:0, y:0 };
   canvas.addEventListener('mousedown', e => {
     dragging = true;
@@ -292,7 +320,6 @@ export default async function initCanvas(canvas) {
     last.x = e.clientX; last.y = e.clientY;
   });
   window.addEventListener('mouseup', () => dragging = false);
-
   canvas.addEventListener('touchstart', e => {
     if (e.touches.length === 1) {
       dragging = true;
