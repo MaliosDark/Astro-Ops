@@ -10,12 +10,12 @@
   <style>
     html, body {
       margin: 0; padding: 0;
-      width:100vw; height:100vh;
-      background:#0a0a1a;
-      font-family:'Press Start 2P',monospace;
-      color:#0cf;
-      display:flex; align-items:center; justify-content:center;
-      image-rendering:pixelated;
+      width: 100vw; height: 100vh;
+      background: #0a0a1a;
+      font-family: 'Press Start 2P', monospace;
+      color: #0cf;
+      display: flex; align-items: center; justify-content: center;
+      image-rendering: pixelated;
     }
     .window {
       background: rgba(0,20,40,0.8);
@@ -32,16 +32,21 @@
       text-align: center;
       color: #fc0;
     }
+    /* Make table scroll on narrow screens */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 16px;
       font-size: 12px;
     }
     th, td {
       border: 2px solid #0cf;
       padding: 8px;
       text-align: center;
+      white-space: nowrap;
     }
     th {
       background: rgba(0,40,60,0.9);
@@ -49,11 +54,12 @@
     }
     tr:nth-child(odd) td { background: rgba(0,20,40,0.5); }
     tr:nth-child(even) td { background: rgba(0,30,50,0.3); }
+
     fieldset {
       border: 2px solid #0cf;
       border-radius: 6px;
       padding: 12px;
-      margin-bottom:16px;
+      margin-bottom: 16px;
     }
     legend {
       padding: 0 8px;
@@ -65,6 +71,7 @@
       font-size: 12px;
       color: #0cf;
     }
+
     button {
       display: block;
       width: 100%;
@@ -72,15 +79,35 @@
       background: #0cf;
       border: 2px solid #0ff;
       border-radius: 6px;
-      font-family:'Press Start 2P',monospace;
+      font-family: 'Press Start 2P', monospace;
       font-size: 14px;
       color: #000;
       cursor: pointer;
-      image-rendering:pixelated;
+      image-rendering: pixelated;
       transition: background .1s, color .1s;
     }
     button:hover {
       background: #0ff;
+    }
+
+    /* ===== Mobile overrides ===== */
+    @media (max-width: 600px) {
+      .window {
+        padding: 12px;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+      }
+      h1 { font-size: 18px; margin-bottom: 12px; }
+      fieldset { padding: 8px; margin-bottom: 12px; }
+      legend { font-size: 12px; }
+      label { font-size: 10px; margin-right: 8px; display: block; margin-bottom: 4px; }
+      .table-container { margin-bottom: 12px; }
+      th, td { padding: 6px; font-size: 10px; }
+      button {
+        padding: 10px 0;
+        font-size: 12px;
+      }
     }
   </style>
 </head>
@@ -88,36 +115,38 @@
   <div class="window">
     <h1>Select Your Mission</h1>
     <form id="mission-form">
-      <table>
-        <thead>
-          <tr>
-            <th>Mission</th>
-            <th>Success %</th>
-            <th>Base Reward</th>
-            <th>Select</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Mining Run</td>
-            <td>90%</td>
-            <td>10 AT</td>
-            <td><input type="radio" name="mission" value="MiningRun" checked></td>
-          </tr>
-          <tr>
-            <td>Black Market</td>
-            <td>70%</td>
-            <td>30 AT</td>
-            <td><input type="radio" name="mission" value="BlackMarket"></td>
-          </tr>
-          <tr>
-            <td>Artifact Hunt</td>
-            <td>50%</td>
-            <td>60 AT</td>
-            <td><input type="radio" name="mission" value="ArtifactHunt"></td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Mission</th>
+              <th>Success %</th>
+              <th>Base Reward</th>
+              <th>Select</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mining Run</td>
+              <td>90%</td>
+              <td>10 AT</td>
+              <td><input type="radio" name="mission" value="MiningRun" checked></td>
+            </tr>
+            <tr>
+              <td>Black Market</td>
+              <td>70%</td>
+              <td>30 AT</td>
+              <td><input type="radio" name="mission" value="BlackMarket"></td>
+            </tr>
+            <tr>
+              <td>Artifact Hunt</td>
+              <td>50%</td>
+              <td>60 AT</td>
+              <td><input type="radio" name="mission" value="ArtifactHunt"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <fieldset>
         <legend>Mode</legend>
@@ -129,9 +158,13 @@
           <input type="radio" name="mode" value="shielded">
           Shielded
         </label>
+        <label>
+          <input type="radio" name="mode" value="decoy">
+          Decoy
+        </label>
       </fieldset>
 
-      <button type="submit" id="launch-btn">Launch</button>
+      <button type="submit" id="launch-btn">Launch Mission</button>
     </form>
   </div>
 

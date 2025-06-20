@@ -2,28 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Astro Ops</title>
+  <title>Bonk Raiders</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="style.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    /* Make canvas fill the screen */
+    /* ============ Base Styles ============ */
     html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      height: 100%;
+      margin: 0; padding: 0;
+      overflow: hidden; height: 100%;
       font-family: 'Press Start 2P', monospace;
-      background: #000;
-      color: #0f0;
+      background: #000; color: #0f0;
     }
     #game-canvas {
-      display: none;          /* hidden until we start */
-      position: absolute;
-      top: 0; left: 0;
-      width: 100vw;           
-      height: 100vh;          
-      touch-action: none;     
+      display: none;
+      position: absolute; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      touch-action: none;
       image-rendering: pixelated;
     }
     .panel {
@@ -36,47 +31,41 @@
       pointer-events: none;
     }
     #hero {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
       background: url('assets/hero-background.png') center/cover no-repeat;
       image-rendering: pixelated;
     }
     #hero h1, #hero p {
       margin: 0; padding: 0;
-      color: #0f0;
-      text-align: center;
+      color: #0f0; text-align: center;
     }
     #hero button {
       margin-top: 20px;
       padding: 10px 20px;
-      background: #020;
-      border: 2px solid #0f0;
-      font-size: 14px;
-      color: #0f0;
-      cursor: pointer;
+      background: #020; border: 2px solid #0f0;
+      font-size: 14px; color: #0f0; cursor: pointer;
       image-rendering: pixelated;
     }
+
+    /* ============ Desktop HUD ============ */
     #gb-ui {
       position: absolute;
       top: 8px; left: 8px; right: 8px; bottom: 8px;
-      display: none;   /* show after connect */
+      display: none;
       flex-direction: column;
       justify-content: space-between;
       pointer-events: none;
     }
     #top-hud {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
+      display: flex; justify-content: space-between; gap: 8px;
     }
     .info {
-      font-size: 16px;
-      line-height: 1.2;
+      font-size: 16px; line-height: 1.2;
     }
+
+    /* Status panel */
     #status-panel {
       position: fixed;
       top: 20px; left: 50%;
@@ -89,10 +78,19 @@
       visibility: hidden;
       pointer-events: none;
       z-index: 1000;
+
+      /* constrain to content */
+      display: inline-block;
+      max-width: 80vw;
+      max-height: 50vh;
+      overflow-wrap: break-word;
+      overflow-y: auto;
+      white-space: normal;
+      text-align: center;
     }
+
     #bottom-hud {
-      display: flex;
-      justify-content: space-around;
+      display: flex; justify-content: space-around;
       pointer-events: none;
     }
     .gb-btn {
@@ -124,6 +122,48 @@
       visibility: hidden;
       z-index: 10000;
     }
+
+    /* ===== Mobile Overrides ===== */
+    @media (max-width: 600px) {
+      /* Shrink panels */
+      #gb-ui {
+        top: 0; left: 0; right: 0; bottom: 0;
+        padding: 4px;
+      }
+      #top-hud {
+        flex-direction: column; gap: 4px;
+      }
+      .panel.info {
+        font-size: 12px; padding: 4px;
+      }
+      /* Status at bottom, constrained */
+      #status-panel {
+        top: auto; bottom: 8px;
+        font-size: 12px;
+        padding: 4px 8px;
+        max-width: 90vw;
+        max-height: 30vh;
+      }
+      /* Bottom hud fixed footer */
+      #bottom-hud {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.5);
+        padding: 4px 0;
+        justify-content: space-around;
+        pointer-events: none;
+      }
+      .gb-btn {
+        padding: 8px 10px; font-size: 12px;
+      }
+      /* Hide tooltip in touch UI */
+      .tooltip { display: none; }
+      /* Modal inner pages scroll instead of expanding */
+      .modal-content {
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -137,30 +177,17 @@
   <!-- Game Canvas -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- UI Overlay injected here -->
+  <!-- UI Overlay -->
   <div id="gb-ui">
-    <!-- Top HUD: Wallet, Balance, Kills, Raids Won -->
     <div id="top-hud">
-      <div class="panel info" id="wallet-info">
-        Wallet: <span id="wallet-id">—</span>
-      </div>
-      <div class="panel info" id="balance-info">
-        AT: <span id="balance-val">0</span>
-      </div>
-      <div class="panel info" id="kill-count-info">
-        Kills: <span id="kill-count">0</span>
-      </div>
-      <div class="panel info" id="raid-wins-info">
-        Raids Won: <span id="raid-wins">0</span>
-      </div>
+      <div class="panel info" id="wallet-info">Wallet: <span id="wallet-id">—</span></div>
+      <div class="panel info" id="balance-info">AT: <span id="balance-val">0</span></div>
+      <div class="panel info" id="kill-count-info">Kills: <span id="kill-count">0</span></div>
+      <div class="panel info" id="raid-wins-info">Raids Won: <span id="raid-wins">0</span></div>
     </div>
 
-    <!-- Status Panel: fixed, always on top -->
-    <div id="status-panel">
-      Status: <span id="status-msg"></span>
-    </div>
+    <div id="status-panel">Status: <span id="status-msg"></span></div>
 
-    <!-- Bottom HUD: Action Buttons -->
     <div id="bottom-hud">
       <button class="gb-btn" id="btn-mission" data-tip="Send your ship on a mission">MISSION</button>
       <button class="gb-btn" id="btn-upgrade" data-tip="Upgrade your ship">UPGRADE</button>
@@ -170,9 +197,7 @@
     </div>
   </div>
 
-  <!-- Tooltip -->
   <div id="tooltip" class="tooltip"></div>
-
   <script type="module" src="./app.js"></script>
 </body>
 </html>

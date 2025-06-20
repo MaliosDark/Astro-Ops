@@ -5,19 +5,21 @@ window.pageInit = () => {
 
   form.addEventListener('submit', event => {
     event.preventDefault();
-    const formData = new FormData(form);
-    const missionType = formData.get('mission');             // e.g. "MiningRun"
-    const mode        = formData.get('mode');                // "unshielded" or "shielded"
 
-    // Call into parent game logic with both mission and mode
+    // Gather form values
+    const data = new FormData(form);
+    const missionType = data.get('mission'); // e.g. "MiningRun"
+    const mode        = data.get('mode');    // "unshielded", "shielded", or "decoy"
+
+    // Pass both mission type and mode up to parent game logic
     window.parent.startMission(missionType, mode);
 
-    // Close the modal
+    // Close the modal once the mission is launched
     window.parent.closeModal();
   });
 };
 
-// If this page is loaded directly (outside of modal), initialize immediately
+// If loaded standalone (not in modal), initialize immediately
 if (!window.opener) {
   window.pageInit();
 }

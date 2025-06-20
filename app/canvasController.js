@@ -23,9 +23,17 @@ export default async function initCanvas(canvas) {
   const soldierImg    = new Image(); soldierImg.src    = './assets/soldier.png';
   const mechImg       = new Image(); mechImg.src       = './assets/mech.png';
 
+  const soldierFrames = [
+    new Image(),  // frame 0
+    new Image()   // frame 1
+  ];
+  soldierFrames[0].src = './assets/soldier1.png';
+  soldierFrames[1].src = './assets/soldier2.png';
+
   await Promise.all([
     marsImg, shipImg, enemyShipImg, dogImg, buildingImg,
-    objectImg0, objectImg1, soldierImg, mechImg
+    objectImg0, objectImg1, mechImg,
+    soldierFrames[0], soldierFrames[1]
   ].map(img => new Promise(r => img.onload = r)));
 
   // — Tile dims & grid —
@@ -363,34 +371,62 @@ export default async function initCanvas(canvas) {
       );
     }
 
-    // characters + health bars
+    // 6) Characters + health bars
     characters.forEach(ch => {
-      const p = raw(ch.ix, ch.iy), s = 0.10;
-      const img = ch.type === 'soldier' ? soldierImg : mechImg;
-      const imgH = img.height * s;
+    // 1. Compute screen position
+    const p = raw(ch.ix, ch.iy);
 
-      // health bar above head
-      const bw = 40, bh = 4;
-      const hx = p.x - bw/2, hy = p.y - imgH - 6;
-      ctx.fillStyle = 'red';
-      ctx.fillRect(hx, hy, bw, bh);
-      ctx.fillStyle = 'lime';
-      ctx.fillRect(hx, hy, bw * (ch.health / ch.maxHealth), bh);
+    // 2. Choose separate scales for mech vs. soldier
+    const scaleMech    = 0.10;  // original mech scale
+    const scaleSoldier = 0.05;  // adjust until soldier height matches mech
 
-      // sprite
-      ctx.save();
-      ctx.globalAlpha = ch.faction === 'enemy' ? 0.8 : 1;
-      ctx.translate(p.x, p.y);
-      if (ch.dirX < 0) ctx.scale(-1,1);
-      ctx.drawImage(
+    // 3. Pick the correct image and scale
+    let img, s;
+    if (ch.type === 'soldier') {
+        // Animate walk cycle by alternating between frame 0 and 1 every 300 ms
+        const frameIndex = Math.floor(now * 1000 / 300) % soldierFrames.length;
+        img = soldierFrames[frameIndex];
+        s   = scaleSoldier;
+    } else {
+        img = mechImg;
+        s   = scaleMech;
+    }
+
+    // 4. Compute sprite height in world units (for health bar placement)
+    const imgHeightWorld = img.height * s;
+
+    // 5. Draw health bar just above sprite’s head
+    const barWidth  = 40;
+    const barHeight = 4;
+    const barX = p.x - barWidth / 2;
+    const barY = p.y - imgHeightWorld - 6;
+    // Background (red)
+    ctx.fillStyle = 'red';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    // Foreground (green), proportional to current health
+    ctx.fillStyle = 'lime';
+    const healthRatio = ch.health / ch.maxHealth;
+    ctx.fillRect(barX, barY, barWidth * healthRatio, barHeight);
+
+    // 6. Draw the sprite itself
+    ctx.save();
+    // Tint enemy sprites slightly translucent
+    ctx.globalAlpha = (ch.faction === 'enemy') ? 0.8 : 1;
+    // Move origin to sprite’s position
+    ctx.translate(p.x, p.y);
+    // Mirror horizontally if moving left
+    if (ch.dirX < 0) ctx.scale(-1, 1);
+    // Draw image centered at origin
+    ctx.drawImage(
         img,
-        -img.width/2*s,
-        -img.height*s,
-        img.width*s,
-        img.height*s
-      );
-      ctx.restore();
+        -img.width  / 2 * s,  // x offset
+        -img.height     * s,  // y offset
+        img.width  * s,      // draw width
+        img.height * s       // draw height
+    );
+    ctx.restore();
     });
+
 
     // projectiles
     projectiles.forEach(pr => {
