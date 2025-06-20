@@ -12,6 +12,7 @@ window.pageInit = () => {
     const mode        = data.get('mode');    // "unshielded", "shielded", or "decoy"
 
     // Pass both mission type and mode up to parent game logic
+    window.parent.AstroUI.setMode(mode);
     window.parent.startMission(missionType, mode);
 
     // Close the modal once the mission is launched

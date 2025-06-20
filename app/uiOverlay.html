@@ -44,15 +44,20 @@
       pointer-events: none;  /* panels ignore clicks */
     }
 
-    /* top HUD row: wallet, balance, kills, raids won */
+    /* top HUD row: wallet, balance, kills, raids won, mode */
     #top-hud {
       display: flex;
+      flex-wrap: wrap;           /* allow multiple rows */
       justify-content: space-between;
       gap: 8px;
     }
     .info {
       font-size: 16px;
       line-height: 1.2;
+    }
+    /* ensure mode panel has a bit of min width */
+    #mode-info {
+      min-width: 100px;
     }
 
     /* status panel: fixed to viewport, highest z-index */
@@ -71,6 +76,14 @@
       pointer-events: none;
       visibility: hidden;
       z-index: 9999;  /* above everything */
+      /* constrain to content */
+      display: inline-block;
+      max-width: 80vw;
+      max-height: 50vh;
+      overflow-wrap: break-word;
+      overflow-y: auto;
+      white-space: normal;
+      text-align: center;
     }
 
     /* bottom HUD row: action buttons */
@@ -113,12 +126,48 @@
       visibility: hidden;
       z-index: 10000;  /* above the status panel */
     }
+
+    /* ===== Mobile overrides ===== */
+    @media (max-width: 600px) {
+      /* top HUD stacks */
+      #top-hud {
+        flex-direction: column;
+        gap: 4px;
+      }
+      .panel.info {
+        font-size: 12px;
+        padding: 4px;
+      }
+      #status-panel {
+        bottom: 8px;
+        top: auto;
+        font-size: 12px;
+        padding: 4px 8px;
+        max-width: 90vw;
+        max-height: 30vh;
+      }
+      #bottom-hud {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.5);
+        padding: 4px 0;
+        justify-content: space-around;
+        pointer-events: none;
+      }
+      .gb-btn {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .tooltip {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="gb-ui">
 
-    <!-- Top HUD: Wallet, Balance, Kills, Raids Won -->
+    <!-- Top HUD: Wallet, Balance, Kills, Raids Won, Mode -->
     <div id="top-hud">
       <div class="panel info" id="wallet-info">
         Wallet: <span id="wallet-id">—</span>
@@ -132,6 +181,9 @@
       <div class="panel info" id="raid-wins-info">
         Raids Won: <span id="raid-wins">0</span>
       </div>
+      <div class="panel info" id="mode-info">
+        Mode: <span id="mode-val">—</span>
+      </div>
     </div>
 
     <!-- Status Panel: fixed, always on top -->
@@ -143,7 +195,7 @@
       <button class="gb-btn" id="btn-upgrade" data-tip="Upgrade your ship">UPGRADE</button>
       <button class="gb-btn" id="btn-raid"    data-tip="Raid another player">RAID</button>
       <button class="gb-btn" id="btn-claim"   data-tip="Claim accumulated AT">CLAIM</button>
-      <button class="gb-btn" id="btn-help"    data-tip="How to Play">HOW TO PLAY</button>
+      <button class="gb-btn" id="btn-help"    data-tip="How to Play">HELP</button>
     </div>
 
   </div>
@@ -156,11 +208,11 @@
     const tooltip = document.getElementById('tooltip');
     document.querySelectorAll('.gb-btn').forEach(btn => {
       btn.addEventListener('mousemove', e => {
-        const tip = btn.getAttribute('data-tip');
+        const tip = btn.getAttribute('data-tip') || '';
         tooltip.textContent = tip;
         tooltip.style.top        = (e.clientY + 10) + 'px';
         tooltip.style.left       = (e.clientX + 10) + 'px';
-        tooltip.style.visibility = 'visible';
+        tooltip.style.visibility = tip ? 'visible' : 'hidden';
       });
       btn.addEventListener('mouseleave', () => {
         tooltip.style.visibility = 'hidden';
@@ -181,8 +233,8 @@
         span.textContent = msg;
         if (msg) {
           panel.style.visibility = 'visible';
-          clearTimeout(panel._hide);
-          panel._hide = setTimeout(() => {
+          clearTimeout(panel._hideTimer);
+          panel._hideTimer = setTimeout(() => {
             panel.style.visibility = 'hidden';
           }, 3000);
         } else {
@@ -194,6 +246,11 @@
       },
       setRaidsWon(count) {
         document.getElementById('raid-wins').textContent = count;
+      },
+      setMode(mode) {
+        // map internal keys → display text
+        const labels = { unshielded: 'Unshielded', shielded: 'Shielded', decoy: 'Decoy' };
+        document.getElementById('mode-val').textContent = labels[mode] || '—';
       },
       onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },
       onUpgrade(fn)  { document.getElementById('btn-upgrade').onclick = fn; },

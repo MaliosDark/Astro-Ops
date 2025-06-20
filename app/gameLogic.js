@@ -49,6 +49,7 @@ export function setupGame(canvas) {
 
   // --- Connect wallet handler ---
   connectBtn.addEventListener('click', () => {
+    hud.setMode('—');
     hud.setWallet('DemoWalletXYZ');
     hud.setBalance(balanceAT);
     hud.setStatus('Ready!');

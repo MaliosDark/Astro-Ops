@@ -74,6 +74,18 @@ export function setupHUD() {
       if (el) el.textContent = count;
     },
 
+    setMode(mode) {
+        const el = document.getElementById('mode-val');
+        if (!el) return;
+        // puedes formatearlo bonito:
+        const label = {
+            unshielded: 'Unshielded',
+            shielded:   'Shielded',
+            decoy:      'Decoy'
+        }[mode] || mode;
+        el.textContent = label;
+    },
+
     // 4️⃣ Hook mission button
     onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },
 
