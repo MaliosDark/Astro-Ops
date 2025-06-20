@@ -1,0 +1,131 @@
+style.css
+
+/* Apply pixelated rendering everywhere */
+body, html {
+  margin: 0; padding: 0;
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+  background: #000;
+  image-rendering: pixelated;
+  font-family: 'Press Start 2P', monospace;
+  color: #0f0;
+}
+
+/* Hide canvas until start */
+#game-canvas {
+  display: none;
+  position: absolute; top: 0; left: 0;
+  transform-origin: center center;
+}
+
+/* Hero Screen */
+#hero {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  background: url('assets/hero-background.png') center/cover no-repeat;
+}
+#hero h1, #hero p {
+  margin: 0; padding: 0;
+  font-family: 'Press Start 2P', monospace;
+  color: #0f0;
+}
+#hero button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: #020;
+  border: 2px solid #0f0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #0f0;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+
+/* UI Overlay Container */
+#gb-ui {
+  position: absolute;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  display: none;   /* hide on Hero screen */
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none; /* canvas still gets drag/zoom */
+}
+
+/* Panels (top HUD + status) */
+.panel {
+  background: rgba(0, 40, 0, 0.5);
+  border: 2px solid #0f0;
+  border-radius: 6px;
+  backdrop-filter: blur(6px);
+  padding: 8px;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.info {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+/* Top HUD row */
+#top-hud {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Status panel (hidden until setStatus) */
+#status-panel {
+  position: absolute;       /* remove it from the flow */
+  top: 50%; left: 50%;      /* center in the viewport */
+  transform: translate(-50%, -50%);
+  z-index: 1000;            /* higher than all other UI elements */
+  background: rgba(0, 40, 0, 0.8);  /* you can restyle if you like */
+  border: 2px solid #0f0;
+  border-radius: 6px;
+  padding: 8px 16px;
+  visibility: hidden;       /* stays hidden until you call setStatus */
+  pointer-events: none;     /* so clicks still go to the buttons/canvas */
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* Bottom HUD buttons */
+#bottom-hud {
+  display: flex;
+  justify-content: space-around;
+  pointer-events: none;
+}
+.gb-btn {
+  pointer-events: auto;       /* enable click */
+  background: rgba(0, 20, 0, 0.7);
+  border: 2px solid #0f0;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: #0f0;
+  cursor: pointer;
+  transition: background 0.1s;
+  image-rendering: pixelated;
+}
+.gb-btn:active {
+  background: rgba(0, 20, 0, 1);
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  background: rgba(0, 40, 0, 0.8);
+  border: 1px solid #0f0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #0f0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: nowrap;
+  z-index: 100;
+}

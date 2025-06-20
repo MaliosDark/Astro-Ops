@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Astro Ops</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="style.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<style>
+  /* 2) Make canvas fill the screen */
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+  }
+  #myCanvas {
+    display: block;          /* remove inline gaps */
+    width: 100vw;            /* full viewport width */
+    height: 100vh;           /* full viewport height */
+    touch-action: none;      /* disable default gestures */
+  }
+</style>
+<body>
+  <!-- Hero Screen -->
+  <div id="hero">
+    <h1>ASTRO OPS</h1>
+    <p>Explore. Raid. Earn.</p>
+    <button id="connect-btn">CONNECT WALLET</button>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- UI Overlay injected here -->
+  <div id="gb-ui">
+    <div id="top-hud">
+      <div class="panel info" id="wallet-info">Wallet: <span id="wallet-id">—</span></div>
+      <div class="panel info" id="balance-info">AT: <span id="balance-val">0</span></div>
+    </div>
+    <div class="panel info" id="status-panel">Status: <span id="status-msg"></span></div>
+    <div id="bottom-hud">
+      <button class="gb-btn" id="btn-mission" data-tip="Send your ship on a mission">MISSION</button>
+      <button class="gb-btn" id="btn-upgrade" data-tip="Upgrade your ship">UPGRADE</button>
+      <button class="gb-btn" id="btn-raid"    data-tip="Raid another player">RAID</button>
+      <button class="gb-btn" id="btn-claim"   data-tip="Claim AT">CLAIM</button>
+      <button class="gb-btn" id="btn-help"    data-tip="How to Play">HELP</button>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="tooltip" class="tooltip"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

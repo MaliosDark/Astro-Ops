@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Astro Ops – How to Play</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Pixel font -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      height: 100vh; width: 100vw;
+      background: #0a0a1a;
+      font-family: 'Press Start 2P', monospace;
+      color: #0cf;
+      display: flex; justify-content: center; align-items: center;
+      overflow-y: auto;
+    }
+    .container {
+      width: 90%; max-width: 900px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      padding: 16px;
+    }
+    .panel {
+      background: rgba(0, 20, 20, 0.6);
+      border: 2px solid #0cf;
+      border-radius: 8px;
+      backdrop-filter: blur(6px);
+      padding: 16px;
+    }
+    h1 {
+      text-align: center;
+      color: #fc0;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 8px 0;
+      color: #f60;
+      display: flex; align-items: center; gap: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 16px;
+    }
+    th, td {
+      border: 2px solid #0cf;
+      padding: 6px;
+      text-align: center;
+      font-size: 12px;
+    }
+    th {
+      background: rgba(0, 40, 40, 0.8);
+    }
+    tr:nth-child(odd) td {
+      background: rgba(0, 20, 20, 0.5);
+    }
+    ul { 
+      list-style: none; padding-left: 0;
+      font-size: 12px; line-height: 1.4;
+    }
+    ul li { margin: 4px 0; }
+    .sprite-row {
+      display: flex; gap: 12px; align-items: center;
+      margin-bottom: 8px;
+    }
+    .sprite-row img {
+      image-rendering: pixelated;
+      width: 32px; height: 32px;
+    }
+    .small-img {
+      image-rendering: pixelated;
+      width: 20px; height: 20px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Astro Ops – How to Play</h1>
+
+    <!-- 1. Ships & Missions -->
+    <div class="panel">
+      <h2><img src="./assets/ship.png" alt="Ship" class="small-img"/>1. Ships & Missions</h2>
+      <p>Buy a ship for <strong>15 USDC</strong> to start playing. Send your ship on one of the following missions:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Mission</th><th>Success Chance</th><th>AT Rewards</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Mining Run</td><td>90%</td><td>10 AT</td></tr>
+          <tr><td>Black Market</td><td>70%</td><td>30 AT</td></tr>
+          <tr><td>Artifact Hunt</td><td>50%</td><td>60 AT</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li>Each ship has an 8-hour cooldown per mission.</li>
+        <li>If the mission fails, you receive 0 AT.</li>
+      </ul>
+    </div>
+
+    <!-- 2. Mission Modes -->
+    <div class="panel">
+      <h2><img src="./assets/object.png" alt="Modes" class="small-img"/>2. Mission Modes</h2>
+      <ul>
+        <li><strong>Shielded Mode:</strong> Cannot be raided, but gives reduced AT yield (e.g., 80% payout).</li>
+        <li><strong>Unshielded Mode:</strong> Full AT yield, but can be raided.</li>
+        <li><strong>Decoy Mode:</strong> No AT earned, but if raided, the attacker is punished (loses rep or energy; defender gains bonus AT).</li>
+      </ul>
+    </div>
+
+    <!-- 3. Upgrades -->
+    <div class="panel">
+      <h2><img src="./assets/building.png" alt="Upgrades" class="small-img"/>3. Upgrades</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Level</th><th>Reward Bonus</th><th>Cooldown</th><th>Upgrade Cost</th><th>Cumulative AT Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Base (1.0×)</td><td>8 h</td><td>–</td><td>0 AT</td></tr>
+          <tr><td>2</td><td>+10% (1.1×)</td><td>7.5 h</td><td>50 AT</td><td>50 AT</td></tr>
+          <tr><td>3</td><td>+20% (1.2×)</td><td>7 h</td><td>100 AT</td><td>150 AT</td></tr>
+          <tr><td>4</td><td>+30% (1.3×)</td><td>6.5 h</td><td>150 AT</td><td>300 AT</td></tr>
+          <tr><td>5</td><td>+45% (1.45×)</td><td>6 h</td><td>225 AT</td><td>525 AT</td></tr>
+          <tr><td>6</td><td>+60% (1.6×)</td><td>5.5 h</td><td>300 AT</td><td>825 AT</td></tr>
+          <tr><td>7</td><td>+80% (1.8×)</td><td>5 h</td><td>400 AT</td><td>1,225 AT</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. Raiding Missions -->
+    <div class="panel">
+      <h2><img src="./assets/object1.png" alt="Raid" class="small-img"/>4. Raiding Missions</h2>
+      <ul>
+        <li>Use your energy (off-chain mechanic) to scan for active missions.</li>
+        <li>Choose a target (you’ll see mission type and reward tier).</li>
+        <li>Attempt a raid:
+          <ul>
+            <li><strong>Unshielded:</strong> Steal the full AT reward.</li>
+            <li><strong>Shielded:</strong> Raid fails — no reward.</li>
+            <li><strong>Decoy:</strong> You get penalized; defender gains bonus AT.</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <!-- 5. Strategy & Progression -->
+    <div class="panel">
+      <h2><img src="./assets/ship.png" alt="Strategy" class="small-img"/>5. Strategy & Progression</h2>
+      <ul>
+        <li>Time your unshielded missions for off-peak hours to reduce risk.</li>
+        <li>Upgrade key ships to farm faster and dominate raiding.</li>
+        <li>Bluff with decoys to trap greedy players.</li>
+        <li>Compete on leaderboards for:
+          <ul>
+            <li>Most AT earned</li>
+            <li>Most successful raids</li>
+            <li>Best decoy defenses</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

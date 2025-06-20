@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Astro Ops UI Overlay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Pixel font -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* full-screen, transparent overlay */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      background: transparent;
+      overflow: hidden;
+      pointer-events: none;  /* allow clicks on canvas behind */
+    }
+
+    /* main UI container: no z-index here */
+    #gb-ui {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: calc(100% - 16px);
+      height: calc(100% - 16px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-family: 'Press Start 2P', monospace;
+      color: #0f0;
+      pointer-events: none;  /* container ignores clicks */
+    }
+
+    /* glass-panel style for info boxes */
+    .panel {
+      background: rgba(0, 40, 0, 0.5);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      backdrop-filter: blur(6px);
+      padding: 8px;
+      box-sizing: border-box;
+      pointer-events: none;  /* panels ignore clicks */
+    }
+
+    /* top HUD row: wallet & balance */
+    #top-hud {
+      display: flex;
+      justify-content: space-between;
+    }
+    .info {
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    /* status panel: fixed to viewport, highest z-index */
+    #status-panel {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 40, 0, 0.8);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-family: 'Press Start 2P', monospace;
+      color: #0f0;
+      pointer-events: none;
+      visibility: hidden;
+      z-index: 9999;  /* above everything */
+    }
+
+    /* bottom HUD row: buttons container */
+    #bottom-hud {
+      display: flex;
+      justify-content: space-around;
+      pointer-events: none;  /* row ignores clicks */
+    }
+
+    /* buttons: clickable */
+    .gb-btn {
+      pointer-events: auto;  /* enable clicks */
+      background: rgba(0, 20, 0, 0.7);
+      border: 2px solid #0f0;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #0f0;
+      cursor: pointer;
+      font-family: 'Press Start 2P', monospace;
+      user-select: none;
+      transition: background 0.1s;
+    }
+    .gb-btn:active {
+      background: rgba(0, 20, 0, 1);
+    }
+
+    /* tooltip */
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 40, 0, 0.8);
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-family: 'Press Start 2P', monospace;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      visibility: hidden;
+      z-index: 10000;  /* above the status panel */
+    }
+  </style>
+</head>
+<body>
+  <div id="gb-ui">
+    <!-- Top HUD: Wallet & Balance -->
+    <div id="top-hud">
+      <div class="panel info" id="wallet-info">
+        Wallet: <span id="wallet-id">—</span>
+      </div>
+      <div class="panel info" id="balance-info">
+        AT: <span id="balance-val">0</span>
+      </div>
+    </div>
+
+    <!-- Status Panel: fixed, always on top -->
+    <div id="status-panel">Status: <span id="status-msg"></span></div>
+
+    <!-- Bottom HUD: Action Buttons -->
+    <div id="bottom-hud">
+      <button class="gb-btn" id="btn-mission" data-tip="Send your ship on a mission">MISSION</button>
+      <button class="gb-btn" id="btn-upgrade" data-tip="Upgrade your ship">UPGRADE</button>
+      <button class="gb-btn" id="btn-raid"    data-tip="Raid another player">RAID</button>
+      <button class="gb-btn" id="btn-claim"   data-tip="Claim accumulated AT">CLAIM</button>
+      <button class="gb-btn" id="btn-help"    data-tip="How to Play">HOW TO PLAY</button>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="tooltip"></div>
+
+  <script>
+    // Tooltip handling
+    const tooltip = document.getElementById('tooltip');
+    document.querySelectorAll('.gb-btn').forEach(btn => {
+      btn.addEventListener('mousemove', e => {
+        const tip = btn.getAttribute('data-tip');
+        tooltip.textContent = tip;
+        tooltip.style.top        = (e.clientY + 10) + 'px';
+        tooltip.style.left       = (e.clientX + 10) + 'px';
+        tooltip.style.visibility = 'visible';
+      });
+      btn.addEventListener('mouseleave', () => {
+        tooltip.style.visibility = 'hidden';
+      });
+    });
+
+    // AstroUI API
+    window.AstroUI = {
+      setWallet(id) {
+        document.getElementById('wallet-id').textContent = id;
+      },
+      setBalance(at) {
+        document.getElementById('balance-val').textContent = at.toFixed(1);
+      },
+      setStatus(msg) {
+        const panel = document.getElementById('status-panel');
+        const span  = document.getElementById('status-msg');
+        span.textContent = msg;
+        if (msg) {
+          panel.style.visibility = 'visible';
+          clearTimeout(panel._hide);
+          panel._hide = setTimeout(() => {
+            panel.style.visibility = 'hidden';
+          }, 3000);
+        } else {
+          panel.style.visibility = 'hidden';
+        }
+      },
+      onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },
+      onUpgrade(fn)  { document.getElementById('btn-upgrade').onclick = fn; },
+      onRaid(fn)     { document.getElementById('btn-raid').onclick    = fn; },
+      onClaim(fn)    { document.getElementById('btn-claim').onclick   = fn; },
+      onHelp(fn)     { document.getElementById('btn-help').onclick    = fn; },
+    };
+  </script>
+</body>
+</html>

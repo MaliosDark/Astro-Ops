@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Astro Ops – Claim Rewards</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Pixel font -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      margin:0; padding:0;
+      width:100vw; height:100vh;
+      background:#000;
+      font-family:'Press Start 2P',monospace;
+      color:#0f0;
+      display:flex; align-items:center; justify-content:center;
+      image-rendering:pixelated;
+    }
+    .window {
+      background:rgba(20,0,20,0.8);
+      border:4px solid #f0a;
+      border-radius:8px;
+      padding:20px;
+      width:80%; max-width:500px;
+      box-sizing:border-box;
+      backdrop-filter:blur(4px);
+    }
+    h1 {
+      margin:0 0 12px;
+      font-size:20px;
+      text-align:center;
+      color:#f0a;
+    }
+    .sprite {
+      display:block;
+      margin:0 auto 12px;
+      width:48px; height:48px;
+      image-rendering:pixelated;
+    }
+    p {
+      font-size:14px;
+      line-height:1.5;
+      margin:0 0 12px;
+    }
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin-bottom:12px;
+      font-size:12px;
+    }
+    th, td {
+      border:2px solid #f0a;
+      padding:4px 6px;
+      text-align:left;
+    }
+    th {
+      background:rgba(60,0,60,0.8);
+      color:#f0a;
+    }
+    tr:nth-child(odd) td {
+      background:rgba(40,0,40,0.5);
+    }
+    tr:nth-child(even) td {
+      background:rgba(60,0,60,0.3);
+    }
+    .total {
+      text-align:right;
+      font-size:14px;
+      margin:0 0 12px;
+      color:#ff0;
+    }
+    button#claim-button {
+      display:block;
+      margin:0 auto;
+      background:rgba(0,20,0,0.7);
+      border:2px solid #0f0;
+      border-radius:4px;
+      padding:8px 16px;
+      font-family:'Press Start 2P',monospace;
+      font-size:14px;
+      color:#0f0;
+      cursor:pointer;
+      image-rendering:pixelated;
+      transition:background .1s, color .1s;
+    }
+    button#claim-button:active {
+      background:rgba(0,20,0,1);
+      color:#000;
+    }
+    #claim-status {
+      margin-top:12px;
+      height:16px;
+      text-align:center;
+      font-size:12px;
+      color:#2df;
+      white-space:nowrap;
+      overflow:hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <h1>CLAIM AT REWARDS</h1>
+    <img src="assets/ship.png" alt="Ship" class="sprite">
+
+    <p>Your pending rewards:</p>
+    <table>
+      <thead>
+        <tr><th>Source</th><th>Pending AT</th></tr>
+      </thead>
+      <tbody id="pending-body">
+        <!-- filled by JS -->
+      </tbody>
+    </table>
+    <div class="total">Total: <span id="pending-total">0</span> AT</div>
+
+    <button id="claim-button">CLAIM YOUR AT</button>
+    <div id="claim-status"></div>
+  </div>
+  <script type="module" src="./claim.js"></script>
+</body>
+</html>
