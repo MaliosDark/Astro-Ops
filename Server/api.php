@@ -354,6 +354,12 @@ switch ($action) {
       // USER PROFILE
       case 'user_profile':
         AntiCheat::validateRequestOrigin();
+        
+        // Ensure we have a valid user
+        if (!$me || !$me['userId']) {
+          jsonErr('User not authenticated', 401);
+        }
+        
         $stmt = $pdo->prepare("
           SELECT u.id, u.public_key, u.created_at, u.last_login,
                  u.total_missions, u.total_raids_won, u.total_kills,
