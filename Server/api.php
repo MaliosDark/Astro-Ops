@@ -270,6 +270,62 @@ function requireAuth(PDO $pdo): array {
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
 }
 
+// Battle simulation for raids
+function simulateRaidBattle($attacker, $defender, $raidType) {
+  $attackPower = $attacker['attack_power'] ?? 100;
+  $defensePower = $defender['defense_power'] ?? 100;
+  $attackerLevel = $attacker['level'] ?? 1;
+  $defenderLevel = $defender['ship_level'] ?? 1;
+  
+  // Raid type modifiers
+  $typeModifiers = [
+    'Quick' => ['attack' => 1.0, 'stealth' => 0.8, 'duration' => 30],
+    'Stealth' => ['attack' => 0.9, 'stealth' => 1.3, 'duration' => 45],
+    'Assault' => ['attack' => 1.2, 'stealth' => 0.6, 'duration' => 60]
+  ];
+  
+  $modifier = $typeModifiers[$raidType] ?? $typeModifiers['Quick'];
+  
+  // Calculate battle factors
+  $attackScore = ($attackPower * $attackerLevel * $modifier['attack']) + mt_rand(0, 50);
+  $defenseScore = ($defensePower * $defenderLevel) + mt_rand(0, 50);
+  
+  // Stealth factor affects detection
+  $stealthSuccess = (mt_rand(1, 100) / 100) < $modifier['stealth'];
+  if ($stealthSuccess) {
+    $attackScore *= 1.2; // Stealth bonus
+  }
+  
+  $success = $attackScore > $defenseScore;
+  $damageDealt = max(0, $attackScore - $defenseScore);
+  $damageReceived = max(0, $defenseScore - $attackScore);
+  
+  // Loot multiplier based on battle performance
+  $lootMultiplier = 0.5; // Base 50% if barely won
+  if ($success) {
+    $dominance = $attackScore / max($defenseScore, 1);
+    $lootMultiplier = min(1.0, 0.3 + ($dominance * 0.4));
+  }
+  
+  return [
+    'success' => $success,
+    'damage_dealt' => $damageDealt,
+    'damage_received' => $damageReceived,
+    'duration' => $modifier['duration'] + mt_rand(-10, 10),
+    'loot_multiplier' => $lootMultiplier,
+    'stealth_success' => $stealthSuccess,
+    'attack_score' => $attackScore,
+    'defense_score' => $defenseScore
+  ];
+}
+
+// Update player rating with bounds checking
+function updatePlayerRating(PDO $pdo, int $userId, int $change) {
+  $pdo->prepare("
+    INSERT INTO player_stats (user_id, overall_rating) VALUES (?, 1000 + ?)
+    ON DUPLICATE KEY UPDATE overall_rating = GREATEST(500, LEAST(3000, overall_rating + ?))
+  ")->execute([$userId, $change, $change]);
+}
 
 /** ================= Routing ================= **/
 $action = $_GET['action'] ?? '';
@@ -483,171 +539,46 @@ switch ($action) {
         AntiCheat::validateJsonPayload();
         $b = getJson();
         $mid = intval($b['mission_id'] ?? 0);
-        $raidType = $b['raid_type'] ?? 'Quick'; // Quick, Stealth, Assault
         if (!$mid) jsonErr('mission_id required', 400);
 
         $pdo->beginTransaction();
           // lock mission
-          $stmt = $pdo->prepare("
-            SELECT m.*, s.level as ship_level, s.attack_power, s.defense_power,
-                   ps.overall_rating as defender_rating, ps.raids_defended
-            FROM missions m
-            JOIN ships s ON m.ship_id = s.id
-            LEFT JOIN player_stats ps ON m.user_id = ps.user_id
-            WHERE m.id = ? FOR UPDATE
-          ");
+          $stmt = $pdo->prepare("SELECT * FROM missions WHERE id = ? FOR UPDATE");
           $stmt->execute([$mid]);
           $m = $stmt->fetch(PDO::FETCH_ASSOC);
           if (!$m) jsonErr('Mission not found', 404);
           if ($m['raided']) jsonErr('Already raided', 400);
-          if ($m['user_id'] == $me['userId']) jsonErr('Cannot raid yourself', 400);
-          
-          // Get attacker stats
-          $attackerStats = $pdo->prepare("
-            SELECT ps.overall_rating, ps.raid_rating, s.level, s.attack_power, s.defense_power
-            FROM player_stats ps
-            JOIN ships s ON ps.user_id = s.user_id
-            WHERE ps.user_id = ?
-          ");
-          $attackerStats->execute([$me['userId']]);
-          $attacker = $attackerStats->fetch(PDO::FETCH_ASSOC);
-          
-          $attackerRating = $attacker['overall_rating'] ?? 1000;
-          $defenderRating = $m['defender_rating'] ?? 1000;
-          
           if ($m['mode'] === 'Shielded') {
             // penalize
             $pdo->prepare("UPDATE reputation SET rep = GREATEST(rep-10,0) WHERE user_id = ?")
                 ->execute([$me['userId']]);
-            
-            // Update failed raid stats
-            $pdo->prepare("
-              INSERT INTO player_stats (user_id, raids_initiated) VALUES (?, 1)
-              ON DUPLICATE KEY UPDATE raids_initiated = raids_initiated + 1
-            ")->execute([$me['userId']]);
-            
             jsonErr('Shielded: cannot raid (–10 rep)', 400);
           }
-          
-          // Simulate battle based on ship stats and raid type
-          $battleResult = simulateRaidBattle(
-            $attacker, 
-            ['rating' => $defenderRating, 'ship_level' => $m['ship_level'], 'defense_power' => $m['defense_power']], 
-            $raidType
-          );
-          
-          if (!$battleResult['success']) {
-            // Raid failed - defender wins
-            $pdo->prepare("
-              INSERT INTO player_stats (user_id, raids_initiated) VALUES (?, 1)
-              ON DUPLICATE KEY UPDATE raids_initiated = raids_initiated + 1
-            ")->execute([$me['userId']]);
-            
-            $pdo->prepare("
-              INSERT INTO player_stats (user_id, raids_defended) VALUES (?, 1)
-              ON DUPLICATE KEY UPDATE raids_defended = raids_defended + 1
-            ")->execute([$m['user_id']]);
-            
-            // Record raid history
-            $pdo->prepare("
-              INSERT INTO raid_history (
-                attacker_id, defender_id, mission_id, raid_type, success,
-                damage_dealt, damage_received, battle_duration,
-                attacker_rating_before, attacker_rating_after,
-                defender_rating_before, defender_rating_after
-              ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)
-            ")->execute([
-              $me['userId'], $m['user_id'], $mid, $raidType,
-              $battleResult['damage_dealt'], $battleResult['damage_received'],
-              $battleResult['duration'], $attackerRating, $attackerRating - 25,
-              $defenderRating, $defenderRating + 15
-            ]);
-            
-            // Update ratings
-            updatePlayerRating($pdo, $me['userId'], -25);
-            updatePlayerRating($pdo, $m['user_id'], 15);
-            
-            $pdo->commit();
-            jsonErr('Raid failed! Defender repelled the attack.', 400);
-          }
 
-          // Raid successful - calculate loot
-          $baseLoot = $m['actual_reward'] ?? $m['base_reward'];
-          $lootMultiplier = $battleResult['loot_multiplier'];
-          $stolen = floor($baseLoot * $lootMultiplier);
-          
+          // steal reward
+          $stolen = $m['reward'];
           $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ? FOR UPDATE");
           $stmt->execute([$me['userId']]);
           $ship = $stmt->fetch(PDO::FETCH_ASSOC);
           if (!$ship) jsonErr('No ship', 400);
           $newBR = $ship['br_balance'] + $stolen;
 
-          // Update balances & mark raided
+          // update balances & mark raided
           $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?")
               ->execute([$newBR, $ship['id']]);
           $pdo->prepare("
             UPDATE missions
-               SET raided = 1, raided_by = ?, ts_raid = ?, raid_damage = ?
+               SET raided = 1, raided_by = ?, ts_raid = ?
              WHERE id = ?
-          ")->execute([$me['userId'], time(), $battleResult['damage_dealt'], $mid]);
+          ")->execute([$me['userId'], time(), $mid]);
           
-          // Update player stats
-          $pdo->prepare("
-            INSERT INTO player_stats (user_id, raids_initiated, raids_successful, total_br_earned)
-            VALUES (?, 1, 1, ?)
-            ON DUPLICATE KEY UPDATE 
-              raids_initiated = raids_initiated + 1,
-              raids_successful = raids_successful + 1,
-              total_br_earned = total_br_earned + ?
-          ")->execute([$me['userId'], $stolen, $stolen]);
-          
-          $pdo->prepare("
-            INSERT INTO player_stats (user_id, raids_lost_defense)
-            VALUES (?, 1)
-            ON DUPLICATE KEY UPDATE raids_lost_defense = raids_lost_defense + 1
-          ")->execute([$m['user_id']]);
-          
-          // Record successful raid history
-          $pdo->prepare("
-            INSERT INTO raid_history (
-              attacker_id, defender_id, mission_id, raid_type, success, loot_stolen,
-              damage_dealt, damage_received, battle_duration,
-              attacker_rating_before, attacker_rating_after,
-              defender_rating_before, defender_rating_after
-            ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
-          ")->execute([
-            $me['userId'], $m['user_id'], $mid, $raidType, $stolen,
-            $battleResult['damage_dealt'], $battleResult['damage_received'],
-            $battleResult['duration'], $attackerRating, $attackerRating + 30,
-            $defenderRating, $defenderRating - 20
-          ]);
-          
-          // Update ratings
-          updatePlayerRating($pdo, $me['userId'], 30);
-          updatePlayerRating($pdo, $m['user_id'], -20);
-          
-          // Remove from raid pool
-          $pdo->prepare("UPDATE raid_pool SET is_active = 0 WHERE mission_id = ?")
-              ->execute([$mid]);
-          
-          // Create notification for defender
-          $pdo->prepare("
-            INSERT INTO game_events (user_id, event_type, title, message, related_user_id, reward_amount)
-            VALUES (?, 'raid_incoming', 'Your mission was raided!', 
-                    'Your mission was successfully raided. You lost ? BR.', ?, ?)
-          ")->execute([$m['user_id'], $stolen, $me['userId'], $stolen]);
-          
-          // Trigger defense battle for the target player
-          // This would be handled by real-time notifications in a production game
+          // Opcional: Notificar al jugador objetivo que fue raideado
+          // En un juego real, esto podría activar una batalla defensiva
+          // o enviar una notificación push
           
         $pdo->commit();
 
-        echo json_encode([
-          'stolen' => $stolen,
-          'br_balance' => $newBR,
-          'battle_result' => $battleResult,
-          'rating_change' => 30
-        ]);
+        echo json_encode(['stolen'=>$stolen,'br_balance'=>$newBR]);
         exit;
 
 

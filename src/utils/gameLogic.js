@@ -295,12 +295,12 @@ export async function performUpgrade(level) {
 /**
  * Perform raid on another player's mission - EXACTLY like original
  */
-export async function performRaid(missionId) {
+export async function performRaid(missionId, raidType = 'Quick') {
   try {
     // Crear transición de raid con animaciones completas
     await createRaidTransition(async () => {
       // Lógica del raid dentro de la transición
-      const { stolen, br_balance } = await apiService.raidMission(missionId);
+      const result = await apiService.raidMission(missionId, raidType);
       
       // Simular que el jugador objetivo inicia una batalla defensiva
       // (esto sería manejado por el servidor en un juego real)
@@ -312,11 +312,11 @@ export async function performRaid(missionId) {
       }
       
       if (window.AstroUI) {
-        window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
-        window.AstroUI.setBalance(br_balance);
+        window.AstroUI.setStatus(`Raid successful! Stolen ${result.stolen} BR (+${result.rating_change} rating)`);
+        window.AstroUI.setBalance(result.br_balance);
       }
       
-      return { stolen, br_balance };
+      return result;
     });
   } catch (error) {
     console.error('Raid failed:', error);
@@ -344,16 +344,16 @@ export async function getPlayerEnergy() {
  */
 export async function scanForRaids() {
   try {
-    const { missions, remainingEnergy } = await apiService.scanForRaids();
+    const scanResult = await apiService.scanForRaids();
     
     if (window.AstroUI) {
-      window.AstroUI.setEnergy(remainingEnergy);
+      window.AstroUI.setEnergy(scanResult.remainingEnergy);
     }
     
-    return missions;
+    return scanResult;
   } catch (error) {
     console.error('Scan for raids error:', error);
-    return [];
+    return { missions: [], remainingEnergy: 10 };
   }
 }
 

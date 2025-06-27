@@ -280,10 +280,13 @@ class ApiService {
   /**
    * Raid mission
    */
-  async raidMission(missionId) {
+  async raidMission(missionId, raidType = 'Quick') {
     return await this.request('/api.php?action=raid_mission', {
       method: 'POST',
-      body: JSON.stringify({ mission_id: missionId })
+      body: JSON.stringify({ 
+        mission_id: missionId,
+        raid_type: raidType
+      })
     });
   }
 
