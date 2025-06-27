@@ -9,6 +9,37 @@ import ENV from '../config/environment.js';
 const encoder = new TextEncoder();
 
 /**
+ * Re-authenticate wallet when JWT expires
+ */
+async function reAuthenticate() {
+  try {
+    const connectedWallet = walletService.getConnectedWallet();
+    if (!connectedWallet) {
+      throw new Error('No wallet connected for re-authentication');
+    }
+
+    if (ENV.DEBUG_MODE) {
+      console.log('🔄 Re-authenticating wallet...');
+    }
+
+    const publicKey = connectedWallet.publicKey.toString();
+    const token = await authenticateWallet(publicKey, connectedWallet.provider.signMessage);
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('✅ Re-authentication successful');
+    }
+    
+    return token;
+  } catch (error) {
+    console.error('❌ Re-authentication failed:', error);
+    throw error;
+  }
+}
+
+// Expose re-authentication function globally for API service
+window.triggerReAuthentication = reAuthenticate;
+
+/**
  * Función mejorada para convertir diferentes tipos de firma a base64
  */
 function signatureToBase64(signature) {
