@@ -31,6 +31,12 @@ function App() {
     try {
       setIsLoading(true);
       const resp = await provider.connect();
+      
+      // Validate response and publicKey
+      if (!resp || !resp.publicKey) {
+        throw new Error('Wallet connection was cancelled or failed to return a public key');
+      }
+      
       const publicKey = resp.publicKey.toString();
       
       // Authenticate with the server
