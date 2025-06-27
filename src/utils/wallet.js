@@ -27,8 +27,7 @@ export async function connectWallet() {
     alert(
       'No Solana wallet detected.\n' +
       'Ensure you\'re on HTTPS (or http://localhost) and have Phantom, Solflare, Glow, etc. installed.'
-          );
-    )
+    );
     return null;
   }
 
