@@ -20,12 +20,20 @@ const encoder = new TextEncoder();
 
 // Función para convertir Uint8Array a base64 sin Buffer
 function uint8ArrayToBase64(uint8Array) {
+  // Ensure we have a Uint8Array
+  if (!(uint8Array instanceof Uint8Array)) {
+    console.warn('Converting non-Uint8Array to base64:', typeof uint8Array);
+    uint8Array = new Uint8Array(uint8Array);
+  }
+  
   let binary = '';
   const len = uint8Array.byteLength;
   for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(uint8Array[i]);
   }
-  return btoa(binary);
+  const result = btoa(binary);
+  console.log('🔧 Converted signature to base64, length:', result.length);
+  return result;
 }
 
 // JWT will be set after authentication
@@ -63,20 +71,28 @@ export async function authenticateWallet(publicKey, signMessage) {
     const encoded = encoder.encode(nonce);
     const signature = await signMessage(encoded);
     const signatureB64 = uint8ArrayToBase64(signature);
-    console.log('✅ Signed nonce');
+    console.log('✅ Signed nonce, signature length:', signatureB64.length);
 
     // 3. Login with signature
+    const loginPayload = {
+      publicKey,
+      nonce,
+      signature: signatureB64
+    };
+    
+    console.log('📤 Sending login payload:', {
+      publicKey,
+      nonce,
+      signatureLength: signatureB64.length
+    });
+    
     const loginResponse = await fetch(`${API_BASE_URL}/api.php?action=auth/login`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        publicKey,
-        nonce,
-        signature: signatureB64
-      })
+      body: JSON.stringify(loginPayload)
     });
 
     console.log('📡 Login response status:', loginResponse.status);
@@ -84,6 +100,7 @@ export async function authenticateWallet(publicKey, signMessage) {
     if (!loginResponse.ok) {
       const errorText = await loginResponse.text();
       console.error('❌ Login error:', errorText);
+      console.error('❌ Login payload was:', loginPayload);
       throw new Error(`Authentication failed: ${loginResponse.status} ${errorText}`);
     }
 
