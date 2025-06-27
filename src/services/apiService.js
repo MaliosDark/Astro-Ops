@@ -9,8 +9,8 @@ import ENV from '../config/environment.js';
 class ApiService {
   constructor() {
     this.jwt = null;
-    this.baseURL = ENV.API_BASE_URL;
-    this.verifyURL = ENV.VERIFY_API_URL;
+    this.baseURL = 'https://api.bonkraiders.com';
+    this.verifyURL = 'https://verify.bonkraiders.com';
   }
 
   /**

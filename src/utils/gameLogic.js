@@ -125,7 +125,7 @@ export async function authenticateWallet(publicKey, signMessage) {
   try {
     if (ENV.DEBUG_MODE) {
       console.log('🔐 Starting authentication for:', publicKey);
-      console.log('🔐 Using API URL:', ENV.API_BASE_URL);
+      console.log('🔐 Using API URL: https://api.bonkraiders.com');
     }
     
     // 1. Get nonce from API service
