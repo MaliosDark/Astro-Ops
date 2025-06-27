@@ -11,7 +11,7 @@ export const ENV = {
   SOLANA_NETWORK: import.meta.env.VITE_SOLANA_NETWORK || 'mainnet-beta',
   
   // Game Token Configuration
-  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'PCYfGh9AECbJ8QHnRhMtR84h4GFmLLtRZm1HEELbonk',
+  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
   PARTICIPATION_FEE: parseInt(import.meta.env.VITE_PARTICIPATION_FEE) || 500,
   
   // Ship Purchase (in SOL equivalent to 15 USDC)
