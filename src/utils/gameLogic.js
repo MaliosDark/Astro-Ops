@@ -36,28 +36,42 @@ window._jwt = null;
  */
 export async function authenticateWallet(publicKey, signMessage) {
   try {
+    console.log('🔐 Starting authentication for:', publicKey);
+    
     // 1. Get nonce
     const nonceResponse = await fetch(`${API_BASE_URL}/api.php?action=auth/nonce`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify({ publicKey })
     });
     
+    console.log('📡 Nonce response status:', nonceResponse.status);
+    
     if (!nonceResponse.ok) {
-      throw new Error('Failed to get nonce');
+      const errorText = await nonceResponse.text();
+      console.error('❌ Nonce error:', errorText);
+      throw new Error(`Failed to get nonce: ${nonceResponse.status} ${errorText}`);
     }
     
     const { nonce } = await nonceResponse.json();
+    console.log('✅ Got nonce:', nonce);
 
     // 2. Sign the nonce
     const encoded = encoder.encode(nonce);
     const signature = await signMessage(encoded);
     const signatureB64 = uint8ArrayToBase64(signature);
+    console.log('✅ Signed nonce');
 
     // 3. Login with signature
     const loginResponse = await fetch(`${API_BASE_URL}/api.php?action=auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
       body: JSON.stringify({
         publicKey,
         nonce,
@@ -65,12 +79,17 @@ export async function authenticateWallet(publicKey, signMessage) {
       })
     });
 
+    console.log('📡 Login response status:', loginResponse.status);
+    
     if (!loginResponse.ok) {
-      throw new Error('Authentication failed');
+      const errorText = await loginResponse.text();
+      console.error('❌ Login error:', errorText);
+      throw new Error(`Authentication failed: ${loginResponse.status} ${errorText}`);
     }
 
     const { token } = await loginResponse.json();
     window._jwt = token;
+    console.log('✅ Authentication successful');
     
     return token;
   } catch (error) {
