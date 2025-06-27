@@ -12,6 +12,22 @@ import {
   PARTICIPATION_FEE 
 } from './solanaTransactions';
 
+// API configuration
+const API_BASE_URL = 'http://localhost:8000/api.php';
+
+// Usar TextEncoder nativo del navegador
+const encoder = new TextEncoder();
+
+// Función para convertir Uint8Array a base64 sin Buffer
+function uint8ArrayToBase64(uint8Array) {
+  let binary = '';
+  const len = uint8Array.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  return btoa(binary);
+}
+
 // JWT will be set after authentication
 window._jwt = null;
 
@@ -21,7 +37,7 @@ window._jwt = null;
 export async function authenticateWallet(publicKey, signMessage) {
   try {
     // 1. Get nonce
-    const nonceResponse = await fetch('https://api.bonkraiders.com/api.php?action=auth/nonce', {
+    const nonceResponse = await fetch(`${API_BASE_URL}?action=auth/nonce`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publicKey })
@@ -34,12 +50,12 @@ export async function authenticateWallet(publicKey, signMessage) {
     const { nonce } = await nonceResponse.json();
 
     // 2. Sign the nonce
-    const encoded = new TextEncoder().encode(nonce);
+    const encoded = encoder.encode(nonce);
     const signature = await signMessage(encoded);
-    const signatureB64 = Buffer.from(signature).toString('base64');
+    const signatureB64 = uint8ArrayToBase64(signature);
 
     // 3. Login with signature
-    const loginResponse = await fetch('https://api.bonkraiders.com/api.php?action=auth/login', {
+    const loginResponse = await fetch(`${API_BASE_URL}?action=auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -68,7 +84,7 @@ export async function authenticateWallet(publicKey, signMessage) {
  */
 export async function buyShip() {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=buy_ship', {
+    const response = await fetch(`${API_BASE_URL}?action=buy_ship`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +146,7 @@ export async function startMission(type, mode = 'Unshielded') {
     
     await animateRaidTo(type);
 
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=send_mission', {
+    const response = await fetch(`${API_BASE_URL}?action=send_mission`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -179,7 +195,7 @@ export async function startMission(type, mode = 'Unshielded') {
  */
 export async function performUpgrade(level) {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=upgrade_ship', {
+    const response = await fetch(`${API_BASE_URL}?action=upgrade_ship`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,7 +230,7 @@ export async function performUpgrade(level) {
  */
 export async function performRaid(missionId) {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=raid_mission', {
+    const response = await fetch(`${API_BASE_URL}?action=raid_mission`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -249,7 +265,7 @@ export async function performRaid(missionId) {
  */
 export async function performClaim() {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=claim_rewards', {
+    const response = await fetch(`${API_BASE_URL}?action=claim_rewards`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -283,7 +299,7 @@ export async function performClaim() {
  */
 export async function getMissionsForRaid() {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=list_missions', {
+    const response = await fetch(`${API_BASE_URL}?action=list_missions`, {
       headers: {
         'Authorization': `Bearer ${window._jwt}`
       }
@@ -306,7 +322,7 @@ export async function getMissionsForRaid() {
  */
 export async function getPendingRewards() {
   try {
-    const response = await fetch('https://api.bonkraiders.com/api.php?action=pending_missions', {
+    const response = await fetch(`${API_BASE_URL}?action=pending_missions`, {
       headers: {
         'Authorization': `Bearer ${window._jwt}`
       }
