@@ -9,6 +9,8 @@ import ENV from '../config/environment.js';
 class ApiService {
   constructor() {
     this.jwt = null;
+    this.isRefreshing = false;
+    this.refreshPromise = null;
     this.baseURL = 'https://api.bonkraiders.com';
     this.verifyURL = 'https://verify.bonkraiders.com';
   }
@@ -18,6 +20,12 @@ class ApiService {
    */
   setToken(token) {
     this.jwt = token;
+    // Store token in sessionStorage for persistence
+    if (token) {
+      sessionStorage.setItem('bonkraiders_jwt', token);
+    } else {
+      sessionStorage.removeItem('bonkraiders_jwt');
+    }
     if (ENV.DEBUG_MODE) {
       console.log('🔑 JWT token set');
     }
@@ -27,6 +35,10 @@ class ApiService {
    * Get current JWT token
    */
   getToken() {
+    // Try to get from memory first, then from sessionStorage
+    if (!this.jwt) {
+      this.jwt = sessionStorage.getItem('bonkraiders_jwt');
+    }
     return this.jwt;
   }
 
@@ -35,8 +47,71 @@ class ApiService {
    */
   clearToken() {
     this.jwt = null;
+    sessionStorage.removeItem('bonkraiders_jwt');
     if (ENV.DEBUG_MODE) {
       console.log('🔑 JWT token cleared');
+    }
+  }
+
+  /**
+   * Check if JWT is expired or about to expire
+   */
+  isTokenExpired(token) {
+    if (!token) return true;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const now = Math.floor(Date.now() / 1000);
+      // Consider token expired if it expires in the next 5 minutes
+      return payload.exp < (now + 300);
+    } catch (error) {
+      return true;
+    }
+  }
+
+  /**
+   * Automatically refresh JWT token
+   */
+  async refreshToken() {
+    // Prevent multiple simultaneous refresh attempts
+    if (this.isRefreshing) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = this._performTokenRefresh();
+    
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+    }
+  }
+
+  /**
+   * Internal method to perform token refresh
+   */
+  async _performTokenRefresh() {
+    try {
+      if (ENV.DEBUG_MODE) {
+        console.log('🔄 Auto-refreshing JWT token...');
+      }
+
+      // Trigger re-authentication if available
+      if (window.triggerReAuthentication) {
+        await window.triggerReAuthentication();
+        return this.jwt;
+      } else {
+        throw new Error('No re-authentication method available');
+      }
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Token refresh failed:', error);
+      }
+      this.clearToken();
+      throw error;
     }
   }
 
@@ -46,6 +121,22 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     
+    // Check if we need to refresh the token before making the request
+    let currentToken = this.getToken();
+    if (currentToken && this.isTokenExpired(currentToken)) {
+      if (ENV.DEBUG_MODE) {
+        console.log('🔄 Token expired, auto-refreshing...');
+      }
+      try {
+        currentToken = await this.refreshToken();
+      } catch (error) {
+        if (ENV.DEBUG_MODE) {
+          console.error('❌ Auto-refresh failed:', error);
+        }
+        // Continue with expired token, let the server handle it
+      }
+    }
+    
     const defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -53,8 +144,8 @@ class ApiService {
     };
 
     // Add authorization header if JWT is available
-    if (this.jwt) {
-      defaultHeaders['Authorization'] = `Bearer ${this.jwt}`;
+    if (currentToken) {
+      defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
@@ -69,7 +160,7 @@ class ApiService {
       console.log('📡 API Request:', {
         url,
         method: requestOptions.method || 'GET',
-        hasAuth: !!this.jwt
+        hasAuth: !!currentToken
       });
     }
 
@@ -86,41 +177,45 @@ class ApiService {
       }
 
       // Handle JWT expiration (401 Unauthorized)
-      if (response.status === 401 && this.jwt) {
+      if (response.status === 401 && currentToken) {
         if (ENV.DEBUG_MODE) {
           const errorText = await response.text();
           console.log('🔑 JWT validation failed:', errorText);
-          console.log('🔑 Current JWT:', this.jwt);
+          console.log('🔑 Current JWT:', currentToken);
         }
-        this.clearToken();
         
-        // Trigger re-authentication if available
-        if (window.triggerReAuthentication) {
-          try {
-            await window.triggerReAuthentication();
+        // Try to refresh token and retry the request
+        try {
+          if (ENV.DEBUG_MODE) {
+            console.log('🔄 401 error, attempting token refresh...');
+          }
+          
+          const newToken = await this.refreshToken();
+          
+          if (newToken) {
             // Retry the original request with new token
-            if (this.jwt) {
-              const retryHeaders = {
-                ...requestOptions.headers,
-                'Authorization': `Bearer ${this.jwt}`
-              };
-              const retryResponse = await fetch(url, {
-                ...requestOptions,
-                headers: retryHeaders
-              });
-              
-              if (retryResponse.ok) {
-                return await retryResponse.json();
-              }
+            const retryHeaders = {
+              ...requestOptions.headers,
+              'Authorization': `Bearer ${newToken}`
+            };
+            const retryResponse = await fetch(url, {
+              ...requestOptions,
+              headers: retryHeaders
+            });
+            
+            if (retryResponse.ok) {
+              return await retryResponse.json();
             }
-          } catch (reAuthError) {
-            if (ENV.DEBUG_MODE) {
-              console.error('❌ Re-authentication failed:', reAuthError);
-            }
+          }
+        } catch (reAuthError) {
+          if (ENV.DEBUG_MODE) {
+            console.error('❌ Auto re-authentication failed:', reAuthError);
           }
         }
         
-        throw new Error('Authentication required. Please reconnect your wallet.');
+        // If auto-refresh failed, clear token and throw error
+        this.clearToken();
+        throw new Error('Session expired. Please reconnect your wallet.');
       }
 
       if (!response.ok) {

@@ -47,6 +47,8 @@ function App() {
         if (ENV.DEBUG_MODE) {
           console.log('🔌 Wallet disconnected, reloading…');
         }
+        // Clear stored JWT on disconnect
+        apiService.clearToken();
         window.location.reload();
       });
       

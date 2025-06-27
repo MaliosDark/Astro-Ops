@@ -17,7 +17,10 @@ const RaidModal = ({ onClose }) => {
       const currentEnergy = await getPlayerEnergy();
       setEnergy(currentEnergy);
     } catch (error) {
-      console.error('Failed to load initial data:', error);
+      if (ENV.DEBUG_MODE) {
+        console.error('Failed to load initial data:', error);
+      }
+      // Don't show error to user for initial load failures
       setEnergy(10); // Default energy
     }
   };
