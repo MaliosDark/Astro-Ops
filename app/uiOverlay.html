@@ -249,7 +249,7 @@
       },
       setMode(mode) {
         // map internal keys → display text
-        const labels = { unshielded: 'Unshielded', shielded: 'Shielded', decoy: 'Decoy' };
+        const labels = { unshielded: 'Unshielded', shielded: 'Shielded' };
         document.getElementById('mode-val').textContent = labels[mode] || '—';
       },
       onMission(fn)  { document.getElementById('btn-mission').onclick = fn; },

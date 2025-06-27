@@ -1,26 +1,15 @@
-// FILE: app/mission.js
-
+// app/mission.js
 window.pageInit = () => {
   const form = document.getElementById('mission-form');
-
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-
-    // Gather form values
+  form.addEventListener('submit', e => {
+    e.preventDefault();
     const data = new FormData(form);
-    const missionType = data.get('mission'); // e.g. "MiningRun"
-    const mode        = data.get('mode');    // "unshielded", "shielded", or "decoy"
+    const type = data.get('mission');   // "MiningRun" o similar
+    const mode = data.get('mode');      // "unshielded"|"shielded"|"decoy"
 
-    // Pass both mission type and mode up to parent game logic
     window.parent.AstroUI.setMode(mode);
-    window.parent.startMission(missionType, mode);
-
-    // Close the modal once the mission is launched
+    window.parent.startMission(type, mode);
     window.parent.closeModal();
   });
 };
-
-// If loaded standalone (not in modal), initialize immediately
-if (!window.opener) {
-  window.pageInit();
-}
+if (!window.opener) window.pageInit();

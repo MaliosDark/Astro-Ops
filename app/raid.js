@@ -1,39 +1,37 @@
 // app/raid.js
-
-window.pageInit = () => {
-  const list = document.getElementById('raid-list');
-
-  // Dummy targets
-  const targets = [
-    { name: 'Player A', mode: 'Unshielded', reward: 20 },
-    { name: 'Player B', mode: 'Shielded',   reward: 30 },
-    { name: 'Player C', mode: 'Decoy',      reward: 0  },
-  ];
-
-  list.innerHTML = '';
-  targets.forEach((t, i) => {
+window.pageInit = async () => {
+  const listEl = document.getElementById('raid-list');
+  // 1) Traer misiones del servidor
+  const res = await fetch(`https://api.bonkraiders.com/api.php?action=list_missions`, {
+    headers: { Authorization: `Bearer ${window.parent._jwt}` }
+  });
+  const scanBtn = document.getElementById('btn-scan');
+  scanBtn.addEventListener('click', async () => {
+    const res = await api('raid/scan');
+    renderMissionList(res.missions);
+    AstroUI.setEnergy(res.remainingEnergy);
+  });
+  const missions = await res.json();  // [{id,type,mode,reward},…]
+  listEl.innerHTML = '';
+  missions.forEach(m => {
     const li = document.createElement('li');
     li.innerHTML = `
-      <span>${t.name}: ${t.mode} (${t.reward} AT)</span>
-      <button data-idx="${i}">RAID</button>
+      <span>${m.type} — ${m.mode} — ${m.reward} BR</span>
+      <button data-id="${m.id}">RAID</button>
     `;
-    list.appendChild(li);
+    listEl.appendChild(li);
   });
-
-  // Wire up each RAID button
-  list.querySelectorAll('button[data-idx]').forEach(btn => {
-    btn.onclick = async () => {
-      const idx = parseInt(btn.dataset.idx, 10);
+  // 2) Al pinchar, animar + llamar al API
+  listEl.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
       await window.animateShipLaunch();
-      await window.animateRaidTo(idx);
-      window.performRaid(idx);
+      await window.animateRaidTo(id);
+      window.parent.performRaid(id);
       await window.animateShipReturn();
-      window.closeModal();
-    };
+      window.parent.closeModal();
+    });
   });
-
-  // TEST TRAVEL
-  document.getElementById('btn-test').onclick = async () => {
-    await window.testTravel();
-  };
+  // TEST
+  document.getElementById('btn-test').onclick = () => window.testTravel();
 };

@@ -1,5 +1,6 @@
 // app/gameLogic.js
-
+import React from 'react';
+import ReactDOM from 'react-dom';
 import { showModal, closeModal } from './modal.js';
 import {
   animateShipLaunch,
@@ -7,201 +8,192 @@ import {
   animateShipReturn,
   testTravel
 } from './shipAnimator.js';
+import {
+  Connection,
+  PublicKey,
+  clusterApiUrl
+} from '@solana/web3.js';
+import {
+  WalletAdapterNetwork
+} from '@solana/wallet-adapter-base';
+import {
+  getPhantomWallet
+} from '@solana/wallet-adapter-wallets';
+import {
+  WalletModalProvider
+} from '@solana/wallet-adapter-react-ui';
+import {
+  useWallet,
+  ConnectionProvider,
+  WalletProvider
+} from '@solana/wallet-adapter-react';
 
-export function setupGame(canvas) {
-  const connectBtn  = document.getElementById('connect-btn');
-  const statusPanel = document.getElementById('status-panel');
-  const hud         = window.AstroUI;
+// — Solana wallet setup —
+const network = WalletAdapterNetwork.Mainnet;
+const endpoint = clusterApiUrl(network);
+const wallets = [ getPhantomWallet() ];
 
-  // --- Game state ---
-  let balanceAT      = 100.0;
-  let shipLevel      = 1;        // starts at level 1
-  const maxLevel     = 7;
-  let lastMissionT   = 0;        // timestamp of last mission
-  const cooldown     = 8 * 3600; // seconds
+ReactDOM.render(
+  <ConnectionProvider endpoint={endpoint}>
+    <WalletProvider wallets={wallets} autoConnect>
+      <WalletModalProvider>
+      <WalletMultiButton />
+        <MainApp />
+      </WalletModalProvider>
+    </WalletProvider>
+  </ConnectionProvider>,
+  document.getElementById('react-root')
+);
 
-  // --- Performance & stats counters ---
-  let raidWins       = 0; // how many raids succeeded
-  let raidFails      = 0; // how many raids failed
-  let missionSuccess = 0; // how many missions succeeded
-  let missionFail    = 0; // how many missions failed
-  let killCount      = 0; // total enemy units killed in canvas battles
+function MainApp() {
+  const { publicKey, signMessage } = useWallet();
+  const [jwt, setJwt] = React.useState(null);
+  const hud = window.AstroUI;
 
-  // helper: pause
-  const sleep = ms => new Promise(res => setTimeout(res, ms));
-
-  // center status panel on screen
-  Object.assign(statusPanel.style, {
-    position:      'fixed',
-    top:           '50%',
-    left:          '50%',
-    transform:     'translate(-50%, -50%)',
-    zIndex:        '3000',
-    pointerEvents: 'none'
-  });
-
-  // --- Hook up HUD buttons ---
-  hud.onMission(() => showModal('mission'));
-  hud.onUpgrade(() => showModal('upgrade'));
-  hud.onRaid   (() => showModal('raid'));
-  hud.onClaim  (() => showModal('claim'));
-  hud.onHelp   (() => showModal('howto'));
-
-  // --- Connect wallet handler ---
-  connectBtn.addEventListener('click', () => {
-    hud.setMode('—');
-    hud.setWallet('DemoWalletXYZ');
-    hud.setBalance(balanceAT);
-    hud.setStatus('Ready!');
-
-    // Show the game UI
-    document.getElementById('hero').style.display  = 'none';
-    canvas.style.display                           = 'block';
-    document.getElementById('gb-ui').style.display = 'flex';
-
-    // Initialize all counters on HUD
-    hud.setRaidsWon(raidWins);
-    hud.setKills(killCount);
-  });
-
-  // --- 1️⃣ Missions ---
-  /**
-   * Start a mission.
-   * @param {string} type  "MiningRun" | "BlackMarket" | "ArtifactHunt"
-   * @param {string} mode  "unshielded" or "shielded"
-   */
-  window.startMission = async function(type, mode = 'unshielded') {
-    closeModal();
-
-    const now = Date.now() / 1000;
-    if (now - lastMissionT < cooldown) {
-      hud.setStatus('On cooldown');
-      return;
+  // Helper para llamar al backend con JWT
+  const api = async (action, body = {}) => {
+    const res = await fetch(`https://api.bonkraiders.com/api.php?action=${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || res.statusText);
     }
+    return res.json();
+  };
 
-    // launch animation
-    hud.setStatus(`Launching ${type}…`);
-    await animateShipLaunch();
+  // Actualiza el balance en el HUD
+  const fetchBalance = async () => {
+    const { claimable_AT } = await api('claim_rewards');
+    hud.setBalance(claimable_AT);
+  };
 
-    // travel animation
-    hud.setStatus('In transit…');
-    await animateRaidTo(type);
+  // 1️⃣ Cuando cambia publicKey: login por nonce
+  React.useEffect(() => {
+    if (!publicKey) return;
+    (async () => {
+      try {
+        // 1) get nonce
+        let res = await fetch(`https://api.bonkraiders.com/api.php?action=auth/nonce`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicKey: publicKey.toBase58() })
+        });
+        const { nonce } = await res.json();
 
-    // mission parameters
-    const configs = {
-      MiningRun:    { chance: 0.90, baseReward: 10 },
-      BlackMarket:  { chance: 0.70, baseReward: 30 },
-      ArtifactHunt: { chance: 0.50, baseReward: 60 },
-    };
-    const cfg = configs[type];
-    if (!cfg) {
-      hud.setStatus('Unknown mission');
-      return;
-    }
+        // 2) sign it
+        const encoded = new TextEncoder().encode(nonce);
+        const sig = await signMessage(encoded);
+        const signature = Buffer.from(sig).toString('base64');
 
-    // determine success
-    const success = Math.random() < cfg.chance;
-    let reward = 0;
-
-    if (success) {
-      // reward scales with ship level
-      reward = cfg.baseReward * shipLevel;
-
-      // shielded penalty
-      if (mode === 'shielded') {
-        reward = Math.floor(reward * 0.8);
+        // 3) login
+        res = await fetch(`https://api.bonkraiders.com/api.php?action=auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            publicKey: publicKey.toBase58(),
+            nonce,
+            signature
+          })
+        });
+        const { token } = await res.json();
+        setJwt(token);
+        window._jwt = token;
+        hud.setWallet(publicKey.toBase58());
+      } catch (e) {
+        hud.setStatus(`Auth error: ${e.message}`);
       }
+    })();
+  }, [publicKey]);
 
-      balanceAT += reward;
-      hud.setBalance(balanceAT);
-      hud.setStatus(`+${reward} AT`);
+  // 2️⃣ Cuando cambia jwt: compramos el ship y mostramos la UI
+  React.useEffect(() => {
+    if (!jwt) return;
+    (async () => {
+      try {
+        // refrescamos balance (claimable_AT)
+        await fetchBalance();
+        // intentamos comprar ship (si ya tiene, ignora)
+        await api('buy_ship');
+        hud.setStatus('Ship acquired!');
+      } catch (e) {
+        // ignoramos “already purchased”
+      } finally {
+        // ocultar pantalla de héroe y mostrar el juego
+        document.getElementById('hero').style.display        = 'none';
+        document.getElementById('game-canvas').style.display = 'block';
+        document.getElementById('gb-ui').style.display       = 'flex';
+      }
+    })();
+  }, [jwt]);
 
-      missionSuccess++;
-    } else {
-      hud.setStatus('Mission failed');
-      missionFail++;
+  // 3️⃣ Hook de botones HUD (solo tras obtener jwt)
+  React.useEffect(() => {
+    if (!jwt) return;
+    hud.onMission(() => showModal('mission'));
+    hud.onUpgrade(() => showModal('upgrade'));
+    hud.onRaid    (() => showModal('raid'));
+    hud.onHelp    (() => showModal('howto'));
+    hud.onClaim   (() => showModal('claim'));
+  }, [jwt]);
+
+  // — Funciones globales para misiones, raids, upgrades, claim —
+  window.startMission = async (type, mode = 'Unshielded') => {
+    closeModal();
+    try {
+      hud.setStatus(`Launching ${type}…`);
+      await animateShipLaunch();
+      hud.setStatus('In transit…');
+      await animateRaidTo(type);
+
+      const { success, reward, br_balance } = await api('send_mission', { type, mode });
+      hud.setStatus(success ? `+${reward} BR` : 'Mission failed');
+      hud.setBalance(br_balance);
+
+      hud.setStatus('Returning home…');
+      await animateShipReturn();
+    } catch (e) {
+      hud.setStatus(e.message);
     }
-
-    // return animation
-    hud.setStatus('Returning home…');
-    await animateShipReturn();
-
-    lastMissionT = now;
-
-    // Optionally, you could display mission stats in the HUD
-    // e.g. hud.setMissionStats(missionSuccess, missionFail);
   };
 
-  // --- 2️⃣ Upgrade ---
-  window.performUpgrade = function(level) {
+  window.performUpgrade = async level => {
     closeModal();
-
-    // enforce only next‐level upgrades
-    if (level !== shipLevel + 1) {
-      hud.setStatus(`Can only upgrade to L${shipLevel + 1}`);
-      return;
-    }
-
-    const costs = { 2:50, 3:100, 4:150, 5:225, 6:300, 7:400 };
-    const cost  = costs[level] || Infinity;
-
-    if (balanceAT >= cost) {
-      balanceAT -= cost;
-      shipLevel = level;
-      hud.setBalance(balanceAT);
+    try {
+      const { br_balance } = await api('upgrade_ship', { level });
       hud.setStatus(`Upgraded to L${level}`);
-    } else {
-      hud.setStatus('Not enough AT');
+      hud.setBalance(br_balance);
+    } catch (e) {
+      hud.setStatus(e.message);
     }
   };
 
-  // --- 3️⃣ Raiding other players ---
-  window.performRaid = function(idx) {
+  window.performRaid = async mission_id => {
     closeModal();
-
-    // raid targets are dummy here
-    const targets = [
-      { chance: 0.0, loot: 0 },
-      { chance: 0.7, loot: 20 },
-      { chance: 0.5, loot: 15 },
-    ];
-    const t  = targets[idx % targets.length];
-    const ok = Math.random() < t.chance;
-
-    if (ok) {
-      balanceAT += t.loot;
-      hud.setBalance(balanceAT);
-      hud.setStatus(`+${t.loot} AT`);
-      raidWins++;
-    } else {
-      hud.setStatus('Raid failed');
-      raidFails++;
+    try {
+      const { stolen, br_balance } = await api('raid_mission', { mission_id });
+      hud.setStatus(`+${stolen} BR`);
+      hud.setBalance(br_balance);
+    } catch (e) {
+      hud.setStatus(e.message);
     }
-
-    hud.setRaidsWon(raidWins);
-    // optionally hud.setRaidsLost(raidFails);
   };
 
-  // --- 4️⃣ Claim periodic AT ---
-  window.performClaim = function() {
+  window.performClaim = async () => {
     closeModal();
-    const pts = 5;
-    balanceAT += pts;
-    hud.setBalance(balanceAT);
-    hud.setStatus(`+${pts} AT`);
+    try {
+      const { claimable_AT } = await api('claim_rewards');
+      hud.setStatus(`+${claimable_AT} BR`);
+      hud.setBalance(claimable_AT);
+    } catch (e) {
+      hud.setStatus(e.message);
+    }
   };
 
-  // --- 5️⃣ Canvas battle end event listener ---
-  window.addEventListener('battleEnd', event => {
-    const survivors = event.detail; 
-    // Each wave spawns 5 enemies → kills = 5 (all enemies died)
-    // if you wanted partial kills: kills = waveSize - survivors
-    const waveSize      = 5;
-    const enemiesDied   = waveSize; 
-    killCount += enemiesDied;
-    hud.setKills(killCount);
-  });
-
-  // Animation hooks (shipAnimator.js) already wired:
-  // window.animateShipLaunch, window.animateRaidTo, window.animateShipReturn
+  return null;
 }
