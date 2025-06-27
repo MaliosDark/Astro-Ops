@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
+import ENV from '../config/environment.js';
 
 const GameUI = ({ walletAddress, onShowModal }) => {
   const [balance, setBalance] = useState(0);
@@ -11,7 +12,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
   useEffect(() => {
-    // Show the game UI
+    // Show the game UI - EXACTLY like original
     const gameCanvas = document.getElementById('game-canvas');
     const gbUI = document.getElementById('gb-ui');
     
@@ -23,6 +24,10 @@ const GameUI = ({ walletAddress, onShowModal }) => {
       try {
         const tokenBalance = await getTokenBalance(walletAddress);
         setBalance(tokenBalance);
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('💰 Loaded token balance:', tokenBalance);
+        }
       } catch (error) {
         console.error('Failed to load token balance:', error);
       }
@@ -32,7 +37,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
       loadBalance();
     }
 
-    // Expose AstroUI API globally for compatibility
+    // Expose AstroUI API globally for compatibility - EXACTLY like original
     window.AstroUI = {
       setWallet: (id) => {
         // Already handled by props
@@ -60,17 +65,33 @@ const GameUI = ({ walletAddress, onShowModal }) => {
         }[mode] || mode;
         setMode(label);
       },
-      onMission: (fn) => { /* handled by React */ },
-      onUpgrade: (fn) => { /* handled by React */ },
-      onRaid: (fn) => { /* handled by React */ },
-      onClaim: (fn) => { /* handled by React */ },
-      onHelp: (fn) => { /* handled by React */ },
+      // Hook functions - EXACTLY like original
+      onMission: (fn) => { 
+        const btn = document.getElementById('btn-mission');
+        if (btn) btn.onclick = fn;
+      },
+      onUpgrade: (fn) => { 
+        const btn = document.getElementById('btn-upgrade');
+        if (btn) btn.onclick = fn;
+      },
+      onRaid: (fn) => { 
+        const btn = document.getElementById('btn-raid');
+        if (btn) btn.onclick = fn;
+      },
+      onClaim: (fn) => { 
+        const btn = document.getElementById('btn-claim');
+        if (btn) btn.onclick = fn;
+      },
+      onHelp: (fn) => { 
+        const btn = document.getElementById('btn-help');
+        if (btn) btn.onclick = fn;
+      },
     };
 
-    // Initialize global counters
+    // Initialize global counters - EXACTLY like original
     window.killCount = 0;
     window.raidWins = 0;
-  }, []);
+  }, [walletAddress]);
 
   const handleMouseMove = (e, tip) => {
     if (tip) {

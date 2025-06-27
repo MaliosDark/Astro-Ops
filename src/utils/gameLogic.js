@@ -161,7 +161,7 @@ export async function buyShip() {
 }
 
 /**
- * Start a mission with animation and API call
+ * Start a mission with animation and API call - EXACTLY like original
  */
 export async function startMission(type, mode = 'Unshielded') {
   try {
@@ -227,7 +227,7 @@ export async function startMission(type, mode = 'Unshielded') {
 }
 
 /**
- * Perform ship upgrade
+ * Perform ship upgrade - EXACTLY like original
  */
 export async function performUpgrade(level) {
   try {
@@ -246,7 +246,7 @@ export async function performUpgrade(level) {
 }
 
 /**
- * Perform raid on another player's mission
+ * Perform raid on another player's mission - EXACTLY like original
  */
 export async function performRaid(missionId) {
   try {
@@ -265,7 +265,7 @@ export async function performRaid(missionId) {
 }
 
 /**
- * Claim accumulated rewards
+ * Claim accumulated rewards - EXACTLY like original
  */
 export async function performClaim() {
   try {
@@ -284,7 +284,7 @@ export async function performClaim() {
 }
 
 /**
- * Get list of missions available for raiding
+ * Get list of missions available for raiding - EXACTLY like original
  */
 export async function getMissionsForRaid() {
   try {
@@ -296,7 +296,7 @@ export async function getMissionsForRaid() {
 }
 
 /**
- * Get pending rewards
+ * Get pending rewards - EXACTLY like original
  */
 export async function getPendingRewards() {
   try {
@@ -308,7 +308,7 @@ export async function getPendingRewards() {
   }
 }
 
-// Expose functions globally for compatibility
+// Expose functions globally for compatibility - EXACTLY like original
 window.startMission = startMission;
 window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;

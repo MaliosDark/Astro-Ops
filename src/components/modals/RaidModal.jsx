@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { performRaid } from '../../utils/gameLogic';
-import { testTravel } from '../../utils/shipAnimator';
 import { getMissionsForRaid } from '../../utils/gameLogic';
 
 const RaidModal = ({ onClose }) => {
   const [missions, setMissions] = useState([]);
 
   useEffect(() => {
-    // Fetch missions from server
     fetchMissions();
   }, []);
 
@@ -17,7 +15,7 @@ const RaidModal = ({ onClose }) => {
       setMissions(missions);
     } catch (error) {
       console.error('Failed to fetch missions:', error);
-      // Mock data for development
+      // Mock data for development - exactly like original
       setMissions([
         { id: 1, type: 'Mining Run', mode: 'Unshielded', reward: 10 },
         { id: 2, type: 'Black Market', mode: 'Shielded', reward: 24 },
@@ -28,6 +26,7 @@ const RaidModal = ({ onClose }) => {
 
   const handleRaid = async (missionId) => {
     try {
+      // Exact same flow as original
       await window.animateShipLaunch();
       await window.animateRaidTo(missionId);
       await performRaid(missionId);
@@ -39,7 +38,8 @@ const RaidModal = ({ onClose }) => {
   };
 
   const handleTestTravel = () => {
-    testTravel();
+    // Exact same as original
+    window.testTravel();
   };
 
   return (
