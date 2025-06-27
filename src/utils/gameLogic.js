@@ -1,26 +1,71 @@
 // src/utils/gameLogic.js
-import { 
-  animateShipLaunch, 
-  animateRaidTo, 
-  animateShipReturn 
-} from './shipAnimator';
-import { 
-  createBurnTransaction, 
-  signAndSerializeTransaction, 
-  checkTokenBalance,
-  getTokenBalance,
-  PARTICIPATION_FEE 
-} from './solanaTransactions';
-
-// API configuration
-const API_BASE_URL = 'https://api.bonkraiders.com';
+import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnimator';
+import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, getTokenBalance } from './solanaTransactions';
+import walletService from '../services/walletService.js';
+import apiService from '../services/apiService.js';
+import ENV from '../config/environment.js';
 
 // Usar TextEncoder nativo del navegador
 const encoder = new TextEncoder();
 
-// Función para convertir Uint8Array a base64 sin Buffer
+/**
+ * Función mejorada para convertir diferentes tipos de firma a base64
+ */
+function signatureToBase64(signature) {
+  try {
+    // Si ya es string, asumimos que es base64
+    if (typeof signature === 'string') {
+      // Verificar si es base64 válido
+      try {
+        atob(signature);
+        return signature;
+      } catch {
+        // Si no es base64 válido, convertir desde hex u otro formato
+        if (signature.match(/^[0-9a-fA-F]+$/)) {
+          // Es hex, convertir a Uint8Array y luego a base64
+          const bytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+          return uint8ArrayToBase64(bytes);
+        }
+        throw new Error('Invalid signature format');
+      }
+    }
+    
+    // Si es Uint8Array o similar
+    if (signature instanceof Uint8Array) {
+      return uint8ArrayToBase64(signature);
+    }
+    
+    // Si es ArrayBuffer
+    if (signature instanceof ArrayBuffer) {
+      return uint8ArrayToBase64(new Uint8Array(signature));
+    }
+    
+    // Si es Array normal
+    if (Array.isArray(signature)) {
+      return uint8ArrayToBase64(new Uint8Array(signature));
+    }
+    
+    // Si tiene propiedad signature (algunos wallets)
+    if (signature.signature) {
+      return signatureToBase64(signature.signature);
+    }
+    
+    // Si tiene método toBytes o similar
+    if (typeof signature.toBytes === 'function') {
+      return uint8ArrayToBase64(signature.toBytes());
+    }
+    
+    throw new Error('Unsupported signature format');
+  } catch (error) {
+    console.error('Error converting signature:', error);
+    throw new Error(`Failed to convert signature: ${error.message}`);
+  }
+}
+
+/**
+ * Función para convertir Uint8Array a base64 sin Buffer
+ */
 function uint8ArrayToBase64(uint8Array) {
-  // Ensure we have a Uint8Array
   if (!(uint8Array instanceof Uint8Array)) {
     console.warn('Converting non-Uint8Array to base64:', typeof uint8Array);
     uint8Array = new Uint8Array(uint8Array);
@@ -32,96 +77,73 @@ function uint8ArrayToBase64(uint8Array) {
     binary += String.fromCharCode(uint8Array[i]);
   }
   const result = btoa(binary);
-  console.log('🔧 Converted signature to base64, length:', result.length);
+  
+  if (ENV.DEBUG_MODE) {
+    console.log('🔧 Converted signature to base64, length:', result.length);
+  }
+  
   return result;
 }
-
-// JWT will be set after authentication
-window._jwt = null;
 
 /**
  * Authenticate with the server using wallet signature
  */
 export async function authenticateWallet(publicKey, signMessage) {
   try {
-    console.log('🔐 Starting authentication for:', publicKey);
-    
-    // 1. Get nonce
-    const nonceResponse = await fetch(`${API_BASE_URL}/api.php?action=auth/nonce`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ publicKey })
-    });
-    
-    console.log('📡 Nonce response status:', nonceResponse.status);
-    
-    if (!nonceResponse.ok) {
-      const errorText = await nonceResponse.text();
-      console.error('❌ Nonce error:', errorText);
-      throw new Error(`Failed to get nonce: ${nonceResponse.status} ${errorText}`);
+    if (ENV.DEBUG_MODE) {
+      console.log('🔐 Starting authentication for:', publicKey);
     }
     
-    const { nonce } = await nonceResponse.json();
-    console.log('✅ Got nonce:', nonce);
+    // 1. Get nonce from API service
+    const { nonce } = await apiService.getNonce(publicKey);
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('✅ Got nonce:', nonce);
+    }
 
     // 2. Sign the nonce
     const encoded = encoder.encode(nonce);
-    const signature = await signMessage(encoded);
-    console.log('🔧 Raw signature type:', typeof signature, 'length:', signature?.length);
-    console.log('🔧 Raw signature:', signature);
     
-    if (!signature || signature.length === 0) {
+    if (ENV.DEBUG_MODE) {
+      console.log('🔧 Encoded message length:', encoded.length);
+    }
+    
+    const rawSignature = await signMessage(encoded);
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('🔧 Raw signature type:', typeof rawSignature);
+      console.log('🔧 Raw signature:', rawSignature);
+    }
+    
+    if (!rawSignature) {
       throw new Error('Wallet returned empty signature');
     }
     
-    const signatureB64 = uint8ArrayToBase64(signature);
-    console.log('✅ Signed nonce, signature length:', signatureB64.length);
+    // 3. Convert signature to base64 using improved function
+    const signatureB64 = signatureToBase64(rawSignature);
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('✅ Converted signature to base64, length:', signatureB64.length);
+    }
     
     if (!signatureB64 || signatureB64.length === 0) {
       throw new Error('Failed to convert signature to base64');
     }
 
-    // 3. Login with signature
-    const loginPayload = {
-      publicKey,
-      nonce,
-      signature: signatureB64
-    };
-    
-    console.log('📤 Sending login payload:', {
-      publicKey,
-      nonce,
-      signatureLength: signatureB64.length
-    });
-    
-    const loginResponse = await fetch(`${API_BASE_URL}/api.php?action=auth/login`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(loginPayload)
-    });
-
-    console.log('📡 Login response status:', loginResponse.status);
-    
-    if (!loginResponse.ok) {
-      const errorText = await loginResponse.text();
-      console.error('❌ Login error:', errorText);
-      console.error('❌ Login payload was:', loginPayload);
-      throw new Error(`Authentication failed: ${loginResponse.status} ${errorText}`);
+    // 4. Login with signature using API service
+    if (ENV.DEBUG_MODE) {
+      console.log('📤 Sending login request');
     }
-
-    const { token } = await loginResponse.json();
-    window._jwt = token;
-    console.log('✅ Authentication successful');
+    
+    const { token } = await apiService.login(publicKey, nonce, signatureB64);
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('✅ Authentication successful');
+    }
     
     return token;
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('❌ Authentication error:', error);
     throw error;
   }
 }
@@ -131,20 +153,7 @@ export async function authenticateWallet(publicKey, signMessage) {
  */
 export async function buyShip() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=buy_ship`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._jwt}`
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to buy ship');
-    }
-
-    const result = await response.json();
-    return result;
+    return await apiService.buyShip();
   } catch (error) {
     console.error('Buy ship error:', error);
     throw error;
@@ -157,18 +166,18 @@ export async function buyShip() {
 export async function startMission(type, mode = 'Unshielded') {
   try {
     // Get wallet provider for signing
-    const provider = window.solana;
-    if (!provider || !provider.publicKey) {
+    const connectedWallet = walletService.getConnectedWallet();
+    if (!connectedWallet) {
       throw new Error('Wallet not connected');
     }
 
-    const userPublicKey = provider.publicKey.toString();
+    const userPublicKey = connectedWallet.publicKey;
 
     // Check if user has enough tokens
-    const hasEnoughTokens = await checkTokenBalance(userPublicKey, PARTICIPATION_FEE);
+    const hasEnoughTokens = await checkTokenBalance(userPublicKey, ENV.PARTICIPATION_FEE);
     if (!hasEnoughTokens) {
       const balance = await getTokenBalance(userPublicKey);
-      throw new Error(`Insufficient tokens. Need ${PARTICIPATION_FEE}, have ${balance}`);
+      throw new Error(`Insufficient tokens. Need ${ENV.PARTICIPATION_FEE}, have ${balance}`);
     }
 
     if (window.AstroUI) {
@@ -176,10 +185,10 @@ export async function startMission(type, mode = 'Unshielded') {
     }
 
     // Create burn transaction
-    const burnTransaction = await createBurnTransaction(userPublicKey, PARTICIPATION_FEE);
+    const burnTransaction = await createBurnTransaction(userPublicKey, ENV.PARTICIPATION_FEE);
     
     // Sign the transaction
-    const signedBurnTx = await signAndSerializeTransaction(burnTransaction, provider.signTransaction);
+    const signedBurnTx = await signAndSerializeTransaction(burnTransaction, connectedWallet.provider.signTransaction);
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
@@ -193,31 +202,11 @@ export async function startMission(type, mode = 'Unshielded') {
     
     await animateRaidTo(type);
 
-    const response = await fetch(`${API_BASE_URL}/api.php?action=send_mission`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._jwt}`
-      },
-      body: JSON.stringify({ 
-        type, 
-        mode,
-        signedBurnTx: signedBurnTx
-      })
-    });
-
-    if (response.ok) {
-      const { success, reward, br_balance } = await response.json();
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(success ? `+${reward} BR` : 'Mission failed');
-        window.AstroUI.setBalance(br_balance);
-      }
-    } else {
-      const error = await response.json();
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Mission failed: ${error.error}`);
-      }
+    const { success, reward, br_balance } = await apiService.sendMission(type, mode, signedBurnTx);
+    
+    if (window.AstroUI) {
+      window.AstroUI.setStatus(success ? `+${reward} BR` : 'Mission failed');
+      window.AstroUI.setBalance(br_balance);
     }
 
     if (window.AstroUI) {
@@ -242,27 +231,11 @@ export async function startMission(type, mode = 'Unshielded') {
  */
 export async function performUpgrade(level) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=upgrade_ship`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._jwt}`
-      },
-      body: JSON.stringify({ level })
-    });
-
-    if (response.ok) {
-      const { level: newLevel, br_balance } = await response.json();
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
-        window.AstroUI.setBalance(br_balance);
-      }
-    } else {
-      const error = await response.json();
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Upgrade failed: ${error.error}`);
-      }
+    const { level: newLevel, br_balance } = await apiService.upgradeShip(level);
+    
+    if (window.AstroUI) {
+      window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
+      window.AstroUI.setBalance(br_balance);
     }
   } catch (error) {
     console.error('Upgrade failed:', error);
@@ -277,27 +250,11 @@ export async function performUpgrade(level) {
  */
 export async function performRaid(missionId) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=raid_mission`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._jwt}`
-      },
-      body: JSON.stringify({ mission_id: missionId })
-    });
-
-    if (response.ok) {
-      const { stolen, br_balance } = await response.json();
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`+${stolen} BR stolen!`);
-        window.AstroUI.setBalance(br_balance);
-      }
-    } else {
-      const error = await response.json();
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Raid failed: ${error.error}`);
-      }
+    const { stolen, br_balance } = await apiService.raidMission(missionId);
+    
+    if (window.AstroUI) {
+      window.AstroUI.setStatus(`+${stolen} BR stolen!`);
+      window.AstroUI.setBalance(br_balance);
     }
   } catch (error) {
     console.error('Raid failed:', error);
@@ -312,26 +269,11 @@ export async function performRaid(missionId) {
  */
 export async function performClaim() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=claim_rewards`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${window._jwt}`
-      }
-    });
-
-    if (response.ok) {
-      const { claimable_AT } = await response.json();
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Balance: ${claimable_AT} AT`);
-        window.AstroUI.setBalance(claimable_AT);
-      }
-    } else {
-      const error = await response.json();
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Claim failed: ${error.error}`);
-      }
+    const { claimable_AT } = await apiService.claimRewards();
+    
+    if (window.AstroUI) {
+      window.AstroUI.setStatus(`Balance: ${claimable_AT} AT`);
+      window.AstroUI.setBalance(claimable_AT);
     }
   } catch (error) {
     console.error('Claim failed:', error);
@@ -346,18 +288,7 @@ export async function performClaim() {
  */
 export async function getMissionsForRaid() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=list_missions`, {
-      headers: {
-        'Authorization': `Bearer ${window._jwt}`
-      }
-    });
-
-    if (response.ok) {
-      return await response.json();
-    } else {
-      console.error('Failed to get missions');
-      return [];
-    }
+    return await apiService.getMissions();
   } catch (error) {
     console.error('Get missions error:', error);
     return [];
@@ -369,19 +300,8 @@ export async function getMissionsForRaid() {
  */
 export async function getPendingRewards() {
   try {
-    const response = await fetch(`${API_BASE_URL}/api.php?action=pending_missions`, {
-      headers: {
-        'Authorization': `Bearer ${window._jwt}`
-      }
-    });
-
-    if (response.ok) {
-      const { pending } = await response.json();
-      return pending || [];
-    } else {
-      console.error('Failed to get pending rewards');
-      return [];
-    }
+    const { pending } = await apiService.getPendingRewards();
+    return pending || [];
   } catch (error) {
     console.error('Get pending rewards error:', error);
     return [];
@@ -393,5 +313,3 @@ window.startMission = startMission;
 window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;
 window.performClaim = performClaim;
-window.authenticateWallet = authenticateWallet;
-window.buyShip = buyShip;
