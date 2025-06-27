@@ -291,6 +291,15 @@ export async function performRaid(missionId) {
       // Lógica del raid dentro de la transición
       const { stolen, br_balance } = await apiService.raidMission(missionId);
       
+      // Simular que el jugador objetivo inicia una batalla defensiva
+      // (esto sería manejado por el servidor en un juego real)
+      if (Math.random() < 0.3 && window.startDefenseBattle) {
+        // 30% de probabilidad de que se active una batalla defensiva
+        setTimeout(() => {
+          window.startDefenseBattle();
+        }, 2000);
+      }
+      
       if (window.AstroUI) {
         window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
         window.AstroUI.setBalance(br_balance);

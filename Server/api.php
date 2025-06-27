@@ -483,6 +483,11 @@ switch ($action) {
                SET raided = 1, raided_by = ?, ts_raid = ?
              WHERE id = ?
           ")->execute([$me['userId'], time(), $mid]);
+          
+          // Opcional: Notificar al jugador objetivo que fue raideado
+          // En un juego real, esto podría activar una batalla defensiva
+          // o enviar una notificación push
+          
         $pdo->commit();
 
         echo json_encode(['stolen'=>$stolen,'br_balance'=>$newBR]);

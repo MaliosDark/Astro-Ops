@@ -88,11 +88,9 @@ export async function initCanvas(canvas) {
   window.killCount = 0;
   window.raidWins = 0;
 
-  // — Battle state & timers —
+  // — Battle state (solo cuando reciben raid) —
   let battleActive = false;
   let enemyLanding = null;
-  let reinforceTimer = 0;
-  const REINFORCE_INTERVAL = 45; // seconds - más tiempo entre batallas para dar espacio a raids
 
   // — Dispatch battle end event to be caught elsewhere —
   window.onBattleEnd = survivors => {
@@ -154,20 +152,18 @@ export async function initCanvas(canvas) {
     el.style.display = 'none';
   }
 
-  // — Spawn enemy mechs + ally soldiers, with ship landing animation —
-  async function spawnReinforcements() {
-    // Solo iniciar batalla si el jugador tiene nave y no está en raid
-    if (!window.hasShip || window.__shipInFlight) {
-      reinforceTimer = 0; // Reset timer
-      return;
+  // — Función para iniciar batalla cuando el jugador recibe un raid —
+  window.startDefenseBattle = async function() {
+    if (battleActive || !window.hasShip || window.__shipInFlight) {
+      return; // No iniciar si ya hay batalla, no tiene nave, o está en raid
     }
-    
+
     battleActive = true;
     const edge = { ix: GRID_W - 1, iy: Math.random() * GRID_H };
     enemyLanding = edge;
     await animateEnemyArrive(edge.ix, edge.iy);
 
-    // spawn 2-4 enemy mechs (menos enemigos para batallas más rápidas)
+    // spawn 2-4 enemy mechs (atacantes del raid)
     const enemyCount = Math.floor(Math.random() * 3) + 2; // 2-4 enemies
     for (let i = 0; i < enemyCount; i++) {
       characters.push({
@@ -177,13 +173,13 @@ export async function initCanvas(canvas) {
         dirY: Math.random() - 0.5,
         type: 'mech',
         faction: 'enemy',
-        health: 60 + Math.random() * 40, // 60-100 health (menos vida para batallas más rápidas)
+        health: 60 + Math.random() * 40, // 60-100 health
         maxHealth: 100,
         lastShot: 0, shootInterval: 1 + Math.random() * 2
       });
     }
 
-    // spawn 3-5 ally soldiers (balanceado)
+    // spawn 3-5 ally soldiers (defensores)
     const allyCount = Math.floor(Math.random() * 3) + 3; // 3-5 allies
     for (let i = 0; i < allyCount; i++) {
       characters.push({
@@ -198,7 +194,7 @@ export async function initCanvas(canvas) {
         lastShot: 0, shootInterval: 1 + Math.random() * 2
       });
     }
-  }
+  };
 
   // — Center camera on our ship initially —
   (c => {
@@ -212,12 +208,9 @@ export async function initCanvas(canvas) {
     const now = performance.now() / 1000, dt = now - lastTime;
     lastTime = now;
 
-    // — Spawn cycle for battles —
-    reinforceTimer += dt;
-    if (!battleActive && reinforceTimer >= REINFORCE_INTERVAL) {
-      reinforceTimer = 0;
-      spawnReinforcements();
-    }
+    // — No más batallas automáticas —
+    // Las batallas solo se inician cuando alguien hace raid al jugador
+    // usando window.startDefenseBattle()
 
     // — Update each character's movement & shooting —
     characters.forEach((ch, idx) => {
@@ -312,13 +305,17 @@ export async function initCanvas(canvas) {
         // increment raidWins if allies won
         if (hasAlly && !hasEnemy) {
           window.raidWins++;
-          // Bonus reward for winning battles
+          // Bonus reward for defending successfully
           if (window.AstroUI) {
-            const bonus = Math.floor(Math.random() * 5) + 2; // 2-7 BR bonus
-            window.AstroUI.setStatus(`Battle victory! +${bonus} BR bonus`);
+            window.AstroUI.setStatus(`Defense successful! Raid repelled!`);
           }
           if (window.AstroUI) {
             window.AstroUI.setRaidsWon(window.raidWins);
+          }
+        } else if (!hasAlly && hasEnemy) {
+          // Player lost defense
+          if (window.AstroUI) {
+            window.AstroUI.setStatus(`Defense failed! Base raided!`);
           }
         }
 
