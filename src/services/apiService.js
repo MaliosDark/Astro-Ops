@@ -44,7 +44,7 @@ class ApiService {
    * Make authenticated API request
    */
   async request(endpoint, options = {}) {
-    const url = endpoint.startsWith('http') ? endpoint : `${this.baseURL}${endpoint}`;
+    const url = `${this.baseURL}${endpoint}`;
     
     const defaultHeaders = {
       'Content-Type': 'application/json',
@@ -88,10 +88,9 @@ class ApiService {
       // Handle JWT expiration (401 Unauthorized)
       if (response.status === 401 && this.jwt) {
         if (ENV.DEBUG_MODE) {
-          console.log('🔑 JWT validation failed - status 401');
+          const errorText = await response.text();
+          console.log('🔑 JWT validation failed:', errorText);
           console.log('🔑 Current JWT:', this.jwt);
-          console.log('🔑 Request URL:', url);
-          console.log('🔑 Request headers:', requestOptions.headers);
         }
         this.clearToken();
         
