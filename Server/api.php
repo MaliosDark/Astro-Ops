@@ -168,12 +168,33 @@ function jwt_decode(string $token, string $secret): array {
     throw new Exception('Invalid JWT format');
   }
   list($h64, $p64, $s64) = $parts;
+  
+  // Debug JWT validation
+  error_log("JWT Debug - Header: $h64");
+  error_log("JWT Debug - Payload: $p64");
+  error_log("JWT Debug - Signature: $s64");
+  
   $sig = base64url_decode($s64);
   $valid = hash_hmac('sha256', "$h64.$p64", $secret, true);
+  
+  error_log("JWT Debug - Expected signature: " . base64url_encode($valid));
+  error_log("JWT Debug - Received signature: $s64");
+  
   if (!hash_equals($valid, $sig)) {
+    error_log("JWT Debug - Signature mismatch!");
     throw new Exception('Invalid JWT signature');
   }
-  return json_decode(base64url_decode($p64), true);
+  
+  $payload = json_decode(base64url_decode($p64), true);
+  
+  // Check expiration
+  if (isset($payload['exp']) && time() > $payload['exp']) {
+    error_log("JWT Debug - Token expired. Current time: " . time() . ", Exp: " . $payload['exp']);
+    throw new Exception('JWT token expired');
+  }
+  
+  error_log("JWT Debug - Token valid. Payload: " . json_encode($payload));
+  return $payload;
 }
 
 function refillEnergy(PDO $pdo, int $userId): int {
