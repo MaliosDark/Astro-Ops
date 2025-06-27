@@ -25,7 +25,14 @@ async function reAuthenticate() {
     }
 
     const publicKey = connectedWallet.publicKey.toString();
-    const token = await authenticateWallet(publicKey, walletService.signMessage.bind(walletService));
+    
+    // Ensure we have the signMessage function from the wallet service
+    const signMessageFn = walletService.signMessage.bind(walletService);
+    if (!signMessageFn) {
+      throw new Error('Wallet service signMessage function not available');
+    }
+    
+    const token = await authenticateWallet(publicKey, signMessageFn);
     
     if (ENV.DEBUG_MODE) {
       console.log('✅ Re-authentication successful');
