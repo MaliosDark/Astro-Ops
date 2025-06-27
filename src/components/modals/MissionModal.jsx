@@ -59,7 +59,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Mining Run</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>90%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>100k-300k BR</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>10 AT</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
@@ -73,7 +73,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,30,50,0.3)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Black Market</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>70%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>300k-500k BR</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>30 AT</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
@@ -87,7 +87,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Artifact Hunt</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>50%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>700k-1M BR</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>60 AT</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
@@ -115,9 +115,6 @@ const MissionModal = ({ onClose }) => {
           }}>
             Mode
           </legend>
-          <p style={{ fontSize: '10px', margin: '0 0 8px', color: '#fc0' }}>
-            ⚠️ Each mission requires 500 BR burn fee
-          </p>
           <label style={{ 
             marginRight: '16px',
             fontSize: '12px',
@@ -130,7 +127,7 @@ const MissionModal = ({ onClose }) => {
               checked={selectedMode === 'Unshielded'}
               onChange={(e) => setSelectedMode(e.target.value)}
             />
-            Unshielded (Full rewards, can be raided)
+            Unshielded
           </label>
           <label style={{ 
             fontSize: '12px',
@@ -143,7 +140,7 @@ const MissionModal = ({ onClose }) => {
               checked={selectedMode === 'Shielded'}
               onChange={(e) => setSelectedMode(e.target.value)}
             />
-            Shielded (80% rewards, cannot be raided)
+            Shielded
           </label>
         </fieldset>
 

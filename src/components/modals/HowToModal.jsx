@@ -40,7 +40,7 @@ const HowToModal = ({ onClose }) => {
           <img src="https://bonkraiders.com/assets/ship.png" alt="Ship" style={{ width: '20px', height: '20px', imageRendering: 'pixelated' }} />
           1. Ships & Missions
         </h2>
-        <p>Buy a ship for <strong>~15 USDC (in SOL)</strong> to start playing. Each mission requires a <strong>500 BR burn fee</strong>. Send your ship on one of the following missions:</p>
+        <p>Buy a ship for <strong>15 USDC</strong> to start playing. Send your ship on one of the following missions:</p>
         <table style={{
           width: '100%',
           borderCollapse: 'collapse',
@@ -50,30 +50,29 @@ const HowToModal = ({ onClose }) => {
             <tr>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Mission</th>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Success Chance</th>
-              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>BR Rewards</th>
+              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>AT Rewards</th>
             </tr>
           </thead>
           <tbody>
             <tr style={{ background: 'rgba(0, 20, 20, 0.5)' }}>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Mining Run</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>90%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>100k-300k BR</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>10 AT</td>
             </tr>
             <tr>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Black Market</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>70%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>300k-500k BR</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>30 AT</td>
             </tr>
             <tr style={{ background: 'rgba(0, 20, 20, 0.5)' }}>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Artifact Hunt</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>50%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>700k-1M BR</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>60 AT</td>
             </tr>
           </tbody>
         </table>
         <ul style={{ listStyle: 'none', paddingLeft: 0, fontSize: '12px', lineHeight: '1.4' }}>
           <li style={{ margin: '4px 0' }}>Each ship has an 8-hour cooldown per mission.</li>
-          <li style={{ margin: '4px 0' }}>Each mission requires 500 BR burn fee to participate.</li>
           <li style={{ margin: '4px 0' }}>If the mission fails, you receive 0 AT.</li>
         </ul>
       </div>

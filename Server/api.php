@@ -53,11 +53,11 @@ define('SOLANA_API_URL',  'https://verify.bonkraiders.com');
 
 // Treasury-safe mission config
 $REWARD_CONFIG = [
-  'MiningRun'   => [0.90,  100000,  300000],  // 100k-300k BR
-  'BlackMarket' => [0.70,  300000,  500000],  // 300k-500k BR  
-  'ArtifactHunt'=> [0.50,  700000, 1000000],  // 700k-1M BR
+  'MiningRun'   => [0.90,  10,  10],    // 10 AT
+  'BlackMarket' => [0.70,  30,  30],    // 30 AT  
+  'ArtifactHunt'=> [0.50,  60,  60],    // 60 AT
 ];
-define('PARTICIPATION_FEE', 500);  // 500 BR burn per mission
+define('PARTICIPATION_FEE', 0);    // No burn fee for now
 
 
 /** ================ Database Setup & Migrations ================ **/
