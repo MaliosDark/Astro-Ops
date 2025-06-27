@@ -208,7 +208,7 @@ export async function startMission(type, mode = 'Unshielded') {
     const { success, reward, br_balance } = await apiService.sendMission(type, mode, signedBurnTx);
     
     if (window.AstroUI) {
-      window.AstroUI.setStatus(success ? `+${reward} BR` : 'Mission failed');
+      window.AstroUI.setStatus(success ? `Mission success! +${reward} BR` : 'Mission failed - no rewards');
       window.AstroUI.setBalance(br_balance);
     }
 
@@ -256,7 +256,7 @@ export async function performRaid(missionId) {
     const { stolen, br_balance } = await apiService.raidMission(missionId);
     
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`+${stolen} BR stolen!`);
+      window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
       window.AstroUI.setBalance(br_balance);
     }
   } catch (error) {
@@ -275,7 +275,7 @@ export async function performClaim() {
     const { claimable_AT } = await apiService.claimRewards();
     
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`Balance: ${claimable_AT} AT`);
+      window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens`);
       window.AstroUI.setBalance(claimable_AT);
     }
   } catch (error) {

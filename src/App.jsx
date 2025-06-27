@@ -5,8 +5,9 @@ import GameUI from './components/GameUI';
 import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
-import { getSolanaProvider } from './utils/wallet';
-import { authenticateWallet, buyShip } from './utils/gameLogic';
+import walletService from './services/walletService.js';
+import { authenticateWallet } from './utils/gameLogic';
+import ENV from './config/environment.js';
 
 function App() {
   const [isWalletConnected, setIsWalletConnected] = useState(false);
@@ -30,38 +31,31 @@ function App() {
   const connectWallet = async (provider) => {
     try {
       setIsLoading(true);
-      const resp = await provider.connect();
       
-      // Validate response and publicKey
-      if (!resp || !resp.publicKey) {
-        console.log('Wallet connection was cancelled by user');
-        setIsLoading(false);
-        return;
-      }
-      
-      const publicKey = resp.publicKey.toString();
+      // Connect using wallet service
+      const connectedWallet = await walletService.connect(provider);
+      const publicKey = connectedWallet.publicKey;
       
       // Authenticate with the server
-      await authenticateWallet(publicKey, provider.signMessage.bind(provider));
-      
-      // Try to buy ship (will be ignored if already purchased)
-      try {
-        await buyShip();
-        if (window.AstroUI) {
-          window.AstroUI.setStatus('Ship acquired!');
-        }
-      } catch (error) {
-        console.log('Ship purchase skipped or failed:', error.message);
-      }
+      await authenticateWallet(publicKey, walletService.signMessage.bind(walletService));
       
       setWalletAddress(publicKey);
       setIsWalletConnected(true);
       
-      // Set up disconnect handler
-      provider.on('disconnect', () => {
-        console.log('🔌 Wallet disconnected, reloading…');
+      // Set up disconnect handler via wallet service
+      walletService.on('disconnect', () => {
+        if (ENV.DEBUG_MODE) {
+          console.log('🔌 Wallet disconnected, reloading…');
+        }
         window.location.reload();
       });
+      
+      // Check if user needs to buy a ship
+      setTimeout(() => {
+        if (!window.hasShip) {
+          showModal('buyship');
+        }
+      }, 1000);
       
       setIsLoading(false);
     } catch (err) {

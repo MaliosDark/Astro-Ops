@@ -38,12 +38,12 @@ export function setupHUD() {
     },
 
     /**
-     * Update the AT balance display in the top HUD.
-     * @param {number} at - The new AT balance.
+     * Update the BR balance display in the top HUD.
+     * @param {number} br - The new BR balance.
      */
-    setBalance(at) {
+    setBalance(br) {
       const el = document.getElementById('balance-val');
-      if (el) el.textContent = at.toFixed(1);
+      if (el) el.textContent = br.toFixed(1);
     },
 
     /**

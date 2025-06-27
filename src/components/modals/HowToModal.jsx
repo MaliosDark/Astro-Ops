@@ -50,30 +50,30 @@ const HowToModal = ({ onClose }) => {
             <tr>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Mission</th>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Success Chance</th>
-              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>AT Rewards</th>
+              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>BR Rewards</th>
             </tr>
           </thead>
           <tbody>
             <tr style={{ background: 'rgba(0, 20, 20, 0.5)' }}>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Mining Run</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>90%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>10 AT</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>10 BR</td>
             </tr>
             <tr>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Black Market</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>70%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>30 AT</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>30 BR</td>
             </tr>
             <tr style={{ background: 'rgba(0, 20, 20, 0.5)' }}>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>Artifact Hunt</td>
               <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>50%</td>
-              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>60 AT</td>
+              <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>60 BR</td>
             </tr>
           </tbody>
         </table>
         <ul style={{ listStyle: 'none', paddingLeft: 0, fontSize: '12px', lineHeight: '1.4' }}>
           <li style={{ margin: '4px 0' }}>Each ship has an 8-hour cooldown per mission.</li>
-          <li style={{ margin: '4px 0' }}>If the mission fails, you receive 0 AT.</li>
+          <li style={{ margin: '4px 0' }}>If the mission fails, you receive 0 BR.</li>
         </ul>
       </div>
 
@@ -97,9 +97,9 @@ const HowToModal = ({ onClose }) => {
           2. Mission Modes
         </h2>
         <ul style={{ listStyle: 'none', paddingLeft: 0, fontSize: '12px', lineHeight: '1.4' }}>
-          <li style={{ margin: '4px 0' }}><strong>Shielded Mode:</strong> Cannot be raided, but gives reduced AT yield (e.g., 80% payout).</li>
-          <li style={{ margin: '4px 0' }}><strong>Unshielded Mode:</strong> Full AT yield, but can be raided.</li>
-          <li style={{ margin: '4px 0' }}><strong>Decoy Mode:</strong> No AT earned, but if raided, the attacker is punished (loses rep or energy; defender gains bonus AT).</li>
+          <li style={{ margin: '4px 0' }}><strong>Shielded Mode:</strong> Cannot be raided, but gives reduced BR yield (e.g., 80% payout).</li>
+          <li style={{ margin: '4px 0' }}><strong>Unshielded Mode:</strong> Full BR yield, but can be raided.</li>
+          <li style={{ margin: '4px 0' }}><strong>Decoy Mode:</strong> No BR earned, but if raided, the attacker is punished (loses rep or energy; defender gains bonus BR).</li>
         </ul>
       </div>
 
@@ -133,18 +133,18 @@ const HowToModal = ({ onClose }) => {
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Reward Bonus</th>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Cooldown</th>
               <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Upgrade Cost</th>
-              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Cumulative AT Cost</th>
+              <th style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px', background: 'rgba(0, 40, 40, 0.8)' }}>Cumulative BR Cost</th>
             </tr>
           </thead>
           <tbody>
             {[
-              { level: 1, bonus: 'Base (1.0×)', cooldown: '8 h', cost: '—', cumulative: '0 AT' },
-              { level: 2, bonus: '+10% (1.1×)', cooldown: '7.5 h', cost: '50 AT', cumulative: '50 AT' },
-              { level: 3, bonus: '+20% (1.2×)', cooldown: '7 h', cost: '100 AT', cumulative: '150 AT' },
-              { level: 4, bonus: '+30% (1.3×)', cooldown: '6.5 h', cost: '150 AT', cumulative: '300 AT' },
-              { level: 5, bonus: '+45% (1.45×)', cooldown: '6 h', cost: '225 AT', cumulative: '525 AT' },
-              { level: 6, bonus: '+60% (1.6×)', cooldown: '5.5 h', cost: '300 AT', cumulative: '825 AT' },
-              { level: 7, bonus: '+80% (1.8×)', cooldown: '5 h', cost: '400 AT', cumulative: '1,225 AT' }
+              { level: 1, bonus: 'Base (1.0×)', cooldown: '8 h', cost: '—', cumulative: '0 BR' },
+              { level: 2, bonus: '+10% (1.1×)', cooldown: '7.5 h', cost: '50 BR', cumulative: '50 BR' },
+              { level: 3, bonus: '+20% (1.2×)', cooldown: '7 h', cost: '100 BR', cumulative: '150 BR' },
+              { level: 4, bonus: '+30% (1.3×)', cooldown: '6.5 h', cost: '150 BR', cumulative: '300 BR' },
+              { level: 5, bonus: '+45% (1.45×)', cooldown: '6 h', cost: '225 BR', cumulative: '525 BR' },
+              { level: 6, bonus: '+60% (1.6×)', cooldown: '5.5 h', cost: '300 BR', cumulative: '825 BR' },
+              { level: 7, bonus: '+80% (1.8×)', cooldown: '5 h', cost: '400 BR', cumulative: '1,225 BR' }
             ].map((row, index) => (
               <tr key={row.level} style={{ background: index % 2 === 0 ? 'rgba(0, 20, 20, 0.5)' : 'transparent' }}>
                 <td style={{ border: '2px solid #0cf', padding: '6px', textAlign: 'center', fontSize: '12px' }}>{row.level}</td>
@@ -182,9 +182,9 @@ const HowToModal = ({ onClose }) => {
           <li style={{ margin: '4px 0' }}>Choose a target (you'll see mission type and reward tier).</li>
           <li style={{ margin: '4px 0' }}>Attempt a raid:
             <ul style={{ paddingLeft: '16px' }}>
-              <li style={{ margin: '4px 0' }}><strong>Unshielded:</strong> Steal the full AT reward.</li>
+              <li style={{ margin: '4px 0' }}><strong>Unshielded:</strong> Steal the full BR reward.</li>
               <li style={{ margin: '4px 0' }}><strong>Shielded:</strong> Raid fails — no reward.</li>
-              <li style={{ margin: '4px 0' }}><strong>Decoy:</strong> You get penalized; defender gains bonus AT.</li>
+              <li style={{ margin: '4px 0' }}><strong>Decoy:</strong> You get penalized; defender gains bonus BR.</li>
             </ul>
           </li>
         </ul>
@@ -215,7 +215,7 @@ const HowToModal = ({ onClose }) => {
           <li style={{ margin: '4px 0' }}>Bluff with decoys to trap greedy players.</li>
           <li style={{ margin: '4px 0' }}>Compete on leaderboards for:
             <ul style={{ paddingLeft: '16px' }}>
-              <li style={{ margin: '4px 0' }}>Most AT earned</li>
+              <li style={{ margin: '4px 0' }}>Most BR earned</li>
               <li style={{ margin: '4px 0' }}>Most successful raids</li>
               <li style={{ margin: '4px 0' }}>Best decoy defenses</li>
             </ul>

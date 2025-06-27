@@ -4,12 +4,13 @@ import { performUpgrade } from '../../utils/gameLogic';
 const UpgradeModal = ({ onClose }) => {
   const upgrades = [
     { level: 1, bonus: '1.0×', cooldown: '8 h', cost: '—', total: '0 AT' },
-    { level: 2, bonus: '1.1×', cooldown: '7.5 h', cost: '50 AT', total: '50 AT' },
-    { level: 3, bonus: '1.2×', cooldown: '7 h', cost: '100 AT', total: '150 AT' },
-    { level: 4, bonus: '1.3×', cooldown: '6.5 h', cost: '150 AT', total: '300 AT' },
-    { level: 5, bonus: '1.45×', cooldown: '6 h', cost: '225 AT', total: '525 AT' },
-    { level: 6, bonus: '1.6×', cooldown: '5.5 h', cost: '300 AT', total: '825 AT' },
-    { level: 7, bonus: '1.8×', cooldown: '5 h', cost: '400 AT', total: '1225 AT' }
+    { level: 1, bonus: '1.0×', cooldown: '8 h', cost: '—', total: '0 BR' },
+    { level: 2, bonus: '1.1×', cooldown: '7.5 h', cost: '50 BR', total: '50 BR' },
+    { level: 3, bonus: '1.2×', cooldown: '7 h', cost: '100 BR', total: '150 BR' },
+    { level: 4, bonus: '1.3×', cooldown: '6.5 h', cost: '150 BR', total: '300 BR' },
+    { level: 5, bonus: '1.45×', cooldown: '6 h', cost: '225 BR', total: '525 BR' },
+    { level: 6, bonus: '1.6×', cooldown: '5.5 h', cost: '300 BR', total: '825 BR' },
+    { level: 7, bonus: '1.8×', cooldown: '5 h', cost: '400 BR', total: '1225 BR' }
   ];
 
   const handleUpgrade = (level) => {

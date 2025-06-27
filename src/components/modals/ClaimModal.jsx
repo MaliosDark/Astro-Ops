@@ -57,7 +57,7 @@ const ClaimModal = ({ onClose }) => {
         textAlign: 'center',
         color: '#f0a'
       }}>
-        CLAIM AT REWARDS
+        CLAIM BR REWARDS
       </h1>
       
       <img 
@@ -105,6 +105,7 @@ const ClaimModal = ({ onClose }) => {
               color: '#f0a'
             }}>
               Pending AT
+              Pending BR
             </th>
           </tr>
         </thead>
@@ -138,7 +139,7 @@ const ClaimModal = ({ onClose }) => {
         margin: '0 0 12px',
         color: '#ff0'
       }}>
-        Total: <span>{total}</span> AT
+        Total: <span>{total}</span> BR
       </div>
 
       <button
@@ -169,7 +170,7 @@ const ClaimModal = ({ onClose }) => {
           e.target.style.color = '#0f0';
         }}
       >
-        CLAIM YOUR AT
+        CLAIM YOUR BR
       </button>
       
       <div style={{

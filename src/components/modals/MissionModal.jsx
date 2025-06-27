@@ -59,7 +59,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Mining Run</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>90%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>10 AT</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>10 BR</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
@@ -73,7 +73,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,30,50,0.3)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Black Market</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>70%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>30 AT</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>30 BR</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
@@ -87,7 +87,7 @@ const MissionModal = ({ onClose }) => {
               <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Artifact Hunt</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>50%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>60 AT</td>
+                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>60 BR</td>
                 <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
                   <input 
                     type="radio" 
