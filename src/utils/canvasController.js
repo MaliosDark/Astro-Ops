@@ -13,22 +13,22 @@ export async function initCanvas(canvas) {
   ctx.imageSmoothingEnabled = false;
 
   // — Load assets —
-  const marsImg = new Image(); marsImg.src = '/assets/mars_floor.png';
-  const shipImg = new Image(); shipImg.src = '/assets/ship.png';
-  const enemyShipImg = new Image(); enemyShipImg.src = '/assets/ship-fly.png';
-  const dogImg = new Image(); dogImg.src = '/assets/dog.png';
-  const buildingImg = new Image(); buildingImg.src = '/assets/building.png';
-  const objectImg0 = new Image(); objectImg0.src = '/assets/object.png';
-  const objectImg1 = new Image(); objectImg1.src = '/assets/object1.png';
-  const soldierImg = new Image(); soldierImg.src = '/assets/soldier.png';
-  const mechImg = new Image(); mechImg.src = '/assets/mech.png';
+  const marsImg = new Image(); marsImg.src = 'https://bonkraiders.com/assets/mars_floor.png';
+  const shipImg = new Image(); shipImg.src = 'https://bonkraiders.com/assets/ship.png';
+  const enemyShipImg = new Image(); enemyShipImg.src = 'https://bonkraiders.com/assets/ship-fly.png';
+  const dogImg = new Image(); dogImg.src = 'https://bonkraiders.com/assets/dog.png';
+  const buildingImg = new Image(); buildingImg.src = 'https://bonkraiders.com/assets/building.png';
+  const objectImg0 = new Image(); objectImg0.src = 'https://bonkraiders.com/assets/object.png';
+  const objectImg1 = new Image(); objectImg1.src = 'https://bonkraiders.com/assets/object1.png';
+  const soldierImg = new Image(); soldierImg.src = 'https://bonkraiders.com/assets/soldier.png';
+  const mechImg = new Image(); mechImg.src = 'https://bonkraiders.com/assets/mech.png';
 
   const soldierFrames = [
     new Image(),  // frame 0
     new Image()   // frame 1
   ];
-  soldierFrames[0].src = '/assets/soldier1.png';
-  soldierFrames[1].src = '/assets/soldier2.png';
+  soldierFrames[0].src = 'https://bonkraiders.com/assets/soldier1.png';
+  soldierFrames[1].src = 'https://bonkraiders.com/assets/soldier2.png';
 
   await Promise.all([
     marsImg, shipImg, enemyShipImg, dogImg, buildingImg,

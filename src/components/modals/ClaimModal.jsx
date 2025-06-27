@@ -61,7 +61,7 @@ const ClaimModal = ({ onClose }) => {
       </h1>
       
       <img 
-        src="/assets/ship.png" 
+        src="https://bonkraiders.com/assets/ship.png" 
         alt="Ship" 
         style={{
           display: 'block',
