@@ -86,6 +86,11 @@ function signatureToBase64(signature) {
       return uint8ArrayToBase64(signature.toBytes());
     }
     
+    // Si tiene propiedad data (algunos wallets)
+    if (signature.data) {
+      return signatureToBase64(signature.data);
+    }
+    
     throw new Error('Unsupported signature format');
   } catch (error) {
     console.error('Error converting signature:', error);
@@ -102,12 +107,8 @@ function uint8ArrayToBase64(uint8Array) {
     uint8Array = new Uint8Array(uint8Array);
   }
   
-  let binary = '';
-  const len = uint8Array.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(uint8Array[i]);
-  }
-  const result = btoa(binary);
+  // Use more robust method for converting Uint8Array to binary string
+  const result = btoa(String.fromCharCode.apply(null, uint8Array));
   
   if (ENV.DEBUG_MODE) {
     console.log('🔧 Converted signature to base64, length:', result.length);
