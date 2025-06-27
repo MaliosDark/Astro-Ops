@@ -124,12 +124,13 @@ function App() {
       // Authenticate with the server
       await authenticateWallet(publicKey, walletService.signMessage.bind(walletService));
       
-      setWalletAddress(publicKey);
-      setIsWalletConnected(true);
-      
       // Load user profile and cache data
       try {
         const profile = await apiService.getUserProfile();
+        
+        // Only set connected state after successful profile load
+        setWalletAddress(publicKey);
+        setIsWalletConnected(true);
         
         if (profile.ship) {
           window.hasShip = true;
@@ -151,9 +152,13 @@ function App() {
           console.log('✅ Loaded user profile:', profile);
         }
       } catch (profileError) {
-        if (ENV.DEBUG_MODE) {
-          console.warn('⚠️ Failed to load user profile:', profileError);
-        }
+        console.error('❌ Failed to load user profile:', profileError);
+        // Clear any potentially invalid tokens
+        apiService.clearToken();
+        sessionStorage.removeItem('bonkraiders_jwt');
+        alert('Failed to load user profile. Please try reconnecting your wallet.');
+        setIsLoading(false);
+        return; // Exit early, don't set connected state
       }
       
       // Set up disconnect handler via wallet service
