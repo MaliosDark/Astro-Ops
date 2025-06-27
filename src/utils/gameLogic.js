@@ -13,7 +13,7 @@ import {
 } from './solanaTransactions';
 
 // API configuration
-const API_BASE_URL = 'http://localhost:8000/api.php';
+const API_BASE_URL = 'https://api.bonkraiders.com/api.php';
 
 // Usar TextEncoder nativo del navegador
 const encoder = new TextEncoder();
