@@ -80,14 +80,17 @@ class ApiService {
         console.log('📡 API Response:', {
           url,
           status: response.status,
-          ok: response.ok
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
         });
       }
 
       // Handle JWT expiration (401 Unauthorized)
       if (response.status === 401 && this.jwt) {
         if (ENV.DEBUG_MODE) {
-          console.log('🔑 JWT expired, clearing token and triggering re-authentication');
+          const errorText = await response.text();
+          console.log('🔑 JWT validation failed:', errorText);
+          console.log('🔑 Current JWT:', this.jwt);
         }
         this.clearToken();
         
@@ -129,6 +132,10 @@ class ApiService {
           errorMessage = errorJson.error || errorText;
         } catch {
           errorMessage = errorText;
+        }
+        
+        if (ENV.DEBUG_MODE) {
+          console.error('❌ API Error Response:', errorMessage);
         }
         
         throw new Error(`API Error ${response.status}: ${errorMessage}`);
