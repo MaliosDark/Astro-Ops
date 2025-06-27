@@ -1,0 +1,164 @@
+import React, { useEffect, useState } from 'react';
+import Tooltip from './Tooltip';
+import { getTokenBalance } from '../utils/solanaTransactions';
+
+const GameUI = ({ walletAddress, onShowModal }) => {
+  const [balance, setBalance] = useState(0);
+  const [kills, setKills] = useState(0);
+  const [raidsWon, setRaidsWon] = useState(0);
+  const [mode, setMode] = useState('—');
+  const [status, setStatus] = useState('');
+  const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+
+  useEffect(() => {
+    // Show the game UI
+    const gameCanvas = document.getElementById('game-canvas');
+    const gbUI = document.getElementById('gb-ui');
+    
+    if (gameCanvas) gameCanvas.style.display = 'block';
+    if (gbUI) gbUI.style.display = 'flex';
+
+    // Load initial token balance
+    const loadBalance = async () => {
+      try {
+        const tokenBalance = await getTokenBalance(walletAddress);
+        setBalance(tokenBalance);
+      } catch (error) {
+        console.error('Failed to load token balance:', error);
+      }
+    };
+    
+    if (walletAddress) {
+      loadBalance();
+    }
+
+    // Expose AstroUI API globally for compatibility
+    window.AstroUI = {
+      setWallet: (id) => {
+        // Already handled by props
+      },
+      setBalance: (at) => {
+        setBalance(at);
+      },
+      setStatus: (msg) => {
+        setStatus(msg);
+        if (msg) {
+          setTimeout(() => setStatus(''), 3000);
+        }
+      },
+      setKills: (count) => {
+        setKills(count);
+      },
+      setRaidsWon: (count) => {
+        setRaidsWon(count);
+      },
+      setMode: (mode) => {
+        const label = {
+          unshielded: 'Unshielded',
+          shielded: 'Shielded',
+          decoy: 'Decoy'
+        }[mode] || mode;
+        setMode(label);
+      },
+      onMission: (fn) => { /* handled by React */ },
+      onUpgrade: (fn) => { /* handled by React */ },
+      onRaid: (fn) => { /* handled by React */ },
+      onClaim: (fn) => { /* handled by React */ },
+      onHelp: (fn) => { /* handled by React */ },
+    };
+
+    // Initialize global counters
+    window.killCount = 0;
+    window.raidWins = 0;
+  }, []);
+
+  const handleMouseMove = (e, tip) => {
+    if (tip) {
+      setTooltip({
+        visible: true,
+        text: tip,
+        x: e.clientX + 10,
+        y: e.clientY + 10
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setTooltip({ visible: false, text: '', x: 0, y: 0 });
+  };
+
+  return (
+    <div id="gb-ui" style={{ display: 'flex' }}>
+      <div id="top-hud">
+        <div className="panel info">Wallet: <span id="wallet-id">{walletAddress}</span></div>
+        <div className="panel info">BR: <span id="balance-val">{balance.toFixed(1)}</span></div>
+        <div className="panel info">Kills: <span id="kill-count">{kills}</span></div>
+        <div className="panel info">Raids Won: <span id="raid-wins">{raidsWon}</span></div>
+        <div className="panel info">Mode: <span id="mode-val">{mode}</span></div>
+      </div>
+
+      {status && (
+        <div id="status-panel" style={{ visibility: 'visible' }}>
+          Status: <span id="status-msg">{status}</span>
+        </div>
+      )}
+
+      <div id="bottom-hud">
+        <button 
+          className="gb-btn" 
+          id="btn-mission"
+          data-tip="Send your ship on a mission"
+          onClick={() => onShowModal('mission')}
+          onMouseMove={(e) => handleMouseMove(e, 'Send your ship on a mission')}
+          onMouseLeave={handleMouseLeave}
+        >
+          MISSION
+        </button>
+        <button 
+          className="gb-btn" 
+          id="btn-upgrade"
+          data-tip="Upgrade your ship"
+          onClick={() => onShowModal('upgrade')}
+          onMouseMove={(e) => handleMouseMove(e, 'Upgrade your ship')}
+          onMouseLeave={handleMouseLeave}
+        >
+          UPGRADE
+        </button>
+        <button 
+          className="gb-btn" 
+          id="btn-raid"
+          data-tip="Raid another player"
+          onClick={() => onShowModal('raid')}
+          onMouseMove={(e) => handleMouseMove(e, 'Raid another player')}
+          onMouseLeave={handleMouseLeave}
+        >
+          RAID
+        </button>
+        <button 
+          className="gb-btn" 
+          id="btn-claim"
+          data-tip="Claim accumulated AT"
+          onClick={() => onShowModal('claim')}
+          onMouseMove={(e) => handleMouseMove(e, 'Claim accumulated AT')}
+          onMouseLeave={handleMouseLeave}
+        >
+          CLAIM
+        </button>
+        <button 
+          className="gb-btn" 
+          id="btn-help"
+          data-tip="How to Play"
+          onClick={() => onShowModal('howto')}
+          onMouseMove={(e) => handleMouseMove(e, 'How to Play')}
+          onMouseLeave={handleMouseLeave}
+        >
+          HELP
+        </button>
+      </div>
+
+      <Tooltip tooltip={tooltip} />
+    </div>
+  );
+};
+
+export default GameUI;
