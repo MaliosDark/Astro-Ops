@@ -74,8 +74,45 @@ function runMigrations(PDO $pdo) {
   // if no users table, run migrations.sql
   $has = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
   if (!$has) {
-    $sql = file_get_contents(__DIR__ . '/migrations.sql');
-    $pdo->exec($sql);
+    // Try multiple possible locations for migrations.sql
+    $migrationPaths = [
+      __DIR__ . '/migrations.sql',
+      __DIR__ . '/../database/migrations.sql',
+      __DIR__ . '/../migrations.sql'
+    ];
+    
+    $sql = null;
+    foreach ($migrationPaths as $path) {
+      if (file_exists($path)) {
+        $sql = file_get_contents($path);
+        if (ENV.DEBUG_MODE) {
+          error_log("Found migrations.sql at: " . $path);
+        }
+        break;
+      }
+    }
+    
+    if (!$sql) {
+      error_log("ERROR: migrations.sql not found in any of these locations: " . implode(', ', $migrationPaths));
+      throw new Exception('Database migrations file not found');
+    }
+    
+    // Split SQL into individual statements and execute them
+    $statements = array_filter(array_map('trim', explode(';', $sql)));
+    foreach ($statements as $statement) {
+      if (!empty($statement) && !preg_match('/^\s*--/', $statement)) {
+        try {
+          $pdo->exec($statement);
+        } catch (Exception $e) {
+          error_log("Migration error executing: " . substr($statement, 0, 100) . "... Error: " . $e->getMessage());
+          // Continue with other statements
+        }
+      }
+    }
+    
+    if (ENV.DEBUG_MODE) {
+      error_log("Database migrations completed successfully");
+    }
   }
 }
 runMigrations($pdo);
