@@ -23,7 +23,7 @@ header('Content-Security-Policy: '
      . "img-src 'self' data: https://pbs.twimg.com https://bonkraiders.com; "
      . "script-src 'self' 'unsafe-inline'; "
      . "style-src 'self' 'unsafe-inline'; "
-     . "connect-src 'self' https://api.bonkraiders.com https://api.mainnet-beta.solana.com http://localhost:3000 http://localhost:3070; "
+     . "connect-src 'self' https://api.bonkraiders.com https://api.mainnet-beta.solana.com https://papaya-cassata-c1174a.netlify.app; "
      . "object-src 'none'; "
      . "frame-ancestors 'none'; "
      . "base-uri 'self';");
