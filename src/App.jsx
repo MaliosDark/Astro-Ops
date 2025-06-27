@@ -32,11 +32,35 @@ function App() {
       
       // Set the token and try to get user profile
       apiService.setToken(storedToken);
+      
+      // Try to silently reconnect wallet first
+      const reconnectedWallet = await walletService.tryAutoConnect();
+      if (!reconnectedWallet) {
+        if (ENV.DEBUG_MODE) {
+          console.log('❌ Could not silently reconnect wallet, clearing session');
+        }
+        // Clear session if wallet can't be reconnected
+        sessionStorage.removeItem('bonkraiders_jwt');
+        apiService.clearToken();
+        return;
+      }
+      
       const profile = await apiService.getUserProfile();
       
       if (profile && profile.public_key) {
-        setWalletAddress(profile.public_key);
+        setWalletAddress(reconnectedWallet.publicKey);
         setIsWalletConnected(true);
+        
+        // Set up disconnect handler for the reconnected wallet
+        walletService.on('disconnect', () => {
+          if (ENV.DEBUG_MODE) {
+            console.log('🔌 Wallet disconnected, reloading…');
+          }
+          // Clear stored JWT on disconnect
+          userCacheService.clearAllUserData(reconnectedWallet.publicKey);
+          apiService.clearToken();
+          window.location.reload();
+        });
         
         // Check if user has a ship
         if (profile.ship) {
@@ -66,6 +90,7 @@ function App() {
         console.log('❌ Failed to restore session:', error);
       }
       // Clear invalid session
+      sessionStorage.removeItem('bonkraiders_jwt');
       apiService.clearToken();
     }
   };

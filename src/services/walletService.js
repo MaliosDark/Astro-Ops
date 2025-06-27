@@ -131,7 +131,7 @@ class WalletService {
   /**
    * Connect to a specific wallet provider
    */
-  async connect(provider) {
+  async connect(provider, options = {}) {
     if (this.isConnecting) {
       throw new Error('Connection already in progress');
     }
@@ -140,10 +140,11 @@ class WalletService {
       this.isConnecting = true;
       
       if (ENV.DEBUG_MODE) {
-        console.log('🔗 Connecting to wallet...');
+        console.log('🔗 Connecting to wallet...', options.silent ? '(silent)' : '');
       }
 
-      const response = await provider.connect();
+      const connectOptions = options.silent ? { onlyIfTrusted: true } : {};
+      const response = await provider.connect(connectOptions);
       
       if (!response || !response.publicKey) {
         throw new Error('Wallet connection was cancelled or failed');
@@ -165,7 +166,7 @@ class WalletService {
       }
 
       if (ENV.DEBUG_MODE) {
-        console.log('✅ Wallet connected:', this.connectedWallet.name, publicKey);
+        console.log('✅ Wallet connected:', this.connectedWallet.name, publicKey, options.silent ? '(silent)' : '');
       }
 
       this._emit('connect', this.connectedWallet);
@@ -173,11 +174,58 @@ class WalletService {
       return this.connectedWallet;
     } catch (error) {
       if (ENV.DEBUG_MODE) {
-        console.error('❌ Wallet connection failed:', error);
+        console.error('❌ Wallet connection failed:', error, options.silent ? '(silent)' : '');
       }
       throw error;
     } finally {
       this.isConnecting = false;
+    }
+  }
+
+  /**
+   * Try to auto-connect to a previously connected wallet silently
+   */
+  async tryAutoConnect() {
+    if (this.isConnecting || this.connectedWallet) {
+      return this.connectedWallet;
+    }
+
+    try {
+      if (ENV.DEBUG_MODE) {
+        console.log('🔄 Attempting silent wallet reconnection...');
+      }
+
+      const providers = this.getAllProviders();
+      
+      for (const walletInfo of providers) {
+        try {
+          // Try to connect silently (only if previously trusted)
+          const wallet = await this.connect(walletInfo.provider, { silent: true });
+          
+          if (ENV.DEBUG_MODE) {
+            console.log('✅ Silent reconnection successful:', wallet.name);
+          }
+          
+          return wallet;
+        } catch (error) {
+          // Silent connection failed for this wallet, try next one
+          if (ENV.DEBUG_MODE) {
+            console.log('⚠️ Silent connection failed for', walletInfo.name, '- trying next wallet');
+          }
+          continue;
+        }
+      }
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('❌ No wallet could be silently reconnected');
+      }
+      
+      return null;
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Auto-connect failed:', error);
+      }
+      return null;
     }
   }
 
