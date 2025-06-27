@@ -9,6 +9,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
   const [raidsWon, setRaidsWon] = useState(0);
   const [mode, setMode] = useState('—');
   const [status, setStatus] = useState('');
+  const [energy, setEnergy] = useState(10);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
   useEffect(() => {
@@ -65,6 +66,9 @@ const GameUI = ({ walletAddress, onShowModal }) => {
         }[mode] || mode;
         setMode(label);
       },
+      setEnergy: (energyValue) => {
+        setEnergy(energyValue);
+      },
       // Hook functions - EXACTLY like original
       onMission: (fn) => { 
         const btn = document.getElementById('btn-mission');
@@ -116,6 +120,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
         <div className="panel info">Kills: <span id="kill-count">{kills}</span></div>
         <div className="panel info">Raids Won: <span id="raid-wins">{raidsWon}</span></div>
         <div className="panel info">Mode: <span id="mode-val">{mode}</span></div>
+        <div className="panel info">Energy: <span id="energy-val">{energy}/10</span></div>
       </div>
 
       {status && (
@@ -153,7 +158,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
           onMouseMove={(e) => handleMouseMove(e, 'Raid another player')}
           onMouseLeave={handleMouseLeave}
         >
-          RAID
+          RAID ({energy})
         </button>
         <button 
           className="gb-btn" 

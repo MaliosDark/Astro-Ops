@@ -311,18 +311,30 @@ switch ($action) {
       // RAID SCAN
       case 'raid/scan':
         AntiCheat::validateRequestOrigin();
-        AntiCheat::validateJsonPayload();
         $energy = refillEnergy($pdo, $me['userId']);
         if ($energy < 1) jsonErr('Not enough energy', 400);
         $pdo->prepare("UPDATE energy SET energy = energy - 1 WHERE user_id = ?")
             ->execute([$me['userId']]);
+        
+        // Obtener misiones raidables con más información
         $missions = $pdo->query("
-          SELECT id, mission_type AS type, reward
+          SELECT m.id, m.mission_type AS type, m.mode, m.reward, u.public_key AS owner
           FROM missions
+          JOIN users u ON m.user_id = u.id
           WHERE mode='Unshielded' AND success=1 AND raided=0
             AND user_id <> {$me['userId']}
+          ORDER BY m.ts_start DESC
+          LIMIT 10
         ")->fetchAll(PDO::FETCH_ASSOC);
+        
         echo json_encode(['missions' => $missions, 'remainingEnergy' => $energy - 1]);
+        exit;
+
+      // GET PLAYER ENERGY
+      case 'player_energy':
+        AntiCheat::validateRequestOrigin();
+        $energy = refillEnergy($pdo, $me['userId']);
+        echo json_encode(['energy' => $energy]);
         exit;
 
 

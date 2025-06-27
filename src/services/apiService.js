@@ -303,6 +303,22 @@ class ApiService {
   }
 
   /**
+   * Get player energy
+   */
+  async getPlayerEnergy() {
+    return await this.request('/api.php?action=player_energy');
+  }
+
+  /**
+   * Scan for raidable missions (costs 1 energy)
+   */
+  async scanForRaids() {
+    return await this.request('/api.php?action=raid/scan', {
+      method: 'POST'
+    });
+  }
+
+  /**
    * Get player stats
    */
   async getPlayerStats() {

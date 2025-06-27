@@ -92,7 +92,7 @@ export async function initCanvas(canvas) {
   let battleActive = false;
   let enemyLanding = null;
   let reinforceTimer = 0;
-  const REINFORCE_INTERVAL = 30; // seconds - más tiempo entre batallas
+  const REINFORCE_INTERVAL = 45; // seconds - más tiempo entre batallas para dar espacio a raids
 
   // — Dispatch battle end event to be caught elsewhere —
   window.onBattleEnd = survivors => {
@@ -156,8 +156,8 @@ export async function initCanvas(canvas) {
 
   // — Spawn enemy mechs + ally soldiers, with ship landing animation —
   async function spawnReinforcements() {
-    // Solo iniciar batalla si el jugador tiene nave
-    if (!window.hasShip) {
+    // Solo iniciar batalla si el jugador tiene nave y no está en raid
+    if (!window.hasShip || window.__shipInFlight) {
       reinforceTimer = 0; // Reset timer
       return;
     }
@@ -167,8 +167,8 @@ export async function initCanvas(canvas) {
     enemyLanding = edge;
     await animateEnemyArrive(edge.ix, edge.iy);
 
-    // spawn 3-5 enemy mechs (variable)
-    const enemyCount = Math.floor(Math.random() * 3) + 3; // 3-5 enemies
+    // spawn 2-4 enemy mechs (menos enemigos para batallas más rápidas)
+    const enemyCount = Math.floor(Math.random() * 3) + 2; // 2-4 enemies
     for (let i = 0; i < enemyCount; i++) {
       characters.push({
         ix: edge.ix + Math.random() * 2,
@@ -177,14 +177,14 @@ export async function initCanvas(canvas) {
         dirY: Math.random() - 0.5,
         type: 'mech',
         faction: 'enemy',
-        health: 80 + Math.random() * 40, // 80-120 health
-        maxHealth: 120,
+        health: 60 + Math.random() * 40, // 60-100 health (menos vida para batallas más rápidas)
+        maxHealth: 100,
         lastShot: 0, shootInterval: 1 + Math.random() * 2
       });
     }
 
-    // spawn 4-6 ally soldiers (variable)
-    const allyCount = Math.floor(Math.random() * 3) + 4; // 4-6 allies
+    // spawn 3-5 ally soldiers (balanceado)
+    const allyCount = Math.floor(Math.random() * 3) + 3; // 3-5 allies
     for (let i = 0; i < allyCount; i++) {
       characters.push({
         ix: baseShipPos.ix + (Math.random() - 0.5) * 4,
@@ -193,8 +193,8 @@ export async function initCanvas(canvas) {
         dirY: Math.random() - 0.5,
         type: 'soldier',
         faction: 'ally',
-        health: 60 + Math.random() * 40, // 60-100 health
-        maxHealth: 100,
+        health: 50 + Math.random() * 30, // 50-80 health
+        maxHealth: 80,
         lastShot: 0, shootInterval: 1 + Math.random() * 2
       });
     }
@@ -222,7 +222,7 @@ export async function initCanvas(canvas) {
     // — Update each character's movement & shooting —
     characters.forEach((ch, idx) => {
       // movement
-      const speed = ch.type === 'mech' ? 0.3 : 0.5; // mechs move slower
+      const speed = ch.type === 'mech' ? 0.4 : 0.6; // velocidad ligeramente aumentada
       const nx = ch.ix + ch.dirX * dt * speed;
       const ny = ch.iy + ch.dirY * dt * speed;
       const inside = nx >= 0 && nx <= GRID_W && ny >= 0 && ny <= GRID_H;
@@ -256,9 +256,9 @@ export async function initCanvas(canvas) {
           const mag = Math.hypot(dx, dy) || 1;
           projectiles.push({
             x: from.x, y: from.y,
-            vx: dx / mag * (150 + Math.random() * 100), // variable speed
-            vy: dy / mag * (150 + Math.random() * 100),
-            damage: (ch.type === 'soldier' ? 15 + Math.random() * 10 : 25 + Math.random() * 20), // variable damage
+            vx: dx / mag * (200 + Math.random() * 50), // proyectiles más rápidos
+            vy: dy / mag * (200 + Math.random() * 50),
+            damage: (ch.type === 'soldier' ? 20 + Math.random() * 10 : 30 + Math.random() * 15), // más daño para batallas más rápidas
             faction: ch.faction,
             targetIdx: characters.indexOf(tgt)
           });
@@ -312,10 +312,10 @@ export async function initCanvas(canvas) {
         // increment raidWins if allies won
         if (hasAlly && !hasEnemy) {
           window.raidWins++;
-          // Bonus reward for winning raids
+          // Bonus reward for winning battles
           if (window.AstroUI) {
-            const bonus = Math.floor(Math.random() * 10) + 5; // 5-15 BR bonus
-            window.AstroUI.setStatus(`Raid victory! +${bonus} BR bonus`);
+            const bonus = Math.floor(Math.random() * 5) + 2; // 2-7 BR bonus
+            window.AstroUI.setStatus(`Battle victory! +${bonus} BR bonus`);
           }
           if (window.AstroUI) {
             window.AstroUI.setRaidsWon(window.raidWins);

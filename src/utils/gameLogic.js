@@ -4,6 +4,7 @@ import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, 
 import walletService from '../services/walletService.js';
 import apiService from '../services/apiService.js';
 import ENV from '../config/environment.js';
+import { createRaidTransition } from './raidAnimations.js';
 
 // Usar TextEncoder nativo del navegador
 const encoder = new TextEncoder();
@@ -284,6 +285,62 @@ export async function performUpgrade(level) {
  * Perform raid on another player's mission - EXACTLY like original
  */
 export async function performRaid(missionId) {
+  try {
+    // Crear transición de raid con animaciones completas
+    await createRaidTransition(async () => {
+      // Lógica del raid dentro de la transición
+      const { stolen, br_balance } = await apiService.raidMission(missionId);
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
+        window.AstroUI.setBalance(br_balance);
+      }
+      
+      return { stolen, br_balance };
+    });
+  } catch (error) {
+    console.error('Raid failed:', error);
+    if (window.AstroUI) {
+      window.AstroUI.setStatus(`Raid failed: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Get player's current energy level
+ */
+export async function getPlayerEnergy() {
+  try {
+    const { energy } = await apiService.getPlayerEnergy();
+    return energy;
+  } catch (error) {
+    console.error('Get energy error:', error);
+    return 10; // Default energy
+  }
+}
+
+/**
+ * Scan for raidable missions (costs 1 energy)
+ */
+export async function scanForRaids() {
+  try {
+    const { missions, remainingEnergy } = await apiService.scanForRaids();
+    
+    if (window.AstroUI) {
+      window.AstroUI.setEnergy(remainingEnergy);
+    }
+    
+    return missions;
+  } catch (error) {
+    console.error('Scan for raids error:', error);
+    return [];
+  }
+}
+
+/**
+ * Original performRaid function for compatibility
+ */
+export async function performRaidOriginal(missionId) {
   try {
     const { stolen, br_balance } = await apiService.raidMission(missionId);
     
