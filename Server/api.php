@@ -258,7 +258,39 @@ function getOnchainBalance(string $ownerPk): float {
 
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
-  if (!preg_match('/Bearer\s+(.+)$/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m)) {
+  // Try multiple ways to get the authorization header
+  $authHeader = null;
+  
+  // Method 1: Standard HTTP_AUTHORIZATION
+  if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+  }
+  // Method 2: Alternative header name
+  elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+  }
+  // Method 3: Apache mod_rewrite might put it here
+  elseif (function_exists('apache_request_headers')) {
+    $headers = apache_request_headers();
+    if (isset($headers['Authorization'])) {
+      $authHeader = $headers['Authorization'];
+    } elseif (isset($headers['authorization'])) {
+      $authHeader = $headers['authorization'];
+    }
+  }
+  // Method 4: Check if it's in a different format
+  elseif (isset($_SERVER['PHP_AUTH_USER'])) {
+    $authHeader = 'Bearer ' . $_SERVER['PHP_AUTH_USER'];
+  }
+  
+  if (ENV.DEBUG_MODE) {
+    error_log("Auth debug - HTTP_AUTHORIZATION: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'not set'));
+    error_log("Auth debug - REDIRECT_HTTP_AUTHORIZATION: " . ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? 'not set'));
+    error_log("Auth debug - Final authHeader: " . ($authHeader ?? 'not found'));
+    error_log("Auth debug - All headers: " . print_r(getallheaders(), true));
+  }
+  
+  if (!$authHeader || !preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
     jsonErr('Missing token', 401);
   }
   try {
