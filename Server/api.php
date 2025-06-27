@@ -173,7 +173,14 @@ function jwt_decode(string $token, string $secret): array {
   if (!hash_equals($valid, $sig)) {
     throw new Exception('Invalid JWT signature');
   }
-  return json_decode(base64url_decode($p64), true);
+  $payload = json_decode(base64url_decode($p64), true);
+  
+  // Check expiration
+  if (isset($payload['exp']) && $payload['exp'] < time()) {
+    throw new Exception('JWT token expired');
+  }
+  
+  return $payload;
 }
 
 function refillEnergy(PDO $pdo, int $userId): int {
@@ -227,12 +234,14 @@ function requireAuth(PDO $pdo): array {
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
+    error_log("JWT decode error: " . $e->getMessage());
     jsonErr('Invalid token', 401);
   }
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
+    error_log("User not found for public key: " . $data['publicKey']);
     jsonErr('User not found', 401);
   }
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
@@ -278,7 +287,7 @@ switch ($action) {
     $token = jwt_encode([
       'publicKey' => $b['publicKey'],
       'iat'       => time(),
-      'exp'       => time() + 3600
+      'exp'       => time() + 86400  // 24 hours instead of 1 hour
     ], JWT_SECRET);
     echo json_encode(['token' => $token]);
     exit;
