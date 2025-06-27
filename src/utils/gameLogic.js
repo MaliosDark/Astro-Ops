@@ -4,6 +4,13 @@ import {
   animateRaidTo, 
   animateShipReturn 
 } from './shipAnimator';
+import { 
+  createBurnTransaction, 
+  signAndSerializeTransaction, 
+  checkTokenBalance,
+  getTokenBalance,
+  PARTICIPATION_FEE 
+} from './solanaTransactions';
 
 // JWT will be set after authentication
 window._jwt = null;
@@ -86,6 +93,31 @@ export async function buyShip() {
  */
 export async function startMission(type, mode = 'Unshielded') {
   try {
+    // Get wallet provider for signing
+    const provider = window.solana;
+    if (!provider || !provider.publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    const userPublicKey = provider.publicKey.toString();
+
+    // Check if user has enough tokens
+    const hasEnoughTokens = await checkTokenBalance(userPublicKey, PARTICIPATION_FEE);
+    if (!hasEnoughTokens) {
+      const balance = await getTokenBalance(userPublicKey);
+      throw new Error(`Insufficient tokens. Need ${PARTICIPATION_FEE}, have ${balance}`);
+    }
+
+    if (window.AstroUI) {
+      window.AstroUI.setStatus('Creating burn transaction...');
+    }
+
+    // Create burn transaction
+    const burnTransaction = await createBurnTransaction(userPublicKey, PARTICIPATION_FEE);
+    
+    // Sign the transaction
+    const signedBurnTx = await signAndSerializeTransaction(burnTransaction, provider.signTransaction);
+
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
     }
@@ -98,10 +130,6 @@ export async function startMission(type, mode = 'Unshielded') {
     
     await animateRaidTo(type);
 
-    // For now, we'll simulate the burn transaction
-    // In production, you'd need to create and sign the actual burn transaction
-    const mockSignedBurnTx = 'mock_burn_transaction_' + Date.now();
-
     const response = await fetch('https://api.bonkraiders.com/api.php?action=send_mission', {
       method: 'POST',
       headers: {
@@ -111,7 +139,7 @@ export async function startMission(type, mode = 'Unshielded') {
       body: JSON.stringify({ 
         type, 
         mode,
-        signedBurnTx: mockSignedBurnTx
+        signedBurnTx: signedBurnTx
       })
     });
 
@@ -139,7 +167,10 @@ export async function startMission(type, mode = 'Unshielded') {
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Mission failed: ${error.message}`);
     }
-    await animateShipReturn();
+    // Only animate return if ship was launched
+    if (window.__shipInFlight) {
+      await animateShipReturn();
+    }
   }
 }
 
