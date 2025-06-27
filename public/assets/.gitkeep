@@ -1,0 +1,2 @@
+# This file ensures the assets directory is created
+# Copy all your existing assets from app/assets/ to public/assets/

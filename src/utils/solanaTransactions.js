@@ -1,11 +1,6 @@
 // src/utils/solanaTransactions.js
-import { 
-  Connection,
-  PublicKey,
-  Transaction,
-  TransactionInstruction,
-  SystemProgram
-} from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import ENV from '../config/environment.js';
 
 // Usar TextEncoder/TextDecoder nativo del navegador
 const encoder = new TextEncoder();
@@ -21,14 +16,12 @@ function uint8ArrayToBase64(uint8Array) {
   return btoa(binary);
 }
 
-// Configuration
-const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
-const GAME_TOKEN_MINT = new PublicKey('PCYfGh9AECbJ8QHnRhMtR84h4GFmLLtRZm1HEELbonk');
+// Configuration from environment
+const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-const PARTICIPATION_FEE = 250; // tokens to burn
 
 // Create connection
-const connection = new Connection(SOLANA_RPC, 'confirmed');
+const connection = new Connection(ENV.SOLANA_RPC_URL, 'confirmed');
 
 /**
  * Derive associated token account address manually
@@ -80,7 +73,7 @@ function createBurnInstruction(account, mint, owner, amount) {
  * @param {number} amount - Amount to burn (default: PARTICIPATION_FEE)
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
-export async function createBurnTransaction(userPublicKey, amount = PARTICIPATION_FEE) {
+export async function createBurnTransaction(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
@@ -139,7 +132,7 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
  * @param {number} amount - Amount needed
  * @returns {Promise<boolean>} - Whether user has enough tokens
  */
-export async function checkTokenBalance(userPublicKey, amount = PARTICIPATION_FEE) {
+export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
@@ -182,5 +175,3 @@ export async function getTokenBalance(userPublicKey) {
     return 0;
   }
 }
-
-export { PARTICIPATION_FEE, GAME_TOKEN_MINT };
