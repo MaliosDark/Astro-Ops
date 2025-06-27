@@ -1,212 +1,169 @@
+<!-- FILE: app/mission.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Astro Ops – Mission Dossier</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Astro Ops – Select Mission</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <!-- Pixel font -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
   <style>
     html, body {
-      margin:0; padding:0;
-      width:100vw; height:100vh;
-      background:#0a0a1a;  /* dark grid */
-      font-family:'Press Start 2P',monospace;
-      image-rendering:pixelated;
-      display:flex; align-items:center; justify-content:center;
-    }
-    .dossier {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      grid-template-rows:
-        auto  /* title */
-        auto  /* created */
-        auto  /* subtitle */
-        auto  /* typing message */
-        auto  /* hdr */
-        repeat(3, auto) /* missions */
-        auto  /* spacer */
-        auto  /* status label */
-        auto  /* stats */
-        auto  /* actions */
-      ;
-      row-gap:8px;
-      column-gap:16px;
-      padding:16px;
-      width:90%; max-width:800px;
-    }
-    .dossier > * {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      background: #0a0a1a;
+      font-family: 'Press Start 2P', monospace;
       color: #0cf;
-      font-size:14px;
+      display: flex; align-items: center; justify-content: center;
+      image-rendering: pixelated;
     }
-    .dossier .title {
-      grid-column:1/ -1;
-      color:#f60;
-      font-size:32px;
-      text-align:center;
+    .window {
+      background: rgba(0,20,40,0.8);
+      border: 4px solid #0cf;
+      border-radius: 8px;
+      padding: 20px;
+      width: 90%; max-width: 600px;
+      box-sizing: border-box;
+      backdrop-filter: blur(6px);
     }
-    .dossier .created {
-      grid-column:1/ -1;
-      color:#0cf;
-      font-size:16px;
+    h1 {
+      margin: 0 0 16px;
+      font-size: 24px;
+      text-align: center;
+      color: #fc0;
     }
-    .dossier .subtitle {
-      grid-column:1/2;
-      color:#fc0;
-      font-size:18px;
-      padding-left:8px;
+    /* Make table scroll on narrow screens */
+    .table-container {
+      overflow-x: auto;
+      margin-bottom: 16px;
     }
-    /* Typing message */
-    .dossier .message {
-      grid-column:1/2;
-      color:#0cf;
-      font-size:14px;
-      padding-left:8px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      border: 2px solid #0cf;
+      padding: 8px;
+      text-align: center;
       white-space: nowrap;
-      overflow: hidden;
     }
-    .dossier .message .cursor {
-      display: inline-block;
-      animation: blink 0.7s step-end infinite;
+    th {
+      background: rgba(0,40,60,0.9);
+      color: #0ff;
     }
-    @keyframes blink {
-      from, to { opacity: 0; }
-      50% { opacity: 1; }
+    tr:nth-child(odd) td { background: rgba(0,20,40,0.5); }
+    tr:nth-child(even) td { background: rgba(0,30,50,0.3); }
+
+    fieldset {
+      border: 2px solid #0cf;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
     }
-    .dossier .portrait {
-      grid-column:2/3;
-      grid-row:3/6;
-      justify-self:center;
-      align-self:start;
-      width:160px; height:160px;
-      border:4px solid #fc0;
-      padding:4px;
-      box-sizing:border-box;
-      background:#0a0a1a;
+    legend {
+      padding: 0 8px;
+      color: #0ff;
+      font-size: 14px;
     }
-    .dossier .portrait img {
-      width:100%; height:100%;
-      object-fit:contain;
-      image-rendering:pixelated;
+    label {
+      margin-right: 16px;
+      font-size: 12px;
+      color: #0cf;
     }
-    .dossier .hdr {
-      grid-column:1/ -1;
-      color:#f60;
-      font-size:18px;
-      padding-left:8px;
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 12px 0;
+      background: #0cf;
+      border: 2px solid #0ff;
+      border-radius: 6px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      color: #000;
+      cursor: pointer;
+      image-rendering: pixelated;
+      transition: background .1s, color .1s;
     }
-    .dossier .row-label { color:#0cf; padding-left:16px; }
-    .dossier .row-value { color:#0cf; }
-    .dossier .status-label {
-      grid-column:1/ -1;
-      color:#f60;
-      font-size:18px;
-      text-align:left;
-      padding-left:8px;
+    button:hover {
+      background: #0ff;
     }
-    .dossier .stat-grid {
-      grid-column:1/ -1;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      row-gap:4px;
-      padding-left:16px;
+
+    /* ===== Mobile overrides ===== */
+    @media (max-width: 600px) {
+      .window {
+        padding: 12px;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+      }
+      h1 { font-size: 18px; margin-bottom: 12px; }
+      fieldset { padding: 8px; margin-bottom: 12px; }
+      legend { font-size: 12px; }
+      label { font-size: 10px; margin-right: 8px; display: block; margin-bottom: 4px; }
+      .table-container { margin-bottom: 12px; }
+      th, td { padding: 6px; font-size: 10px; }
+      button {
+        padding: 10px 0;
+        font-size: 12px;
+      }
     }
-    .dossier .stat-grid .stat-key { color:#7f7; }
-    .dossier .stat-grid .stat-val { color:#7f7; }
-    /* Action buttons box */
-    .dossier .actions {
-      grid-column:1/ -1;
-      display:flex; justify-content:space-around;
-      gap:12px;
-      padding-top:8px;
-    }
-    .dossier .actions .btn {
-      flex:1;
-      text-align:center;
-      padding:8px 0;
-      font-size:14px;
-      border:2px solid #0f0;
-      border-radius:4px;
-      cursor:pointer;
-      image-rendering:pixelated;
-      transition:opacity .1s;
-    }
-    .dossier .btn-mission { background:#fc0; color:#000; }
-    .dossier .btn-raid    { background:#0cf; color:#000; }
-    .dossier .btn-claim   { background:#f33; color:#000; }
-    .dossier .actions .btn:hover { opacity:0.7; }
   </style>
 </head>
 <body>
+  <div class="window">
+    <h1>Select Your Mission</h1>
+    <form id="mission-form">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Mission</th>
+              <th>Success %</th>
+              <th>Base Reward</th>
+              <th>Select</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Mining Run</td>
+              <td>90%</td>
+              <td>10 AT</td>
+              <td><input type="radio" name="mission" value="MiningRun" checked></td>
+            </tr>
+            <tr>
+              <td>Black Market</td>
+              <td>70%</td>
+              <td>30 AT</td>
+              <td><input type="radio" name="mission" value="BlackMarket"></td>
+            </tr>
+            <tr>
+              <td>Artifact Hunt</td>
+              <td>50%</td>
+              <td>60 AT</td>
+              <td><input type="radio" name="mission" value="ArtifactHunt"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-  <div class="dossier">
-    <!-- Title -->
-    <div class="title">ASTRO OPS</div>
+      <fieldset>
+        <legend>Mode</legend>
+        <label>
+          <input type="radio" name="mode" value="Unshielded" checked>
+          Unshielded
+        </label>
+        <label>
+          <input type="radio" name="mode" value="Shielded">
+          Shielded
+        </label>
+      </fieldset>
 
-    <!-- Created -->
-    <div class="created">NEW MISSION LOADED: #00042</div>
-
-    <!-- Subtitle / Name -->
-    <div class="subtitle">“Stellar Run”</div>
-
-    <!-- Typing animation message -->
-    <div class="message"><span id="typed"></span><span class="cursor">|</span></div>
-
-    <!-- Portrait of Ship -->
-    <div class="portrait">
-      <img src="assets/ship.png" alt="Ship">
-    </div>
-
-    <!-- Mission Mode Header -->
-    <div class="hdr">Available Missions</div>
-
-    <!-- Rows -->
-    <div class="row-label">Mining Run</div>
-    <div class="row-value">90%</div>
-
-    <div class="row-label">Black Market</div>
-    <div class="row-value">70%</div>
-
-    <div class="row-label">Artifact Hunt</div>
-    <div class="row-value">50%</div>
-
-    <!-- Farm Status Label -->
-    <div class="status-label">MISSION STATUS</div>
-
-    <!-- Stats Grid -->
-    <div class="stat-grid">
-      <div class="stat-key">COOLDOWN</div><div class="stat-val">8h</div>
-      <div class="stat-key">FAIL REWARD</div><div class="stat-val">0 AT</div>
-    </div>
-
-    <!-- Action Buttons -->
-    <div class="actions">
-      <div class="btn btn-mission" onclick="window.parent.startMission('MiningRun')">LAUNCH</div>
-      <div class="btn btn-raid"    onclick="window.parent.startMission('BlackMarket')">RAID</div>
-      <div class="btn btn-claim"   onclick="window.parent.startMission('ArtifactHunt')">CLAIM</div>
-    </div>
+      <button type="submit" id="launch-btn">Launch Mission</button>
+    </form>
   </div>
 
-  <script>
-    // Typing animation under the subtitle
-    const message = "Captain, are you ready?";
-    let idx = 0;
-    const speed = 100; // ms per character
-    function type() {
-      const el = document.getElementById('typed');
-      if (idx < message.length) {
-        el.textContent += message.charAt(idx++);
-        setTimeout(type, speed);
-      }
-    }
-    window.pageInit = () => {
-      document.getElementById('typed').textContent = '';
-      idx = 0;
-      type();
-    };
-    // If loaded outside modal, fire immediately
-    if (!window.opener) window.pageInit();
-  </script>
-
+  <script type="module" src="./mission.js"></script>
 </body>
 </html>

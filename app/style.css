@@ -1,5 +1,3 @@
-style.css
-
 /* Apply pixelated rendering everywhere */
 body, html {
   margin: 0; padding: 0;
@@ -80,7 +78,7 @@ body, html {
   top: 50%; left: 50%;      /* center in the viewport */
   transform: translate(-50%, -50%);
   z-index: 1000;            /* higher than all other UI elements */
-  background: rgba(0, 40, 0, 0.8);  /* you can restyle if you like */
+  background: rgba(0, 40, 0, 0.8);
   border: 2px solid #0f0;
   border-radius: 6px;
   padding: 8px 16px;
@@ -128,4 +126,50 @@ body, html {
   visibility: hidden;
   white-space: nowrap;
   z-index: 100;
+}
+
+/* ===== Mobile-friendly overrides ===== */
+@media (max-width: 600px) {
+  /* Shrink and pad the UI container */
+  #gb-ui {
+    top: 0; left: 0; right: 0; bottom: 0;
+    padding: 4px;
+  }
+
+  /* Stack top HUD vertically */
+  #top-hud {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .panel.info {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  /* Status panel moves to bottom */
+  #status-panel {
+    top: auto;
+    bottom: 8px;
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+
+  /* Convert bottom HUD into fixed footer */
+  #bottom-hud {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.5);
+    padding: 4px 0;
+    justify-content: space-around;
+    pointer-events: none;
+  }
+  .gb-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* Hide tooltips on touch devices */
+  .tooltip {
+    display: none;
+  }
 }

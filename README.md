@@ -1,95 +1,230 @@
-**Astro Ops**
-*An isometric pixel-art strategy game on Solana*
+````markdown
+ _______     ______    _____  ___   __   ___                                     
+|   _  "\   /    " \  (\"   \|"  \ |/"| /  ")                                    
+(. |_)  :) // ____  \ |.\\   \    |(: |/   /                                     
+|:     \/ /  /    ) :)|: \.   \\  ||    __/                                      
+(|  _  \\(: (____/ // |.  \    \. |(// _  \                                      
+|: |_)  :)\        /  |    \    \ ||: | \  \                                     
+(_______/  \"_____/    \___|\____\)(__|  \__)                                    
+                                                                                 
+      _______        __        __     ________    _______   _______    ________  
+     /"      \      /""\      |" \   |"      "\  /"     "| /"      \  /"       ) 
+    |:        |    /    \     ||  |  (.  ___  :)(: ______)|:        |(:   \___/  
+    |_____/   )   /' /\  \    |:  |  |: \   ) || \/    |  |_____/   ) \___  \    
+     //      /   //  __'  \   |.  |  (| (___\ || // ___)_  //      /   __/  \\   
+    |:  __   \  /   /  \\  \  /\  |\ |:       :)(:      "||:  __   \  /" \   :)  
+    |__|  \___)(___/    \___)(__\_|_)(________/  \_______)|__|  \___)(_______/   
+                                                                                                                      
+````
+
+# Bonk Raiders
+
+Welcome to **Bonk Raiders** 👾 — a retro pixel-style, Solana-powered raiding game where you launch missions, upgrade your ship, and raid other players for juicy rewards!
 
 ---
 
-## 🧭 Project Overview
+## 🚀 Features
 
-Astro Ops is a browser-based, isometric pixel-art strategy game built on Solana. Players connect any Solana wallet, buy a spaceship, send it on missions to earn in-game tokens (AT), upgrade their ship, and raid others. The frontend is a plain HTML / JavaScript canvas (no frameworks), and the on-chain logic is implemented in Rust using Anchor.
+* **🛸 Missions & Raiding**
+
+  * Send your ship on mining runs, black market deals or artifact hunts
+  * Choose **Shielded**, **Unshielded** modes
+  * Raid other players’ unshielded missions for extra spoils
+
+* **⚙️ Ship Upgrades**
+
+  * Enhance ship performance, reduce cooldowns & boost rewards
+  * 7 upgrade tiers with escalating costs and benefits
+
+* **💰 On-chain Tokens & Rewards**
+
+  * Burn participation fee on Solana
+  * Off-chain mission logic guarded by anti-cheat rules
+  * Mint or steal \$BR tokens directly to your wallet
+
+* **🔐 Security & Anti-Cheat**
+
+  * Enforced cooldowns, daily mission limits
+  * Payload inspection, origin checks & replay protection
+  * Hardened PHP backend & Node.js Solana API microservice
+
+* **📈 Leaderboards & Progression**
+
+  * Track kills, raids won & energy
+  * Compete in global rankings
 
 ---
 
+## 🛠️ Tech Stack
+
+| Layer          | Technologies                                       |
+| -------------- | -------------------------------------------------- |
+| **Frontend**   | HTML5 · CSS3 · Vanilla JS · React · Canvas API     |
+| **Blockchain** | Solana · @solana/web3.js · SPL-Token               |
+| **Backend**    | PHP (API) · MySQL · Node.js (Solana API)           |
+| **Styling**    | Retro pixel font (Press Start 2P) · CSS pixelation |
+| **Security**   | CSP, XSS & injection filters · AntiCheat rules     |
+
+---
+
+## 📂 Directory Structure
+
+```
+home/base/Bonk-Raiders/
+├── app/                 ← Frontend single-page & modals
+│   ├── assets/          ← Images & sprites
+│   ├── app.js           ← Bootstraps canvas, HUD & game logic
+│   ├── canvasController.js
+│   ├── shipAnimator.js
+│   ├── hud.js
+│   ├── modal.js
+│   ├── gameLogic.js
+│   ├── mission.html/js
+│   ├── raid.html/js
+│   ├── upgrade.html/js
+│   ├── claim.html/js
+│   ├── wallet.html/js
+│   ├── howto.html
+│   ├── uiOverlay.html
+│   └── style.css
+├── Server/              ← PHP API & anti-cheat
+│   ├── api.php
+│   ├── hacker_protect.php
+│   ├── anti_cheat.php
+│   ├── error.php
+│   ├── migrations.sql
+│   └── solana-api/      ← Node.js microservice (burn & mint)
+│       ├── index.js
+│       ├── .env.example
+│       └── package.json
+└── README.md            ← You are here! 🎉
+```
+
+---
 
 ## 🔧 Prerequisites
 
-* **Rust & Cargo** (latest stable)
-* **Anchor CLI**
-
-  ```bash
-  cargo install --locked anchor-cli
-  ```
-* **Solana CLI**
-
-  ```bash
-  sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-  ```
-* **Localnet validator** (via `solana-test-validator`)
-* (Optional) **http-server** or similar for serving static files
+* **Node.js** (v16+) & **npm**
+* **PHP** (v7.4+) & **Composer**
+* **MySQL** (or MariaDB)
+* **Solana CLI / RPC access**
 
 ---
 
-## 🚀 On-Chain Program Setup
+## ⚙️ Configuration
 
-1. **Build & Deploy**
+1. **Frontend**
 
-   ```bash
-   cd programs/astro_ops
-   anchor build
-   anchor deploy
+   * No build step: static files in `app/`
+   * Ensure your webserver points to `app/index.html`.
+
+2. **PHP API** (`Server/api.php`)
+
+   ```php
+   define('DB_HOST',      '127.0.0.1');
+   define('DB_NAME',      'astroops');
+   define('DB_USER',      'your_db_user');
+   define('DB_PASS',      'your_db_pass');
+   define('JWT_SECRET',   'replace_with_strong_secret');
+   define('SOLANA_API_URL','http://localhost:3070');
    ```
 
-2. **Update IDL / Program ID**
+   * Run `migrations.sql` on empty database (auto-migration runs if needed).
 
-   * After deploy, update your frontend RPC endpoints or client configs if needed.
+3. **Solana API** (`Server/solana-api/`)
 
----
+   * Copy `.env.example → .env`
+   * Populate:
 
-## 🖥️ Frontend Setup
-
-1. **Serve `app/` folder**
-
-   * Simply open `app/index.html` in your browser, or
-   * Use a simple HTTP server:
-
-     ```bash
-     cd app
-     npx http-server .   # or python3 -m http.server
+     ```
+     SOLANA_RPC=https://api.mainnet-beta.solana.com
+     COMMUNITY_SECRET_KEY=[ … your mint authority secret … ]
+     GAME_TOKEN_MINT=PCYfGh9…bonk
+     PORT=3070
+     CORS_ORIGINS=https://bonkraiders.com
      ```
 
-2. **Connect Wallet**
+---
 
-   * Click **CONNECT WALLET** on the Hero screen.
-   * (Stubbed by default; see **Customization** below.)
+## 🏃 Installation & Run
 
-3. **Play**
+### 1. Start Solana Microservice
 
-   * After connecting, the canvas appears.
-   * Pan by dragging, zoom with mouse wheel.
-   * Ship and grid render in isometric pixel art.
-   * Mission buttons (once implemented) appear as overlays.
+```bash
+cd Server/solana-api
+npm install
+npm start
+```
+
+*🚀 Listens on port `3070` by default.*
+
+### 2. Start PHP API
+
+```bash
+cd Server
+composer install           # (if you have dependencies)
+php -S localhost:8000 api.php
+```
+
+*🔐 Exposes `/api.php?action=…` endpoints, enables anti-cheat & rate-limiting.*
+
+### 3. Serve Frontend
+
+* **Option A:** Static file server
+
+  ```bash
+  cd app
+  npx serve .               # or your favorite static server
+  ```
+* **Option B:** Integrated with PHP (for index.php dead-end)
+
+  ```bash
+  cd Server
+  php -S localhost:8000 ../app/index.php
+  ```
 
 ---
 
-## ⚙️ Customization & Extensions
+## 🎮 Usage
 
-* **Real Wallet Integration**
+1. **Connect Wallet**
 
-  * Integrate [solana-wallet-adapter](https://github.com/solana-labs/wallet-adapter) by adding its scripts to `index.html` and replacing the stub in `app.js`.
+   * Click the **Phantom** wallet button (top-right).
+2. **Buy Ship**
 
-* **Wire Up RPC Calls**
+   * 15 USDC on Solana → one-time burn.
+3. **Launch Missions**
 
-  * Use `@project-serum/anchor` client or `@solana/web3.js` to invoke on-chain instructions from `app.js`.
+   * Select type, mode & confirm → watch pixel animation.
+4. **Raid Other Players**
 
-* **Asset Swap**
+   * Spend energy to scan & raid unshielded missions.
+5. **Upgrade & Claim**
 
-  * Replace `assets/ship.png` and `assets/tiles.png` with your own pixel sprites (maintain transparency).
-
-* **Missions & UI**
-
-  * Add HTML buttons or canvas overlays for mission selection, cooldown display, raid interface, and upgrades.
-
-* **Styling**
-
-  * The pixelated font is applied via CSS. Swap `pixel-font.png` or use any bitmap font you prefer.
+   * Improve ship tier; claim your on-chain rewards.
 
 ---
+
+## 🤝 Contributing
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/XYZ`)
+3. Commit your changes (`git commit -m "Add XYZ"`)
+4. Push & open a PR
+
+Please adhere to **clean code**, **pixel-perfect styling**, and keep all **anti-cheat** safeguards intact ⚔️.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
+See [LICENSE](LICENSE) for details.
+
+---
+
+> **Bonk Raiders** – Explore. Raid. Earn. 💥
+> © 2024 Bonk Raiders Inc. All rights reserved.
+
+```
+```

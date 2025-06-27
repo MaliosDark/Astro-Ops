@@ -1,5 +1,6 @@
 // app/gameLogic.js
-
+import React from 'react';
+import ReactDOM from 'react-dom';
 import { showModal, closeModal } from './modal.js';
 import {
   animateShipLaunch,
@@ -7,135 +8,192 @@ import {
   animateShipReturn,
   testTravel
 } from './shipAnimator.js';
+import {
+  Connection,
+  PublicKey,
+  clusterApiUrl
+} from '@solana/web3.js';
+import {
+  WalletAdapterNetwork
+} from '@solana/wallet-adapter-base';
+import {
+  getPhantomWallet
+} from '@solana/wallet-adapter-wallets';
+import {
+  WalletModalProvider
+} from '@solana/wallet-adapter-react-ui';
+import {
+  useWallet,
+  ConnectionProvider,
+  WalletProvider
+} from '@solana/wallet-adapter-react';
 
-export function setupGame(canvas) {
-  const connectBtn  = document.getElementById('connect-btn');
-  const statusPanel = document.getElementById('status-panel');
-  let   balanceAT   = 100.0;
+// — Solana wallet setup —
+const network = WalletAdapterNetwork.Mainnet;
+const endpoint = clusterApiUrl(network);
+const wallets = [ getPhantomWallet() ];
 
-  // Helper: sleep for ms
-  const sleep = ms => new Promise(res => setTimeout(res, ms));
+ReactDOM.render(
+  <ConnectionProvider endpoint={endpoint}>
+    <WalletProvider wallets={wallets} autoConnect>
+      <WalletModalProvider>
+      <WalletMultiButton />
+        <MainApp />
+      </WalletModalProvider>
+    </WalletProvider>
+  </ConnectionProvider>,
+  document.getElementById('react-root')
+);
 
-  // Center & float status panel
-  Object.assign(statusPanel.style, {
-    position:      'fixed',
-    top:           '50%',
-    left:          '50%',
-    transform:     'translate(-50%, -50%)',
-    zIndex:        '3000',
-    pointerEvents: 'none'
-  });
-
+function MainApp() {
+  const { publicKey, signMessage } = useWallet();
+  const [jwt, setJwt] = React.useState(null);
   const hud = window.AstroUI;
 
-  // Wire HUD buttons → modals or actions
-  hud.onMission(() => showModal('mission'));
-  hud.onUpgrade(() => showModal('upgrade'));
-  hud.onRaid   (() => showModal('raid'));
-  hud.onHelp   (() => showModal('howto'));
-  hud.onClaim   (() => showModal('claim'));
-//   hud.onClaim  (() => { 
-//     window.performClaim();
-//     closeModal();
-//   });
-
-  // CONNECT WALLET
-  connectBtn.addEventListener('click', () => {
-    hud.setWallet('DemoWalletXYZ');
-    hud.setBalance(balanceAT);
-    hud.setStatus('Ready!');
-    document.getElementById('hero').style.display   = 'none';
-    canvas.style.display                            = 'block';
-    document.getElementById('gb-ui').style.display  = 'flex';
-  });
-
-  // 1️⃣ MISSION logic with travel animation
-  const cooldown   = 8 * 3600;
-  let lastMissionT = 0;
-
-  window.startMission = async function(type) {
-    // close the mission modal right away
-    closeModal();
-
-    const now = Date.now() / 1000;
-    if (now - lastMissionT < cooldown) {
-      hud.setStatus('On cooldown');
-      return;
+  // Helper para llamar al backend con JWT
+  const api = async (action, body = {}) => {
+    const res = await fetch(`https://api.bonkraiders.com/api.php?action=${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${jwt}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || res.statusText);
     }
-
-    hud.setStatus(`Launching ${type}…`);
-    await window.animateShipLaunch();
-    hud.setStatus('In transit…');
-    await window.animateRaidTo(type);
-
-    // simulate outcome
-    const configs = {
-      MiningRun:    { chance: 0.9,  reward: 10 },
-      BlackMarket:  { chance: 0.7,  reward: 30 },
-      ArtifactHunt: { chance: 0.5,  reward: 60 },
-    };
-    const cfg     = configs[type];
-    const ok      = Math.random() < cfg.chance;
-    const gain    = ok ? cfg.reward : 0;
-
-    if (ok) {
-      balanceAT += gain;
-      hud.setStatus(`+${gain} AT`);
-    } else {
-      hud.setStatus('Mission failed');
-    }
-    hud.setBalance(balanceAT);
-
-    hud.setStatus('Returning home…');
-    await window.animateShipReturn();
-
-    lastMissionT = now;
+    return res.json();
   };
 
-  // 2️⃣ UPGRADE
-  window.performUpgrade = function(level) {
+  // Actualiza el balance en el HUD
+  const fetchBalance = async () => {
+    const { claimable_AT } = await api('claim_rewards');
+    hud.setBalance(claimable_AT);
+  };
+
+  // 1️⃣ Cuando cambia publicKey: login por nonce
+  React.useEffect(() => {
+    if (!publicKey) return;
+    (async () => {
+      try {
+        // 1) get nonce
+        let res = await fetch(`https://api.bonkraiders.com/api.php?action=auth/nonce`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicKey: publicKey.toBase58() })
+        });
+        const { nonce } = await res.json();
+
+        // 2) sign it
+        const encoded = new TextEncoder().encode(nonce);
+        const sig = await signMessage(encoded);
+        const signature = Buffer.from(sig).toString('base64');
+
+        // 3) login
+        res = await fetch(`https://api.bonkraiders.com/api.php?action=auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            publicKey: publicKey.toBase58(),
+            nonce,
+            signature
+          })
+        });
+        const { token } = await res.json();
+        setJwt(token);
+        window._jwt = token;
+        hud.setWallet(publicKey.toBase58());
+      } catch (e) {
+        hud.setStatus(`Auth error: ${e.message}`);
+      }
+    })();
+  }, [publicKey]);
+
+  // 2️⃣ Cuando cambia jwt: compramos el ship y mostramos la UI
+  React.useEffect(() => {
+    if (!jwt) return;
+    (async () => {
+      try {
+        // refrescamos balance (claimable_AT)
+        await fetchBalance();
+        // intentamos comprar ship (si ya tiene, ignora)
+        await api('buy_ship');
+        hud.setStatus('Ship acquired!');
+      } catch (e) {
+        // ignoramos “already purchased”
+      } finally {
+        // ocultar pantalla de héroe y mostrar el juego
+        document.getElementById('hero').style.display        = 'none';
+        document.getElementById('game-canvas').style.display = 'block';
+        document.getElementById('gb-ui').style.display       = 'flex';
+      }
+    })();
+  }, [jwt]);
+
+  // 3️⃣ Hook de botones HUD (solo tras obtener jwt)
+  React.useEffect(() => {
+    if (!jwt) return;
+    hud.onMission(() => showModal('mission'));
+    hud.onUpgrade(() => showModal('upgrade'));
+    hud.onRaid    (() => showModal('raid'));
+    hud.onHelp    (() => showModal('howto'));
+    hud.onClaim   (() => showModal('claim'));
+  }, [jwt]);
+
+  // — Funciones globales para misiones, raids, upgrades, claim —
+  window.startMission = async (type, mode = 'Unshielded') => {
     closeModal();
-    const costs = [0, 50,100,150,225,300,400];
-    const cost  = costs[level-1]||0;
-    if (balanceAT >= cost) {
-      balanceAT -= cost;
+    try {
+      hud.setStatus(`Launching ${type}…`);
+      await animateShipLaunch();
+      hud.setStatus('In transit…');
+      await animateRaidTo(type);
+
+      const { success, reward, br_balance } = await api('send_mission', { type, mode });
+      hud.setStatus(success ? `+${reward} BR` : 'Mission failed');
+      hud.setBalance(br_balance);
+
+      hud.setStatus('Returning home…');
+      await animateShipReturn();
+    } catch (e) {
+      hud.setStatus(e.message);
+    }
+  };
+
+  window.performUpgrade = async level => {
+    closeModal();
+    try {
+      const { br_balance } = await api('upgrade_ship', { level });
       hud.setStatus(`Upgraded to L${level}`);
-    } else {
-      hud.setStatus('Not enough AT');
+      hud.setBalance(br_balance);
+    } catch (e) {
+      hud.setStatus(e.message);
     }
-    hud.setBalance(balanceAT);
   };
 
-  // 3️⃣ RAID
-  window.performRaid = function(idx) {
+  window.performRaid = async mission_id => {
     closeModal();
-    const targets = [
-      { chance:0,   loot:0 },
-      { chance:0.7, loot:20 },
-      { chance:0.5, loot:15 },
-    ];
-    const t       = targets[idx%targets.length];
-    const ok      = Math.random() < t.chance;
-    if (ok) {
-      balanceAT += t.loot;
-      hud.setStatus(`+${t.loot} AT`);
-    } else {
-      hud.setStatus('Raid failed');
+    try {
+      const { stolen, br_balance } = await api('raid_mission', { mission_id });
+      hud.setStatus(`+${stolen} BR`);
+      hud.setBalance(br_balance);
+    } catch (e) {
+      hud.setStatus(e.message);
     }
-    hud.setBalance(balanceAT);
   };
 
-  // 4️⃣ CLAIM
-  window.performClaim = function() {
+  window.performClaim = async () => {
     closeModal();
-    const pts = 5;
-    balanceAT += pts;
-    hud.setStatus(`+${pts} AT`);
-    hud.setBalance(balanceAT);
+    try {
+      const { claimable_AT } = await api('claim_rewards');
+      hud.setStatus(`+${claimable_AT} BR`);
+      hud.setBalance(claimable_AT);
+    } catch (e) {
+      hud.setStatus(e.message);
+    }
   };
 
-  // Animation stubs (attached to window by shipAnimator.js)
-  // window.animateShipLaunch
-  // window.animateRaidTo
-  // window.animateShipReturn
+  return null;
 }
