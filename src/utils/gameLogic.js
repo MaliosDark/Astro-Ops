@@ -70,8 +70,19 @@ export async function authenticateWallet(publicKey, signMessage) {
     // 2. Sign the nonce
     const encoded = encoder.encode(nonce);
     const signature = await signMessage(encoded);
+    console.log('🔧 Raw signature type:', typeof signature, 'length:', signature?.length);
+    console.log('🔧 Raw signature:', signature);
+    
+    if (!signature || signature.length === 0) {
+      throw new Error('Wallet returned empty signature');
+    }
+    
     const signatureB64 = uint8ArrayToBase64(signature);
     console.log('✅ Signed nonce, signature length:', signatureB64.length);
+    
+    if (!signatureB64 || signatureB64.length === 0) {
+      throw new Error('Failed to convert signature to base64');
+    }
 
     // 3. Login with signature
     const loginPayload = {
