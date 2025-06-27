@@ -1,43 +1,58 @@
 import React, { useEffect, useState } from 'react';
-import { getSolanaProvider } from '../utils/wallet';
+import { getAllSolanaProviders, waitForWallets } from '../utils/wallet';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
   const [noWallet, setNoWallet] = useState(false);
+  const [isScanning, setIsScanning] = useState(true);
 
   useEffect(() => {
-    renderWalletOptions();
+    scanForWallets();
+    
+    // Listen for wallet installation
+    const handleWalletChange = () => {
+      setTimeout(scanForWallets, 100);
+    };
+    
+    window.addEventListener('solana#initialized', handleWalletChange);
+    window.addEventListener('phantom#initialized', handleWalletChange);
+    
+    // Also listen for window load
+    if (document.readyState === 'loading') {
+      window.addEventListener('load', handleWalletChange);
+    }
+    
+    return () => {
+      window.removeEventListener('solana#initialized', handleWalletChange);
+      window.removeEventListener('phantom#initialized', handleWalletChange);
+      window.removeEventListener('load', handleWalletChange);
+    };
   }, []);
 
-  const renderWalletOptions = () => {
-    // No window.solana at all?
-    if (!window.solana) {
+  const scanForWallets = async () => {
+    setIsScanning(true);
+    
+    // Wait for wallets to initialize
+    const providers = await waitForWallets(2000);
+    
+    if (providers.length === 0) {
       setNoWallet(true);
-      return;
+      setWalletProviders([]);
+    } else {
+      setNoWallet(false);
+      setWalletProviders(providers);
     }
-
-    setNoWallet(false);
-
-    // phantom+solflare+… might live in window.solana.providers array
-    const providers = Array.isArray(window.solana.providers)
-      ? window.solana.providers
-      : [window.solana];
-
-    const walletList = providers.map(provider => {
-      let name = 'Unknown Wallet';
-      if (provider.isPhantom) name = 'Phantom';
-      if (provider.isSolflare) name = 'Solflare';
-      if (provider.isGlow) name = 'Glow';
-      if (provider.isTorus) name = 'Torus';
-
-      return { name, provider };
-    });
-
-    setWalletProviders(walletList);
+    
+    setIsScanning(false);
   };
 
   const handleConnect = (provider) => {
     onConnect(provider);
+  };
+
+  const handleInstallWallet = () => {
+    // Open Phantom installation page
+    window.open('https://phantom.app/', '_blank');
   };
 
   return (
@@ -50,9 +65,15 @@ const HeroScreen = ({ onConnect, isLoading }) => {
           Connecting and setting up...
         </p>
       )}
+      
+      {isScanning && !isLoading && (
+        <p style={{ color: '#0cf', fontSize: '12px', margin: '10px 0' }}>
+          Scanning for wallets...
+        </p>
+      )}
 
-      <div id="wallet-selector">
-        {walletProviders.map(({ name, provider }, index) => (
+      <div id="wallet-selector" style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+        {!isScanning && walletProviders.map(({ name, provider, icon }, index) => (
           <button
             key={index}
             className="gb-btn"
@@ -60,18 +81,50 @@ const HeroScreen = ({ onConnect, isLoading }) => {
             onClick={() => handleConnect(provider)}
             style={{
               opacity: isLoading ? 0.5 : 1,
-              cursor: isLoading ? 'not-allowed' : 'pointer'
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              minWidth: '200px',
+              justifyContent: 'center'
             }}
           >
+            {icon && (
+              <img 
+                src={icon} 
+                alt={`${name} icon`} 
+                style={{ width: '20px', height: '20px' }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            )}
             {isLoading ? 'Connecting...' : `Connect ${name}`}
           </button>
         ))}
       </div>
 
-      {noWallet && (
-        <button className="gb-btn" style={{ display: 'block' }}>
-          No Wallet Found
-        </button>
+      {!isScanning && noWallet && (
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <p style={{ color: '#fc0', fontSize: '12px', marginBottom: '10px' }}>
+            No Solana wallet detected
+          </p>
+          <button 
+            className="gb-btn" 
+            onClick={handleInstallWallet}
+            style={{ marginBottom: '10px' }}
+          >
+            Install Phantom Wallet
+          </button>
+          <p style={{ color: '#888', fontSize: '10px' }}>
+            Supported wallets: Phantom, Solflare, Glow, Backpack, Coin98
+          </p>
+          <button 
+            className="gb-btn" 
+            onClick={scanForWallets}
+            style={{ marginTop: '10px', fontSize: '10px', padding: '6px 12px' }}
+          >
+            Rescan for Wallets
+          </button>
+        </div>
       )}
     </div>
   );

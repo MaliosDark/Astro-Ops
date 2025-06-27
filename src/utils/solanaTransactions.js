@@ -22,7 +22,7 @@ function uint8ArrayToBase64(uint8Array) {
 }
 
 // Configuration
-const SOLANA_RPC = 'https://api.devnet.solana.com'; // Cambiar a devnet para testing
+const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
 const GAME_TOKEN_MINT = new PublicKey('PCYfGh9AECbJ8QHnRhMtR84h4GFmLLtRZm1HEELbonk');
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const PARTICIPATION_FEE = 250; // tokens to burn
