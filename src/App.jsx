@@ -34,7 +34,9 @@ function App() {
       
       // Validate response and publicKey
       if (!resp || !resp.publicKey) {
-        throw new Error('Wallet connection was cancelled or failed to return a public key');
+        console.log('Wallet connection was cancelled by user');
+        setIsLoading(false);
+        return;
       }
       
       const publicKey = resp.publicKey.toString();
