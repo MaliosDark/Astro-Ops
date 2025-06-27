@@ -15,31 +15,3 @@ export function getSolanaProvider() {
   
   return window.solana;
 }
-
-/**
- * Connect to wallet with error handling
- */
-export async function connectWallet() {
-  console.log('🚀 connectWallet fired');
-  const provider = getSolanaProvider();
-  
-  if (!provider) {
-    alert(
-      'No Solana wallet detected.\n' +
-      'Ensure you\'re on HTTPS (or http://localhost) and have Phantom, Solflare, Glow, etc. installed.'
-    );
-    return null;
-  }
-
-  try {
-    const resp = await provider.connect();
-    return {
-      provider,
-      publicKey: resp.publicKey.toString()
-    };
-  } catch (err) {
-    console.error('❌ Wallet connection failed', err);
-    alert('Connection failed: ' + (err.message || err));
-    return null;
-  }
-}
