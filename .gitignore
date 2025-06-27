@@ -4,3 +4,4 @@ app/node_modules
 Server/solana-api/node_modules
 
 programs
+.env
