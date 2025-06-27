@@ -153,7 +153,10 @@ export async function authenticateWallet(publicKey, signMessage) {
  */
 export async function buyShip() {
   try {
-    return await apiService.buyShip();
+    const result = await apiService.buyShip();
+    // Mark that player now has a ship
+    window.hasShip = true;
+    return result;
   } catch (error) {
     console.error('Buy ship error:', error);
     throw error;

@@ -1,0 +1,541 @@
+<?php
+// Basic security & input hardening
+// ================= CORS Headers (MUST be first) =================
+// Allow all origins for development/testing
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept');
+header('Access-Control-Max-Age: 86400'); // 24 hours
+
+// Handle preflight OPTIONS requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+require 'hacker_protect.php';
+require 'anti_cheat.php';
+require __DIR__ . '/vendor/autoload.php';
+
+// CORS headers before any other output
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Max-Age: 86400');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+
+// at the top of api/api.php
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ! isset($_GET['action'])) {
+    // serve the front‐end HTML
+    header('Content-Type: text/html; charset=UTF-8');
+    readfile(__DIR__ . '/index.php');
+    exit;
+}
+
+
+header('Content-Type: application/json; charset=utf-8');
+
+/** ================= Configuration ================= **/
+define('DB_HOST',         'localhost');
+define('DB_NAME',         'bonka_bonkartio');
+define('DB_USER',         'bonka_bonusrtio');
+define('DB_PASS',         '*OxlUH49*69i');
+define('JWT_SECRET',      'OAZchPBiIuZu5goVp8HAe5FzUzXFsNBm');
+define('SOLANA_RPC',      'https://api.mainnet-beta.solana.com');
+define('GAME_TOKEN_MINT','PCYfGh9AECbJ8QHnRhMtR84h4GFmLLtRZm1HEELbonk');
+define('SOLANA_API_URL',  'https://verify.bonkraiders.com');
+
+// Treasury-safe mission config
+$REWARD_CONFIG = [
+  'MiningRun'   => [0.90,  100000,  300000],  // 100k-300k BR
+  'BlackMarket' => [0.70,  300000,  500000],  // 300k-500k BR  
+  'ArtifactHunt'=> [0.50,  700000, 1000000],  // 700k-1M BR
+];
+define('PARTICIPATION_FEE', 500);  // 500 BR burn per mission
+
+
+/** ================ Database Setup & Migrations ================ **/
+$pdo = new PDO(
+  "mysql:host=".DB_HOST.";charset=utf8mb4",
+  DB_USER, DB_PASS,
+  [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+);
+
+function runMigrations(PDO $pdo) {
+  // create database if missing
+  $pdo->exec("CREATE DATABASE IF NOT EXISTS `".DB_NAME."`");
+  $pdo->exec("USE `".DB_NAME."`");
+  // if no users table, run migrations.sql
+  $has = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
+  if (!$has) {
+    $sql = file_get_contents(__DIR__ . '/migrations.sql');
+    $pdo->exec($sql);
+  }
+}
+runMigrations($pdo);
+$pdo->exec("USE `".DB_NAME."`");
+
+
+/** ================= Utility Functions ================= **/
+function jsonErr(string $msg, int $code = 400): void {
+  http_response_code($code);
+  echo json_encode(['error' => $msg]);
+  exit;
+}
+
+function getJson(): array {
+  if (!in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','PATCH'])) {
+    return [];
+  }
+  if (!empty($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 1024*1024) {
+    jsonErr('Payload too large', 413);
+  }
+  $body = file_get_contents('php://input');
+  return json_decode($body, true) ?: [];
+}
+
+function rateLimit(PDO $pdo): void {
+  $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
+  $ep   = $_GET['action'] ?? '';
+  $now  = time();
+  $stmt = $pdo->prepare("SELECT COUNT(*) FROM api_logs WHERE ip = ? AND ts > ?");
+  $stmt->execute([$ip, $now - 60]);
+  $count = (int)$stmt->fetchColumn();
+  if ($count > 60) {
+    jsonErr('Rate limit exceeded', 429);
+  }
+  $pdo->prepare("INSERT INTO api_logs(ip, endpoint, ts) VALUES (?, ?, ?)")
+      ->execute([$ip, $ep, $now]);
+}
+rateLimit($pdo);
+
+function base58_decode(string $b58): string {
+  $alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  $out = gmp_init(0);
+  foreach (str_split($b58) as $c) {
+    $out = gmp_add(gmp_mul($out, 58), strpos($alphabet, $c));
+  }
+  $dec = '';
+  while (gmp_cmp($out, 0) > 0) {
+    list($out, $rem) = [gmp_div_q($out, 256), gmp_mod($out, 256)];
+    $dec = chr(gmp_intval($rem)) . $dec;
+  }
+  // handle leading zeros
+  foreach (str_split($b58) as $c) {
+    if ($c === '1') $dec = "\x00" . $dec; else break;
+  }
+  return $dec;
+}
+
+function verifyWalletSignature(string $pubKey, string $sigB64, string $msg): bool {
+  $sig = base64_decode($sigB64, true);
+  if ($sig === false) return false;
+  $pub = base58_decode($pubKey);
+  return sodium_crypto_sign_verify_detached($sig, $msg, $pub);
+}
+
+function base64url_encode(string $data): string {
+  return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function base64url_decode(string $data): string {
+  $pad = 4 - (strlen($data) % 4);
+  if ($pad < 4) $data .= str_repeat('=', $pad);
+  return base64_decode(strtr($data, '-_', '+/'));
+}
+
+function jwt_encode(array $payload, string $secret): string {
+  $header = ['alg'=>'HS256','typ'=>'JWT'];
+  $segments = [
+    base64url_encode(json_encode($header)),
+    base64url_encode(json_encode($payload))
+  ];
+  $sign_input = implode('.', $segments);
+  $sig = hash_hmac('sha256', $sign_input, $secret, true);
+  $segments[] = base64url_encode($sig);
+  return implode('.', $segments);
+}
+
+function jwt_decode(string $token, string $secret): array {
+  $parts = explode('.', $token);
+  if (count($parts) !== 3) {
+    throw new Exception('Invalid JWT format');
+  }
+  list($h64, $p64, $s64) = $parts;
+  $sig = base64url_decode($s64);
+  $valid = hash_hmac('sha256', "$h64.$p64", $secret, true);
+  if (!hash_equals($valid, $sig)) {
+    throw new Exception('Invalid JWT signature');
+  }
+  return json_decode(base64url_decode($p64), true);
+}
+
+function refillEnergy(PDO $pdo, int $userId): int {
+  $now = time();
+  $stmt = $pdo->prepare("SELECT energy, last_refill FROM energy WHERE user_id = ?");
+  $stmt->execute([$userId]);
+  $row = $stmt->fetch(PDO::FETCH_ASSOC);
+  if (!$row) {
+    $pdo->prepare("INSERT INTO energy(user_id, energy, last_refill) VALUES (?, 10, ?)")
+        ->execute([$userId, $now]);
+    return 10;
+  }
+  $elapsed = floor(($now - $row['last_refill']) / 3600);
+  if ($elapsed <= 0) {
+    return (int)$row['energy'];
+  }
+  $newEnergy = min(10, $row['energy'] + $elapsed);
+  $pdo->prepare("UPDATE energy SET energy = ?, last_refill = ? WHERE user_id = ?")
+      ->execute([$newEnergy, $now, $userId]);
+  return $newEnergy;
+}
+
+use GuzzleHttp\Client;
+function getOnchainBalance(string $ownerPk): float {
+  $client = new Client();
+  $resp = $client->post(SOLANA_RPC, [
+    'json'=>[
+      'jsonrpc'=>'2.0',
+      'id'=>1,
+      'method'=>'getTokenAccountsByOwner',
+      'params'=>[
+        $ownerPk,
+        ['mint'=>GAME_TOKEN_MINT],
+        ['encoding'=>'jsonParsed']
+      ]
+    ]
+  ]);
+  $data = json_decode($resp->getBody(), true);
+  $sum = 0.0;
+  foreach ($data['result']['value'] ?? [] as $acct) {
+    $sum += $acct['account']['data']['parsed']['info']['tokenAmount']['uiAmount'] ?? 0;
+  }
+  return $sum;
+}
+
+/** ================ Authentication Middleware ================ **/
+function requireAuth(PDO $pdo): array {
+  if (!preg_match('/Bearer\s+(.+)$/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m)) {
+    jsonErr('Missing token', 401);
+  }
+  try {
+    $data = jwt_decode($m[1], JWT_SECRET);
+  } catch (Exception $e) {
+    jsonErr('Invalid token', 401);
+  }
+  $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
+  $stmt->execute([$data['publicKey']]);
+  $user = $stmt->fetch(PDO::FETCH_ASSOC);
+  if (!$user) {
+    jsonErr('User not found', 401);
+  }
+  return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
+}
+
+
+/** ================= Routing ================= **/
+$action = $_GET['action'] ?? '';
+
+switch ($action) {
+
+  // 1) GET NONCE (no auth)
+  case 'auth/nonce':
+    AntiCheat::validateRequestOrigin();
+    AntiCheat::validateJsonPayload();
+    $b = getJson();
+    $pk = $b['publicKey'] ?? '';
+    if (!$pk) jsonErr('publicKey required');
+    $nonce = bin2hex(random_bytes(16));
+    $pdo->prepare("REPLACE INTO nonces(public_key, nonce) VALUES (?, ?)")
+        ->execute([$pk, $nonce]);
+    echo json_encode(['nonce' => $nonce]);
+    exit;
+
+
+  // 2) LOGIN (no auth)
+  case 'auth/login':
+    AntiCheat::validateRequestOrigin();
+    AntiCheat::validateJsonPayload();
+    $b = getJson();
+    foreach (['publicKey','signature','nonce'] as $f) {
+      if (empty($b[$f])) jsonErr("$f required");
+    }
+    $stmt = $pdo->prepare("SELECT nonce FROM nonces WHERE public_key = ?");
+    $stmt->execute([$b['publicKey']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row || $row['nonce'] !== $b['nonce']) jsonErr('Invalid nonce', 401);
+    if (!verifyWalletSignature($b['publicKey'], $b['signature'], $b['nonce'])) {
+      jsonErr('Signature invalid', 401);
+    }
+    $pdo->prepare("INSERT IGNORE INTO users(public_key) VALUES(?)")
+        ->execute([$b['publicKey']]);
+    $token = jwt_encode([
+      'publicKey' => $b['publicKey'],
+      'iat'       => time(),
+      'exp'       => time() + 3600
+    ], JWT_SECRET);
+    echo json_encode(['token' => $token]);
+    exit;
+
+
+  // 3+) All other routes require a valid JWT
+  default:
+    $me = requireAuth($pdo);
+
+    switch ($action) {
+
+      // BUY SHIP
+      case 'buy_ship':
+        AntiCheat::validateRequestOrigin();
+        $pdo->beginTransaction();
+          $stmt = $pdo->prepare("SELECT id FROM ships WHERE user_id = ?");
+          $stmt->execute([$me['userId']]);
+          if ($stmt->fetch()) {
+            $pdo->commit();
+            echo json_encode(['ship_id' => null]);
+            exit;
+          }
+          $pdo->prepare("INSERT INTO ships(user_id) VALUES (?)")
+              ->execute([$me['userId']]);
+        $pdo->commit();
+        echo json_encode(['ship_id' => $pdo->lastInsertId()]);
+        exit;
+
+
+      // RAID SCAN
+      case 'raid/scan':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $energy = refillEnergy($pdo, $me['userId']);
+        if ($energy < 1) jsonErr('Not enough energy', 400);
+        $pdo->prepare("UPDATE energy SET energy = energy - 1 WHERE user_id = ?")
+            ->execute([$me['userId']]);
+        $missions = $pdo->query("
+          SELECT id, mission_type AS type, reward
+          FROM missions
+          WHERE mode='Unshielded' AND success=1 AND raided=0
+            AND user_id <> {$me['userId']}
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['missions' => $missions, 'remainingEnergy' => $energy - 1]);
+        exit;
+
+
+      // SEND MISSION
+      case 'send_mission':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $type = $b['type'] ?? '';
+        $mode = $b['mode'] ?? '';
+        $signedBurnTx = $b['signedBurnTx'] ?? '';
+        if (!$type || !$mode) jsonErr('type & mode required', 400);
+        if (!$signedBurnTx) jsonErr('signedBurnTx required', 400);
+
+        // validate parameters
+        AntiCheat::validateMissionParams(
+          $type, $mode,
+          array_keys($REWARD_CONFIG),
+          ['Shielded','Unshielded']
+        );
+
+        // submit on‐chain burn
+        $http = new Client(['base_uri' => SOLANA_API_URL]);
+        try {
+          $http->post('/burn', ['json'=>['signedTx'=>$signedBurnTx]]);
+        } catch (Exception $e) {
+          jsonErr('On-chain burn failed: '.$e->getMessage(), 400);
+        }
+
+        $pdo->beginTransaction();
+          // lock & fetch ship
+          $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ? FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          if (!$ship) jsonErr('Buy a ship first', 400);
+
+          // off‐chain anti‐cheat
+          AntiCheat::enforceCooldown($ship);
+          AntiCheat::enforceDailyLimit($pdo, $me['userId']);
+          AntiCheat::preventReplay($pdo, $signedBurnTx, $me['userId']);
+
+          list($chance, $minReward, $maxReward) = $REWARD_CONFIG[$type];
+          $ok  = (mt_rand()/mt_getrandmax()) < $chance;
+          $raw = $ok ? mt_rand($minReward, $maxReward) : 0;
+          AntiCheat::validateMissionReward($type, $raw, $REWARD_CONFIG);
+          $payout = ($mode==='Shielded') ? floor($raw*0.8) : $raw;
+
+          // record mission
+          $stmt = $pdo->prepare("
+            INSERT INTO missions
+              (ship_id,user_id,mission_type,mode,ts_start,success,reward,claimed)
+            VALUES (?,?,?,?,?,?,?,1)
+          ");
+          $stmt->execute([
+            $ship['id'],$me['userId'],$type,$mode,time(),$ok?1:0,$payout
+          ]);
+
+          // update off‐chain balance
+          $newBalance = $ship['br_balance'] + $payout;
+          $pdo->prepare("UPDATE ships SET last_mission_ts = ?, br_balance = ? WHERE id = ?")
+              ->execute([time(), $newBalance, $ship['id']]);
+        $pdo->commit();
+
+        // mint reward on‐chain
+        if ($ok && $payout > 0) {
+          try {
+            $http->post('/mint', [
+              'json'=>[
+                'recipient' => $me['publicKey'],
+                'amount'    => $payout
+              ]
+            ]);
+          } catch (Exception $e) {
+            jsonErr('On-chain mint failed: '.$e->getMessage(), 500);
+          }
+        }
+
+        echo json_encode([
+          'success'    => $ok,
+          'reward'     => $payout,
+          'br_balance' => $newBalance
+        ]);
+        exit;
+
+
+      // UPGRADE SHIP
+      case 'upgrade_ship':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $lvl = intval($b['level'] ?? 0);
+        $costs = [2=>50,3=>100,4=>150,5=>225,6=>300,7=>400];
+        if (!isset($costs[$lvl])) jsonErr('Invalid level', 400);
+
+        $pdo->beginTransaction();
+          $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ? FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          if (!$ship) jsonErr('No ship', 400);
+          if ($lvl <= $ship['level']) jsonErr('Cannot downgrade', 400);
+          if ($ship['br_balance'] < $costs[$lvl]) jsonErr('Not enough BR', 400);
+          $newBR = $ship['br_balance'] - $costs[$lvl];
+          $pdo->prepare("UPDATE ships SET level = ?, br_balance = ? WHERE id = ?")
+              ->execute([$lvl, $newBR, $ship['id']]);
+        $pdo->commit();
+
+        echo json_encode(['level'=>$lvl, 'br_balance'=>$newBR]);
+        exit;
+
+
+      // RAID MISSION
+      case 'raid_mission':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $mid = intval($b['mission_id'] ?? 0);
+        if (!$mid) jsonErr('mission_id required', 400);
+
+        $pdo->beginTransaction();
+          // lock mission
+          $stmt = $pdo->prepare("SELECT * FROM missions WHERE id = ? FOR UPDATE");
+          $stmt->execute([$mid]);
+          $m = $stmt->fetch(PDO::FETCH_ASSOC);
+          if (!$m) jsonErr('Mission not found', 404);
+          if ($m['raided']) jsonErr('Already raided', 400);
+          if ($m['mode'] === 'Shielded') {
+            // penalize
+            $pdo->prepare("UPDATE reputation SET rep = GREATEST(rep-10,0) WHERE user_id = ?")
+                ->execute([$me['userId']]);
+            jsonErr('Shielded: cannot raid (–10 rep)', 400);
+          }
+
+          // steal reward
+          $stolen = $m['reward'];
+          $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ? FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          if (!$ship) jsonErr('No ship', 400);
+          $newBR = $ship['br_balance'] + $stolen;
+
+          // update balances & mark raided
+          $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?")
+              ->execute([$newBR, $ship['id']]);
+          $pdo->prepare("
+            UPDATE missions
+               SET raided = 1, raided_by = ?, ts_raid = ?
+             WHERE id = ?
+          ")->execute([$me['userId'], time(), $mid]);
+        $pdo->commit();
+
+        echo json_encode(['stolen'=>$stolen,'br_balance'=>$newBR]);
+        exit;
+
+
+      // CLAIM REWARDS
+      case 'claim_rewards':
+        AntiCheat::validateRequestOrigin();
+        $onchain = getOnchainBalance($me['publicKey']);
+        echo json_encode(['claimable_AT' => $onchain]);
+        exit;
+
+
+      // WALLET TRANSPARENCY (no auth)
+      case 'wallet/status':
+        AntiCheat::validateRequestOrigin();
+        $wallet = 'CommunityWalletPublicKey';
+        $client = new Client();
+        $resp = $client->post(SOLANA_RPC, [
+          'json'=>[
+            'jsonrpc'=>'2.0',
+            'id'=>1,
+            'method'=>'getBalance',
+            'params'=>[$wallet]
+          ]
+        ]);
+        $bal = json_decode($resp->getBody(), true)['result']['value'];
+        echo json_encode(['wallet'=>$wallet,'balance'=>$bal,'unit'=>'lamports']);
+        exit;
+
+
+      // LIST MISSIONS FOR RAID
+      case 'list_missions':
+        AntiCheat::validateRequestOrigin();
+        $stmt = $pdo->prepare("
+          SELECT id, mission_type AS type, mode, reward
+            FROM missions
+           WHERE raided = 0
+             AND mode = 'Unshielded'
+             AND user_id <> ?
+             AND claimed = 1
+        ");
+        $stmt->execute([$me['userId']]);
+        echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+        exit;
+
+
+      // PENDING REWARDS
+      case 'pending_missions':
+        AntiCheat::validateRequestOrigin();
+        $stmt = $pdo->prepare("
+          SELECT id, mission_type AS source, reward AS amount
+            FROM missions
+           WHERE user_id = ?
+             AND claimed = 0
+        ");
+        $stmt->execute([$me['userId']]);
+        echo json_encode(['pending' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        exit;
+
+
+      default:
+        http_response_code(404);
+        echo json_encode(['error'=>'Unknown action']);
+        exit;
+    }
+}

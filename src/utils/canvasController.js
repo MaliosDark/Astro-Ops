@@ -70,6 +70,7 @@ export async function initCanvas(canvas) {
   const dogPos = randLowerCell();
 
   window.shipPos = { ...baseShipPos };
+  window.hasShip = false; // Track if player owns a ship
   window.__iso = {
     TILE_W,
     getScale: () => scale,
@@ -368,7 +369,7 @@ export async function initCanvas(canvas) {
     });
 
     // our ship
-    if (!window.__shipInFlight) {
+    if (!window.__shipInFlight && window.hasShip) {
       const p = raw(window.shipPos.ix, window.shipPos.iy), s = 0.25;
       ctx.drawImage(
         shipImg,
