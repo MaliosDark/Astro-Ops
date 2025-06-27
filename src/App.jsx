@@ -6,6 +6,8 @@ import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
 import walletService from './services/walletService.js';
+import userCacheService from './services/userCacheService.js';
+import apiService from './services/apiService.js';
 import { authenticateWallet } from './utils/gameLogic';
 import ENV from './config/environment.js';
 
@@ -15,6 +17,58 @@ function App() {
   const [modalContent, setModalContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef(null);
+  
+  const checkExistingSession = async () => {
+    try {
+      // Check if we have a stored JWT
+      const storedToken = sessionStorage.getItem('bonkraiders_jwt');
+      if (!storedToken) return;
+      
+      // Check if token is still valid
+      if (apiService.isTokenExpired(storedToken)) {
+        sessionStorage.removeItem('bonkraiders_jwt');
+        return;
+      }
+      
+      // Set the token and try to get user profile
+      apiService.setToken(storedToken);
+      const profile = await apiService.getUserProfile();
+      
+      if (profile && profile.public_key) {
+        setWalletAddress(profile.public_key);
+        setIsWalletConnected(true);
+        
+        // Check if user has a ship
+        if (profile.ship) {
+          window.hasShip = true;
+        }
+        
+        // Update UI with cached data
+        if (window.AstroUI) {
+          if (profile.ship) {
+            window.AstroUI.setBalance(profile.ship.balance || 0);
+          }
+          if (profile.energy) {
+            window.AstroUI.setEnergy(profile.energy.current || 10);
+          }
+          if (profile.stats) {
+            window.AstroUI.setKills(profile.stats.total_kills || 0);
+            window.AstroUI.setRaidsWon(profile.stats.total_raids_won || 0);
+          }
+        }
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('✅ Restored session for user:', profile.public_key);
+        }
+      }
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.log('❌ Failed to restore session:', error);
+      }
+      // Clear invalid session
+      apiService.clearToken();
+    }
+  };
 
   useEffect(() => {
     // Initialize canvas when component mounts
@@ -26,6 +80,12 @@ function App() {
     };
 
     initializeCanvas();
+    
+    // Clean old cache on app start
+    userCacheService.cleanOldCache();
+    
+    // Check for existing session
+    checkExistingSession();
   }, []);
 
   const connectWallet = async (provider) => {
@@ -42,22 +102,54 @@ function App() {
       setWalletAddress(publicKey);
       setIsWalletConnected(true);
       
+      // Load user profile and cache data
+      try {
+        const profile = await apiService.getUserProfile();
+        
+        if (profile.ship) {
+          window.hasShip = true;
+          if (window.AstroUI) {
+            window.AstroUI.setBalance(profile.ship.balance || 0);
+          }
+        }
+        
+        if (profile.energy && window.AstroUI) {
+          window.AstroUI.setEnergy(profile.energy.current || 10);
+        }
+        
+        if (profile.stats && window.AstroUI) {
+          window.AstroUI.setKills(profile.stats.total_kills || 0);
+          window.AstroUI.setRaidsWon(profile.stats.total_raids_won || 0);
+        }
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('✅ Loaded user profile:', profile);
+        }
+      } catch (profileError) {
+        if (ENV.DEBUG_MODE) {
+          console.warn('⚠️ Failed to load user profile:', profileError);
+        }
+      }
+      
       // Set up disconnect handler via wallet service
       walletService.on('disconnect', () => {
         if (ENV.DEBUG_MODE) {
           console.log('🔌 Wallet disconnected, reloading…');
         }
         // Clear stored JWT on disconnect
+        userCacheService.clearAllUserData(publicKey);
         apiService.clearToken();
         window.location.reload();
       });
       
       // Check if user needs to buy a ship
-      setTimeout(() => {
-        if (!window.hasShip) {
-          showModal('buyship');
-        }
-      }, 1000);
+      if (!window.hasShip) {
+        setTimeout(() => {
+          if (!window.hasShip) {
+            showModal('buyship');
+          }
+        }, 1000);
+      }
       
       setIsLoading(false);
     } catch (err) {

@@ -3,6 +3,7 @@ import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnima
 import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, getTokenBalance } from './solanaTransactions';
 import walletService from '../services/walletService.js';
 import apiService from '../services/apiService.js';
+import userCacheService from '../services/userCacheService.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
 
@@ -197,8 +198,21 @@ export async function buyShip() {
       console.log('🚢 Buy ship result:', result);
     }
     
-    // Mark that player now has a ship
-    window.hasShip = true;
+    // Mark that player now has a ship and cache it
+    if (result.ship_id) {
+      window.hasShip = true;
+      
+      // Cache ship ownership
+      const publicKey = apiService.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.cacheUserShips(publicKey, [{ 
+          id: result.ship_id, 
+          owned: true,
+          purchased_at: new Date().toISOString()
+        }]);
+      }
+    }
+    
     return result;
   } catch (error) {
     if (ENV.DEBUG_MODE) {

@@ -2,6 +2,7 @@
 // Dedicated API service for all server communications
 
 import ENV from '../config/environment.js';
+import userCacheService from './userCacheService.js';
 
 /**
  * API Service - Handles all communication with bonkraiders.com APIs
@@ -342,16 +343,66 @@ class ApiService {
    * Buy ship
    */
   async buyShip() {
-    return await this.request('/api.php?action=buy_ship', {
+    const result = await this.request('/api.php?action=buy_ship', {
       method: 'POST'
     });
+    
+    // Update cache to reflect ship purchase
+    if (result.ship_id) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.clearUserData(publicKey, 'ships');
+        userCacheService.clearUserData(publicKey, 'profile');
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Get user profile with caching
+   */
+  async getUserProfile() {
+    const publicKey = this.getCurrentUserPublicKey();
+    if (!publicKey) {
+      throw new Error('No user logged in');
+    }
+
+    // Try cache first
+    const cached = userCacheService.getCachedUserProfile(publicKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from server
+    const profile = await this.request('/api.php?action=user_profile');
+    
+    // Cache the result
+    userCacheService.cacheUserProfile(publicKey, profile);
+    
+    return profile;
+  }
+
+  /**
+   * Get current user's public key from JWT
+   */
+  getCurrentUserPublicKey() {
+    const token = this.getToken();
+    if (!token) return null;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.publicKey;
+    } catch (error) {
+      return null;
+    }
   }
 
   /**
    * Send mission
    */
   async sendMission(type, mode, signedBurnTx) {
-    return await this.request('/api.php?action=send_mission', {
+    const result = await this.request('/api.php?action=send_mission', {
       method: 'POST',
       body: JSON.stringify({
         type,
@@ -359,35 +410,74 @@ class ApiService {
         signedBurnTx
       })
     });
+    
+    // Update cached balance
+    if (result.br_balance !== undefined) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.updateCachedBalance(publicKey, result.br_balance);
+      }
+    }
+    
+    return result;
   }
 
   /**
    * Upgrade ship
    */
   async upgradeShip(level) {
-    return await this.request('/api.php?action=upgrade_ship', {
+    const result = await this.request('/api.php?action=upgrade_ship', {
       method: 'POST',
       body: JSON.stringify({ level })
     });
+    
+    // Clear ship cache to force refresh
+    const publicKey = this.getCurrentUserPublicKey();
+    if (publicKey) {
+      userCacheService.clearUserData(publicKey, 'ships');
+      userCacheService.updateCachedBalance(publicKey, result.br_balance);
+    }
+    
+    return result;
   }
 
   /**
    * Raid mission
    */
   async raidMission(missionId) {
-    return await this.request('/api.php?action=raid_mission', {
+    const result = await this.request('/api.php?action=raid_mission', {
       method: 'POST',
       body: JSON.stringify({ mission_id: missionId })
     });
+    
+    // Update cached balance
+    if (result.br_balance !== undefined) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.updateCachedBalance(publicKey, result.br_balance);
+      }
+    }
+    
+    return result;
   }
 
   /**
    * Claim rewards
    */
   async claimRewards() {
-    return await this.request('/api.php?action=claim_rewards', {
+    const result = await this.request('/api.php?action=claim_rewards', {
       method: 'POST'
     });
+    
+    // Update cached balance
+    if (result.claimable_AT !== undefined) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.updateCachedBalance(publicKey, result.claimable_AT);
+      }
+    }
+    
+    return result;
   }
 
   /**
@@ -408,16 +498,43 @@ class ApiService {
    * Get player energy
    */
   async getPlayerEnergy() {
-    return await this.request('/api.php?action=player_energy');
+    const publicKey = this.getCurrentUserPublicKey();
+    
+    // Try cache first for energy
+    if (publicKey) {
+      const cached = userCacheService.getCachedUserStats(publicKey);
+      if (cached && cached.energy !== undefined) {
+        return { energy: cached.energy };
+      }
+    }
+    
+    const result = await this.request('/api.php?action=player_energy');
+    
+    // Cache the energy
+    if (publicKey && result.energy !== undefined) {
+      userCacheService.updateCachedEnergy(publicKey, result.energy);
+    }
+    
+    return result;
   }
 
   /**
    * Scan for raidable missions (costs 1 energy)
    */
   async scanForRaids() {
-    return await this.request('/api.php?action=raid/scan', {
+    const result = await this.request('/api.php?action=raid/scan', {
       method: 'POST'
     });
+    
+    // Update cached energy
+    if (result.remainingEnergy !== undefined) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.updateCachedEnergy(publicKey, result.remainingEnergy);
+      }
+    }
+    
+    return result;
   }
 
   /**
