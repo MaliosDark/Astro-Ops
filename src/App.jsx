@@ -156,7 +156,7 @@ function App() {
         // Clear any potentially invalid tokens
         apiService.clearToken();
         sessionStorage.removeItem('bonkraiders_jwt');
-        alert('Failed to load user profile. Please try reconnecting your wallet.');
+        alert(profileError.message || 'Failed to load user profile. Please try reconnecting your wallet.');
         setIsLoading(false);
         return; // Exit early, don't set connected state
       }
