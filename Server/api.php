@@ -243,19 +243,30 @@ function getOnchainBalance(string $ownerPk): float {
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
   if (!preg_match('/Bearer\s+(.+)$/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m)) {
+    error_log("Auth Debug - No Bearer token found in: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'null'));
     jsonErr('Missing token', 401);
   }
+  
+  error_log("Auth Debug - Received token: " . $m[1]);
+  
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
+    error_log("Auth Debug - JWT decode failed: " . $e->getMessage());
     jsonErr('Invalid token', 401);
   }
+  
+  error_log("Auth Debug - JWT decoded successfully: " . json_encode($data));
+  
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
+    error_log("Auth Debug - User not found for public key: " . $data['publicKey']);
     jsonErr('User not found', 401);
   }
+  
+  error_log("Auth Debug - User found: " . json_encode($user));
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
 }
 
