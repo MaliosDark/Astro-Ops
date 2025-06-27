@@ -146,7 +146,9 @@ class ApiService {
 
     // Add authorization header if JWT is available
     if (currentToken) {
+      // Try multiple header formats for better compatibility
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
+      defaultHeaders['X-Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
@@ -197,7 +199,8 @@ class ApiService {
             // Retry the original request with new token
             const retryHeaders = {
               ...requestOptions.headers,
-              'Authorization': `Bearer ${newToken}`
+              'Authorization': `Bearer ${newToken}`,
+              'X-Authorization': `Bearer ${newToken}`
             };
             const retryResponse = await fetch(url, {
               ...requestOptions,
