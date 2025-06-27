@@ -47,8 +47,8 @@ define('DB_NAME',         'bonka_bonkartio');
 define('DB_USER',         'bonka_bonusrtio');
 define('DB_PASS',         '*OxlUH49*69i');
 define('JWT_SECRET',      'OAZchPBiIuZu5goVp8HAe5FzUzXFsNBm');
-define('SOLANA_RPC',      'https://api.mainnet-beta.solana.com');
-define('GAME_TOKEN_MINT','PCYfGh9AECbJ8QHnRhMtR84h4GFmLLtRZm1HEELbonk');
+define('SOLANA_RPC',      'https://api.devnet.solana.com');
+define('GAME_TOKEN_MINT','CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo');
 define('SOLANA_API_URL',  'https://verify.bonkraiders.com');
 
 // Treasury-safe mission config
@@ -173,14 +173,7 @@ function jwt_decode(string $token, string $secret): array {
   if (!hash_equals($valid, $sig)) {
     throw new Exception('Invalid JWT signature');
   }
-  $payload = json_decode(base64url_decode($p64), true);
-  
-  // Check expiration
-  if (isset($payload['exp']) && $payload['exp'] < time()) {
-    throw new Exception('JWT token expired');
-  }
-  
-  return $payload;
+  return json_decode(base64url_decode($p64), true);
 }
 
 function refillEnergy(PDO $pdo, int $userId): int {
@@ -234,14 +227,12 @@ function requireAuth(PDO $pdo): array {
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
-    error_log("JWT decode error: " . $e->getMessage());
     jsonErr('Invalid token', 401);
   }
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
-    error_log("User not found for public key: " . $data['publicKey']);
     jsonErr('User not found', 401);
   }
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
@@ -287,7 +278,7 @@ switch ($action) {
     $token = jwt_encode([
       'publicKey' => $b['publicKey'],
       'iat'       => time(),
-      'exp'       => time() + 86400  // 24 hours instead of 1 hour
+      'exp'       => time() + 3600
     ], JWT_SECRET);
     echo json_encode(['token' => $token]);
     exit;
