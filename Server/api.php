@@ -168,33 +168,12 @@ function jwt_decode(string $token, string $secret): array {
     throw new Exception('Invalid JWT format');
   }
   list($h64, $p64, $s64) = $parts;
-  
-  // Debug JWT validation
-  error_log("JWT Debug - Header: $h64");
-  error_log("JWT Debug - Payload: $p64");
-  error_log("JWT Debug - Signature: $s64");
-  
   $sig = base64url_decode($s64);
   $valid = hash_hmac('sha256', "$h64.$p64", $secret, true);
-  
-  error_log("JWT Debug - Expected signature: " . base64url_encode($valid));
-  error_log("JWT Debug - Received signature: $s64");
-  
   if (!hash_equals($valid, $sig)) {
-    error_log("JWT Debug - Signature mismatch!");
     throw new Exception('Invalid JWT signature');
   }
-  
-  $payload = json_decode(base64url_decode($p64), true);
-  
-  // Check expiration
-  if (isset($payload['exp']) && time() > $payload['exp']) {
-    error_log("JWT Debug - Token expired. Current time: " . time() . ", Exp: " . $payload['exp']);
-    throw new Exception('JWT token expired');
-  }
-  
-  error_log("JWT Debug - Token valid. Payload: " . json_encode($payload));
-  return $payload;
+  return json_decode(base64url_decode($p64), true);
 }
 
 function refillEnergy(PDO $pdo, int $userId): int {
@@ -243,89 +222,22 @@ function getOnchainBalance(string $ownerPk): float {
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
   if (!preg_match('/Bearer\s+(.+)$/', $_SERVER['HTTP_AUTHORIZATION'] ?? '', $m)) {
-    error_log("Auth Debug - No Bearer token found in: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'null'));
     jsonErr('Missing token', 401);
   }
-  
-  error_log("Auth Debug - Received token: " . $m[1]);
-  
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
-    error_log("Auth Debug - JWT decode failed: " . $e->getMessage());
     jsonErr('Invalid token', 401);
   }
-  
-  error_log("Auth Debug - JWT decoded successfully: " . json_encode($data));
-  
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
-    error_log("Auth Debug - User not found for public key: " . $data['publicKey']);
     jsonErr('User not found', 401);
   }
-  
-  error_log("Auth Debug - User found: " . json_encode($user));
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
 }
 
-// Battle simulation for raids
-function simulateRaidBattle($attacker, $defender, $raidType) {
-  $attackPower = $attacker['attack_power'] ?? 100;
-  $defensePower = $defender['defense_power'] ?? 100;
-  $attackerLevel = $attacker['level'] ?? 1;
-  $defenderLevel = $defender['ship_level'] ?? 1;
-  
-  // Raid type modifiers
-  $typeModifiers = [
-    'Quick' => ['attack' => 1.0, 'stealth' => 0.8, 'duration' => 30],
-    'Stealth' => ['attack' => 0.9, 'stealth' => 1.3, 'duration' => 45],
-    'Assault' => ['attack' => 1.2, 'stealth' => 0.6, 'duration' => 60]
-  ];
-  
-  $modifier = $typeModifiers[$raidType] ?? $typeModifiers['Quick'];
-  
-  // Calculate battle factors
-  $attackScore = ($attackPower * $attackerLevel * $modifier['attack']) + mt_rand(0, 50);
-  $defenseScore = ($defensePower * $defenderLevel) + mt_rand(0, 50);
-  
-  // Stealth factor affects detection
-  $stealthSuccess = (mt_rand(1, 100) / 100) < $modifier['stealth'];
-  if ($stealthSuccess) {
-    $attackScore *= 1.2; // Stealth bonus
-  }
-  
-  $success = $attackScore > $defenseScore;
-  $damageDealt = max(0, $attackScore - $defenseScore);
-  $damageReceived = max(0, $defenseScore - $attackScore);
-  
-  // Loot multiplier based on battle performance
-  $lootMultiplier = 0.5; // Base 50% if barely won
-  if ($success) {
-    $dominance = $attackScore / max($defenseScore, 1);
-    $lootMultiplier = min(1.0, 0.3 + ($dominance * 0.4));
-  }
-  
-  return [
-    'success' => $success,
-    'damage_dealt' => $damageDealt,
-    'damage_received' => $damageReceived,
-    'duration' => $modifier['duration'] + mt_rand(-10, 10),
-    'loot_multiplier' => $lootMultiplier,
-    'stealth_success' => $stealthSuccess,
-    'attack_score' => $attackScore,
-    'defense_score' => $defenseScore
-  ];
-}
-
-// Update player rating with bounds checking
-function updatePlayerRating(PDO $pdo, int $userId, int $change) {
-  $pdo->prepare("
-    INSERT INTO player_stats (user_id, overall_rating) VALUES (?, 1000 + ?)
-    ON DUPLICATE KEY UPDATE overall_rating = GREATEST(500, LEAST(3000, overall_rating + ?))
-  ")->execute([$userId, $change, $change]);
-}
 
 /** ================= Routing ================= **/
 $action = $_GET['action'] ?? '';

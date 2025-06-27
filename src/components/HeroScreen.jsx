@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getAllSolanaProviders, waitForWallets } from '../utils/wallet';
+import walletService from '../services/walletService.js';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
@@ -41,7 +41,7 @@ const HeroScreen = ({ onConnect, isLoading }) => {
     console.log('window.coin98:', !!window.coin98);
     
     // Wait for wallets to initialize
-    const providers = await waitForWallets(2000);
+    const providers = await walletService.waitForWallets(2000);
     
     console.log('🔍 Found providers:', providers.map(p => p.name));
     

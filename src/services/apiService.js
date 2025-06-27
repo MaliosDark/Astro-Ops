@@ -88,10 +88,9 @@ class ApiService {
       // Handle JWT expiration (401 Unauthorized)
       if (response.status === 401 && this.jwt) {
         if (ENV.DEBUG_MODE) {
-          const errorText = await response.clone().text();
+          const errorText = await response.text();
           console.log('🔑 JWT validation failed:', errorText);
           console.log('🔑 Current JWT:', this.jwt);
-          console.log('🔑 Request headers:', requestOptions.headers);
         }
         this.clearToken();
         
@@ -280,13 +279,10 @@ class ApiService {
   /**
    * Raid mission
    */
-  async raidMission(missionId, raidType = 'Quick') {
+  async raidMission(missionId) {
     return await this.request('/api.php?action=raid_mission', {
       method: 'POST',
-      body: JSON.stringify({ 
-        mission_id: missionId,
-        raid_type: raidType
-      })
+      body: JSON.stringify({ mission_id: missionId })
     });
   }
 
