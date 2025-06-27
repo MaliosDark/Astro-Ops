@@ -6,67 +6,63 @@
 export function getAllSolanaProviders() {
   const providers = [];
   
-  // Wait a bit for wallets to initialize
-  const checkWallets = () => {
-    // Check for Phantom specifically
-    if (window.phantom?.solana) {
-      const walletInfo = getWalletInfo(window.phantom.solana);
-      if (walletInfo) {
-        providers.push(walletInfo);
-      }
+  // Check for Phantom specifically
+  if (window.phantom?.solana) {
+    const walletInfo = getWalletInfo(window.phantom.solana);
+    if (walletInfo) {
+      providers.push(walletInfo);
     }
-    
-    // Check for Solflare
-    if (window.solflare) {
-      const walletInfo = getWalletInfo(window.solflare);
-      if (walletInfo) {
-        providers.push(walletInfo);
-      }
+  }
+  
+  // Check for Solflare
+  if (window.solflare) {
+    const walletInfo = getWalletInfo(window.solflare);
+    if (walletInfo) {
+      providers.push(walletInfo);
     }
-    
-    // Check for Glow
-    if (window.glow) {
-      const walletInfo = getWalletInfo(window.glow);
-      if (walletInfo) {
-        providers.push(walletInfo);
-      }
+  }
+  
+  // Check for Glow
+  if (window.glow) {
+    const walletInfo = getWalletInfo(window.glow);
+    if (walletInfo) {
+      providers.push(walletInfo);
     }
-    
-    // Check for Backpack
-    if (window.backpack) {
-      const walletInfo = getWalletInfo(window.backpack);
-      if (walletInfo) {
-        providers.push(walletInfo);
-      }
+  }
+  
+  // Check for Backpack
+  if (window.backpack) {
+    const walletInfo = getWalletInfo(window.backpack);
+    if (walletInfo) {
+      providers.push(walletInfo);
     }
-    
-    // Check for Coin98
-    if (window.coin98?.sol) {
-      const walletInfo = getWalletInfo(window.coin98.sol);
-      if (walletInfo) {
-        providers.push(walletInfo);
-      }
+  }
+  
+  // Check for Coin98
+  if (window.coin98?.sol) {
+    const walletInfo = getWalletInfo(window.coin98.sol);
+    if (walletInfo) {
+      providers.push(walletInfo);
     }
-    
-    // Check window.solana (fallback for other wallets)
-    if (window.solana && !providers.some(p => p.provider === window.solana)) {
-      if (Array.isArray(window.solana.providers)) {
-        window.solana.providers.forEach(provider => {
-          const walletInfo = getWalletInfo(provider);
-          if (walletInfo && !providers.some(p => p.provider === provider)) {
-            providers.push(walletInfo);
-          }
-        });
-      } else {
-        const walletInfo = getWalletInfo(window.solana);
-        if (walletInfo && !providers.some(p => p.provider === window.solana)) {
+  }
+  
+  // Check window.solana (fallback for other wallets)
+  if (window.solana && !providers.some(p => p.provider === window.solana)) {
+    if (Array.isArray(window.solana.providers)) {
+      window.solana.providers.forEach(provider => {
+        const walletInfo = getWalletInfo(provider);
+        if (walletInfo && !providers.some(p => p.provider === provider)) {
           providers.push(walletInfo);
         }
+      });
+    } else {
+      const walletInfo = getWalletInfo(window.solana);
+      if (walletInfo && !providers.some(p => p.provider === window.solana)) {
+        providers.push(walletInfo);
       }
     }
-  };
+  }
   
-  checkWallets();
   return providers;
 }
 
@@ -75,18 +71,43 @@ export function getAllSolanaProviders() {
  */
 export function waitForWallets(timeout = 3000) {
   return new Promise((resolve) => {
-    let attempts = 0;
-    const maxAttempts = timeout / 100;
+    const startTime = Date.now();
+    let lastProviderCount = 0;
     
     const checkInterval = setInterval(() => {
       const providers = getAllSolanaProviders();
-      attempts++;
+      const elapsed = Date.now() - startTime;
       
-      if (providers.length > 0 || attempts >= maxAttempts) {
+      // If we found providers or timeout reached
+      if (providers.length > 0 || elapsed >= timeout) {
+        clearInterval(checkInterval);
+        resolve(providers);
+        return;
+      }
+      
+      // If provider count changed, reset timer a bit to allow more wallets to load
+      if (providers.length > lastProviderCount) {
+        lastProviderCount = providers.length;
+      }
+    }, 100);
+    
+    // Also listen for wallet events
+    const handleWalletEvent = () => {
+      const providers = getAllSolanaProviders();
+      if (providers.length > 0) {
         clearInterval(checkInterval);
         resolve(providers);
       }
-    }, 100);
+    };
+    
+    window.addEventListener('solana#initialized', handleWalletEvent);
+    window.addEventListener('phantom#initialized', handleWalletEvent);
+    
+    // Cleanup listeners after timeout
+    setTimeout(() => {
+      window.removeEventListener('solana#initialized', handleWalletEvent);
+      window.removeEventListener('phantom#initialized', handleWalletEvent);
+    }, timeout);
   });
 }
 
@@ -130,36 +151,36 @@ function getWalletInfo(provider) {
   let icon = null;
 
   // Detect wallet type
-  if (provider.isPhantom || provider._phantom) {
+  if (provider.isPhantom || provider._phantom || window.phantom?.solana === provider) {
     name = 'Phantom';
-    icon = 'https://phantom.app/img/meta/favicon.ico';
+    icon = 'https://phantom.app/img/phantom-logo.png';
   } else if (provider.isSolflare) {
     name = 'Solflare';
-    icon = 'https://solflare.com/favicon.ico';
+    icon = 'https://solflare.com/img/logo.svg';
   } else if (provider.isGlow) {
     name = 'Glow';
-    icon = 'https://glow.app/favicon.png';
+    icon = 'https://glow.app/img/logo.svg';
   } else if (provider.isTorus) {
     name = 'Torus';
-    icon = 'https://app.tor.us/favicon.ico';
+    icon = 'https://tor.us/images/torus-logo-blue.svg';
   } else if (provider.isBackpack) {
     name = 'Backpack';
-    icon = 'https://backpack.app/favicon.png';
+    icon = 'https://backpack.app/logo192.png';
   } else if (provider.isCoin98) {
     name = 'Coin98';
-    icon = 'https://wallet.coin98.com/favicon.ico';
+    icon = 'https://coin98.com/images/coin98-logo.png';
   } else if (provider.isMathWallet) {
     name = 'MathWallet';
-    icon = 'https://mathwallet.org/favicon.png';
+    icon = 'https://mathwallet.org/images/logo.png';
   } else if (provider.isSollet) {
     name = 'Sollet';
-    icon = 'https://www.sollet.io/favicon.png';
+    icon = 'https://www.sollet.io/logo192.png';
   } else if (provider.isExodus) {
     name = 'Exodus';
-    icon = 'https://www.exodus.com/favicon.ico';
+    icon = 'https://www.exodus.com/img/logo/exodus-logo.svg';
   } else if (provider.isSlope) {
     name = 'Slope';
-    icon = 'https://slope.finance/favicon.ico';
+    icon = 'https://slope.finance/img/logo.svg';
   }
 
   return {

@@ -32,8 +32,18 @@ const HeroScreen = ({ onConnect, isLoading }) => {
   const scanForWallets = async () => {
     setIsScanning(true);
     
+    console.log('🔍 Scanning for wallets...');
+    console.log('window.solana:', !!window.solana);
+    console.log('window.phantom:', !!window.phantom);
+    console.log('window.solflare:', !!window.solflare);
+    console.log('window.glow:', !!window.glow);
+    console.log('window.backpack:', !!window.backpack);
+    console.log('window.coin98:', !!window.coin98);
+    
     // Wait for wallets to initialize
     const providers = await waitForWallets(2000);
+    
+    console.log('🔍 Found providers:', providers.map(p => p.name));
     
     if (providers.length === 0) {
       setNoWallet(true);
@@ -52,7 +62,7 @@ const HeroScreen = ({ onConnect, isLoading }) => {
 
   const handleInstallWallet = () => {
     // Open Phantom installation page
-    window.open('https://phantom.app/', '_blank');
+    window.open('https://phantom.app/download', '_blank');
   };
 
   return (
