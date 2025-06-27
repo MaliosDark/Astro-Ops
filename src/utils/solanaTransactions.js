@@ -21,13 +21,13 @@ const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
 // Create connection with proper devnet endpoint
-const connection = new Connection(ENV.SOLANA_RPC_URL, {
+const connection = new Connection('https://api.devnet.solana.com', {
   commitment: 'confirmed',
   wsEndpoint: undefined // Disable websocket for better compatibility
 });
 
 if (ENV.DEBUG_MODE) {
-  console.log('🔗 Solana connection created for:', ENV.SOLANA_RPC_URL);
+  console.log('🔗 Solana connection created for: https://api.devnet.solana.com');
 }
 
 /**

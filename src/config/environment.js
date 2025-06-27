@@ -3,7 +3,7 @@
 
 export const ENV = {
   // API Configuration
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
   VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'http://localhost:3070',
   
   // Solana Configuration
