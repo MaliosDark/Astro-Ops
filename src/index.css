@@ -34,27 +34,27 @@ body, html {
 
 .bonk-text {
   font-family: 'Press Start 2P', monospace;
-  font-size: 48px;
+  font-size: 64px;
   color: #0f0;
   text-shadow: 
-    4px 4px 0px #ff6600,
-    8px 8px 0px #cc4400,
-    12px 12px 0px #992200;
-  margin-bottom: -8px;
-  letter-spacing: 4px;
+    5px 5px 0px #ff6600,
+    10px 10px 0px #cc4400,
+    15px 15px 0px #992200;
+  margin-bottom: 8px;
+  letter-spacing: 6px;
   position: relative;
   z-index: 2;
 }
 
 .raiders-text {
   font-family: 'Press Start 2P', monospace;
-  font-size: 32px;
+  font-size: 28px;
   color: #ffffff;
   text-shadow: 
     3px 3px 0px #ff6600,
     6px 6px 0px #cc4400,
     9px 9px 0px #992200;
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   position: relative;
   z-index: 1;
 }
@@ -424,21 +424,22 @@ body, html {
   
   /* Mobile responsive title */
   .bonk-text {
-    font-size: 28px;
+    font-size: 36px;
     text-shadow: 
-      2px 2px 0px #ff6600,
-      4px 4px 0px #cc4400,
-      6px 6px 0px #992200;
-    letter-spacing: 2px;
+      3px 3px 0px #ff6600,
+      6px 6px 0px #cc4400,
+      9px 9px 0px #992200;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
   }
   
   .raiders-text {
-    font-size: 20px;
+    font-size: 18px;
     text-shadow: 
       2px 2px 0px #ff6600,
       4px 4px 0px #cc4400,
       6px 6px 0px #992200;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
   }
   
   .game-ui-container {
