@@ -1,4 +1,4 @@
-// Here's the fixed version with missing closing brackets and required whitespace added:
+Here's the fixed version with missing closing brackets and required whitespace added:
 
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
