@@ -149,6 +149,8 @@ class ApiService {
     // Add authorization header if JWT is available
     if (currentToken) {
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
+      // Also add X-Authorization as fallback for some servers
+      defaultHeaders['X-Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
@@ -178,7 +180,8 @@ class ApiService {
           url,
           status: response.status,
           ok: response.ok,
-          contentType: response.headers.get('content-type')
+          authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none',
+          headers: Object.keys(requestOptions.headers)
         });
       }
 
