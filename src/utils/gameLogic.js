@@ -464,5 +464,4 @@ export {
   getPlayerEnergy,
   scanForRaids,
   getMissionsForRaid,
-  getPendingRewards
 };
