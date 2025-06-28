@@ -351,6 +351,10 @@ export async function getPlayerEnergy() {
  */
 export async function scanForRaids() {
   try {
+    if (ENV.DEBUG_MODE) {
+      console.log('🔍 Scanning for raids...');
+    }
+    
     const { missions, remainingEnergy } = await apiService.scanForRaids();
     
     if (window.AstroUI) {
@@ -359,7 +363,19 @@ export async function scanForRaids() {
     
     return missions;
   } catch (error) {
-    console.error('Scan for raids error:', error);
+    if (ENV.DEBUG_MODE) {
+      console.error('Scan for raids error:', error);
+    }
+    
+    // Don't show technical errors to users
+    if (window.AstroUI) {
+      if (error.message?.includes('Authentication') || error.message?.includes('token')) {
+        window.AstroUI.setStatus('Session expired. Please refresh the page.');
+      } else {
+        window.AstroUI.setStatus('Scan failed. Please try again.');
+      }
+    }
+    
     return [];
   }
 }

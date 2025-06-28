@@ -122,7 +122,7 @@ class ApiService {
   async request(endpoint, options = {}) {
     // Ensure endpoint starts with /
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = `${this.baseURL}${cleanEndpoint}`;
+    let url = `${this.baseURL}${cleanEndpoint}`;
     
     // Check if we need to refresh the token before making the request
     let currentToken = this.getToken();
@@ -146,7 +146,6 @@ class ApiService {
       'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
     };
 
-
     const requestOptions = {
       ...options,
       headers: {
@@ -155,8 +154,10 @@ class ApiService {
       }
     };
 
-    // NUEVA ESTRATEGIA: Enviar token en el cuerpo en lugar del header
-    if (currentToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+    // Strategy: Send token in body for POST/PUT/PATCH, in query string for GET
+    const method = options.method || 'GET';
+    
+    if (currentToken && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
       let bodyData = {};
       
       // Parse existing body if present
@@ -175,23 +176,20 @@ class ApiService {
       if (ENV.DEBUG_MODE) {
         console.log('🔑 Adding token to request body, length:', currentToken.length);
       }
-    } else if (currentToken && options.method === 'GET') {
+    } else if (currentToken && method === 'GET') {
       // For GET requests, add token as query parameter
       const separator = url.includes('?') ? '&' : '?';
-      const newUrl = `${url}${separator}_auth_token=${encodeURIComponent(currentToken.trim())}`;
+      url = `${url}${separator}_auth_token=${encodeURIComponent(currentToken.trim())}`;
       
       if (ENV.DEBUG_MODE) {
         console.log('🔑 Adding token to query string');
       }
-      
-      // Update the fetch URL
-      const response = await this._makeRequest(newUrl, requestOptions, currentToken);
-      return response;
     }
+    
     if (ENV.DEBUG_MODE) {
       console.log('📡 API Request:', {
         url,
-        method: requestOptions.method || 'GET',
+        method: method,
         hasAuth: !!currentToken,
         authMethod: currentToken ? 'body/query' : 'none',
         headers: Object.keys(requestOptions.headers)

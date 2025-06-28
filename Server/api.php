@@ -435,28 +435,31 @@ function requireAuth(PDO $pdo): array {
 function getAuthToken(): string {
   if (defined('DEBUG_MODE') && DEBUG_MODE) {
     error_log("=== SEARCHING FOR AUTH TOKEN ===");
+    error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+    error_log("Query string: " . ($_SERVER['QUERY_STRING'] ?? 'none'));
+    error_log("Has JSON input: " . (isset($GLOBALS['_json_input']) ? 'yes' : 'no'));
   }
   
-  // Método 1: En el cuerpo de la petición (POST/PUT/PATCH)
+  // Method 1: In query string (for GET requests)
+  if (isset($_GET['_auth_token'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found token in query string, length: " . strlen($_GET['_auth_token']));
+    }
+    return $_GET['_auth_token'];
+  }
+  
+  // Method 2: In request body (POST/PUT/PATCH)
   if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'])) {
     // Use globally stored JSON input instead of re-reading php://input
     if ($GLOBALS['_json_input'] && isset($GLOBALS['_json_input']['_auth_token'])) {
         if (defined('DEBUG_MODE') && DEBUG_MODE) {
-          error_log("Found token in request body");
+          error_log("Found token in request body, length: " . strlen($GLOBALS['_json_input']['_auth_token']));
         }
         return $GLOBALS['_json_input']['_auth_token'];
     }
   }
   
-  // Método 2: En query string (GET)
-  if (isset($_GET['_auth_token'])) {
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-      error_log("Found token in query string");
-    }
-    return $_GET['_auth_token'];
-  }
-  
-  // Método 3: HTTP_AUTHORIZATION header (fallback)
+  // Method 3: HTTP_AUTHORIZATION header (fallback)
   if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
       error_log("Found token in HTTP_AUTHORIZATION header");
@@ -464,7 +467,7 @@ function getAuthToken(): string {
     return $_SERVER['HTTP_AUTHORIZATION'];
   }
   
-  // Método 4: getallheaders() fallback
+  // Method 4: getallheaders() fallback
   if (function_exists('getallheaders')) {
     $headers = getallheaders();
     foreach ($headers as $name => $value) {
@@ -477,7 +480,7 @@ function getAuthToken(): string {
     }
   }
   
-  // Método 5: Redirect header para Apache
+  // Method 5: Redirect header for Apache
   if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
       error_log("Found token via REDIRECT_HTTP_AUTHORIZATION");
@@ -487,6 +490,8 @@ function getAuthToken(): string {
   
   if (defined('DEBUG_MODE') && DEBUG_MODE) {
     error_log("NO AUTH TOKEN FOUND ANYWHERE!");
+    error_log("Available GET params: " . print_r(array_keys($_GET), true));
+    error_log("Available JSON keys: " . print_r($GLOBALS['_json_input'] ? array_keys($GLOBALS['_json_input']) : [], true));
   }
   
   return '';
