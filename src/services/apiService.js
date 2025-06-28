@@ -142,14 +142,18 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
+      'X-Requested-With': 'XMLHttpRequest',
     };
 
     // Add authorization header if JWT is available
     if (currentToken) {
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
+      defaultHeaders['X-Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
+      mode: 'cors',
+      credentials: 'omit',
       ...options,
       headers: {
         ...defaultHeaders,
@@ -161,7 +165,8 @@ class ApiService {
       console.log('📡 API Request:', {
         url,
         method: requestOptions.method || 'GET',
-        hasAuth: !!currentToken
+        hasAuth: !!currentToken,
+        authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none'
       });
     }
 
@@ -173,14 +178,20 @@ class ApiService {
           url,
           status: response.status,
           ok: response.ok,
-          headers: Object.fromEntries(response.headers.entries())
+          contentType: response.headers.get('content-type')
         });
       }
 
       // Handle JWT expiration (401 Unauthorized)
       if (response.status === 401 && currentToken) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = 'Could not read error response';
+        }
+        
         if (ENV.DEBUG_MODE) {
-          const errorText = await response.text();
           console.log('🔑 JWT validation failed:', errorText);
           console.log('🔑 Current JWT:', currentToken);
         }
@@ -221,7 +232,13 @@ class ApiService {
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch (e) {
+          errorText = `HTTP ${response.status} ${response.statusText}`;
+        }
+        
         let errorMessage;
         
         try {
@@ -238,12 +255,27 @@ class ApiService {
         throw new Error(`API Error ${response.status}: ${errorMessage}`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        if (ENV.DEBUG_MODE) {
+          console.error('❌ Failed to parse JSON response:', e);
+        }
+        throw new Error('Invalid JSON response from server');
+      }
+      
       return data;
     } catch (error) {
       if (ENV.DEBUG_MODE) {
         console.error('❌ API Request failed:', error);
       }
+      
+      // Handle network errors specifically
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Network connection failed. Please check your internet connection.');
+      }
+      
       throw error;
     }
   }

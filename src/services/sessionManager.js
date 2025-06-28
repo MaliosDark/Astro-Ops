@@ -53,6 +53,9 @@ class SessionManager {
         console.log('🔐 Starting authentication for:', publicKey);
       }
 
+      // Clear any existing token before authentication
+      apiService.clearToken();
+      
       // Step 1: Get nonce using apiService
       const nonceResponse = await apiService.getNonce(publicKey);
       const { nonce } = nonceResponse;
@@ -80,6 +83,11 @@ class SessionManager {
         throw new Error('Authentication failed - no token received');
       }
 
+      // Ensure token is set before making profile request
+      if (ENV.DEBUG_MODE) {
+        console.log('🔑 Token received, length:', loginResponse.token.length);
+      }
+      
       // Step 5: Get user profile using apiService
       await this.loadUserProfile();
 

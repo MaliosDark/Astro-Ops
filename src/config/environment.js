@@ -3,8 +3,8 @@
 
 export const ENV = {
   // API Configuration - PRODUCTION URLs
-  API_BASE_URL: 'https://api.bonkraiders.com',
-  VERIFY_API_URL: 'https://verify.bonkraiders.com',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
+  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://verify.bonkraiders.com',
   
   // Solana Configuration
   SOLANA_RPC_URL: import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com',
