@@ -1,10 +1,28 @@
 // src/config/environment.js
 // Centralized environment configuration
 
+// Helper function to determine if we should use HTTPS
+const shouldUseHttps = () => {
+  return window.location.protocol === 'https:';
+};
+
+// Helper function to get the appropriate protocol
+const getProtocol = () => {
+  return shouldUseHttps() ? 'https:' : 'http:';
+};
+
+// Helper function to construct URL with appropriate protocol
+const constructUrl = (defaultUrl) => {
+  if (defaultUrl.startsWith('http://') && shouldUseHttps()) {
+    return defaultUrl.replace('http://', 'https://');
+  }
+  return defaultUrl;
+};
+
 export const ENV = {
   // API Configuration
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'http://localhost:3070',
+  API_BASE_URL: constructUrl(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'),
+  VERIFY_API_URL: constructUrl(import.meta.env.VITE_VERIFY_API_URL || 'http://localhost:3070'),
   
   // Solana Configuration
   SOLANA_RPC_URL: import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com',
@@ -18,7 +36,7 @@ export const ENV = {
   SHIP_PRICE_SOL: import.meta.env.VITE_SHIP_PRICE_SOL || 0.01,
   
   // Asset URLs
-  ASSETS_BASE_URL: import.meta.env.VITE_ASSETS_BASE_URL || 'http://localhost:3000/assets',
+  ASSETS_BASE_URL: constructUrl(import.meta.env.VITE_ASSETS_BASE_URL || 'http://localhost:3000/assets'),
   
   // Development Settings
   DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'true' || true,
