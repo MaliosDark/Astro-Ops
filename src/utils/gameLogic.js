@@ -2,8 +2,7 @@
 import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnimator';
 import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, getTokenBalance } from './solanaTransactions';
 import walletService from '../services/walletService.js';
-import apiService from '../services/apiService.js';
-import userCacheService from '../services/userCacheService.js';
+import sessionManager from '../services/sessionManager.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
 
@@ -32,13 +31,13 @@ async function reAuthenticate() {
       throw new Error('Wallet service signMessage function not available');
     }
     
-    const token = await authenticateWallet(publicKey, signMessageFn);
+    const result = await sessionManager.authenticateUser(publicKey, signMessageFn);
     
     if (ENV.DEBUG_MODE) {
       console.log('✅ Re-authentication successful');
     }
     
-    return token;
+    return result.token;
   } catch (error) {
     console.error('❌ Re-authentication failed:', error);
     throw error;
@@ -130,103 +129,21 @@ function uint8ArrayToBase64(uint8Array) {
  * Authenticate with the server using wallet signature
  */
 export async function authenticateWallet(publicKey, signMessage) {
-  try {
-    if (ENV.DEBUG_MODE) {
-      console.log('🔐 Starting authentication for:', publicKey);
-      console.log('🔐 Using API URL: https://api.bonkraiders.com');
-    }
-    
-    // 1. Get nonce from API service
-    const { nonce } = await apiService.getNonce(publicKey);
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('✅ Got nonce:', nonce);
-    }
-
-    // 2. Sign the nonce
-    const encoded = encoder.encode(nonce);
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('🔧 Encoded message length:', encoded.length);
-    }
-    
-    const rawSignature = await signMessage(encoded);
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('🔧 Raw signature type:', typeof rawSignature);
-      console.log('🔧 Raw signature:', rawSignature);
-    }
-    
-    if (!rawSignature) {
-      throw new Error('Wallet returned empty signature');
-    }
-    
-    // 3. Convert signature to base64 using improved function
-    const signatureB64 = signatureToBase64(rawSignature);
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('✅ Converted signature to base64, length:', signatureB64.length);
-    }
-    
-    if (!signatureB64 || signatureB64.length === 0) {
-      throw new Error('Failed to convert signature to base64');
-    }
-
-    // 4. Login with signature using API service
-    if (ENV.DEBUG_MODE) {
-      console.log('📤 Sending login request');
-    }
-    
-    const { token } = await apiService.login(publicKey, nonce, signatureB64);
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('✅ Authentication successful');
-    }
-    
-    return token;
-  } catch (error) {
-    console.error('❌ Authentication error:', error);
-    throw error;
-  }
+  return await sessionManager.authenticateUser(publicKey, signMessage);
 }
 
 /**
  * Buy ship (one-time purchase)
  */
 export async function buyShip() {
-  try {
-    if (ENV.DEBUG_MODE) {
-      console.log('🚢 Attempting to buy ship...');
-    }
-    
-    const result = await apiService.buyShip();
-    
-    if (ENV.DEBUG_MODE) {
-      console.log('🚢 Buy ship result:', result);
-    }
-    
-    // Mark that player now has a ship and cache it
-    if (result.ship_id) {
-      window.hasShip = true;
-      
-      // Cache ship ownership
-      const publicKey = apiService.getCurrentUserPublicKey();
-      if (publicKey) {
-        userCacheService.cacheUserShips(publicKey, [{ 
-          id: result.ship_id, 
-          owned: true,
-          purchased_at: new Date().toISOString()
-        }]);
-      }
-    }
-    
-    return result;
-  } catch (error) {
-    if (ENV.DEBUG_MODE) {
-      console.error('🚢 Buy ship error:', error);
-    }
-    throw error;
+  const result = await sessionManager.buyShip();
+  
+  // Mark that player now has a ship
+  if (result.ship_id) {
+    window.hasShip = true;
   }
+  
+  return result;
 }
 
 /**
@@ -271,7 +188,7 @@ export async function startMission(type, mode = 'Unshielded') {
     
     await animateRaidTo(type);
 
-    const { success, reward, br_balance } = await apiService.sendMission(type, mode, signedBurnTx);
+    const { success, reward, br_balance } = await sessionManager.sendMission(type, mode, signedBurnTx);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${reward} BR` : 'Mission failed - no rewards');
@@ -300,7 +217,7 @@ export async function startMission(type, mode = 'Unshielded') {
  */
 export async function performUpgrade(level) {
   try {
-    const { level: newLevel, br_balance } = await apiService.upgradeShip(level);
+    const { level: newLevel, br_balance } = await sessionManager.upgradeShip(level);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
@@ -322,7 +239,7 @@ export async function performRaid(missionId) {
     // Crear transición de raid con animaciones completas
     await createRaidTransition(async () => {
       // Lógica del raid dentro de la transición
-      const { stolen, br_balance } = await apiService.raidMission(missionId);
+      const { stolen, br_balance } = await sessionManager.raidMission(missionId);
       
       // Simular que el jugador objetivo inicia una batalla defensiva
       // (esto sería manejado por el servidor en un juego real)
@@ -353,7 +270,7 @@ export async function performRaid(missionId) {
  */
 export async function getPlayerEnergy() {
   try {
-    const { energy } = await apiService.getPlayerEnergy();
+    const { energy } = await sessionManager.getPlayerEnergy();
     return energy;
   } catch (error) {
     console.error('Get energy error:', error);
@@ -366,7 +283,7 @@ export async function getPlayerEnergy() {
  */
 export async function scanForRaids() {
   try {
-    const { missions, remainingEnergy } = await apiService.scanForRaids();
+    const { missions, remainingEnergy } = await sessionManager.scanForRaids();
     
     if (window.AstroUI) {
       window.AstroUI.setEnergy(remainingEnergy);
@@ -384,7 +301,7 @@ export async function scanForRaids() {
  */
 export async function performRaidOriginal(missionId) {
   try {
-    const { stolen, br_balance } = await apiService.raidMission(missionId);
+    const { stolen, br_balance } = await sessionManager.raidMission(missionId);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
@@ -403,7 +320,7 @@ export async function performRaidOriginal(missionId) {
  */
 export async function performClaim() {
   try {
-    const { claimable_AT } = await apiService.claimRewards();
+    const { claimable_AT } = await sessionManager.claimRewards();
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens`);
@@ -422,7 +339,7 @@ export async function performClaim() {
  */
 export async function getMissionsForRaid() {
   try {
-    return await apiService.getMissions();
+    return await sessionManager.getMissions();
   } catch (error) {
     console.error('Get missions error:', error);
     return [];
@@ -434,7 +351,7 @@ export async function getMissionsForRaid() {
  */
 export async function getPendingRewards() {
   try {
-    const { pending } = await apiService.getPendingRewards();
+    const { pending } = await sessionManager.getPendingRewards();
     return pending || [];
   } catch (error) {
     console.error('Get pending rewards error:', error);
