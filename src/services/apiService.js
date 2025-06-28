@@ -144,18 +144,20 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache'
     };
 
     // Add authorization header if JWT is available
     if (currentToken) {
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🔑 Adding Authorization header:', `Bearer ${currentToken.substring(0, 20)}...`);
+      }
     }
 
     const requestOptions = {
       mode: 'cors',
-      credentials: 'omit',
+      credentials: 'include',
       ...options,
       headers: {
         ...defaultHeaders,
@@ -168,7 +170,8 @@ class ApiService {
         url,
         method: requestOptions.method || 'GET',
         hasAuth: !!currentToken,
-        authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none'
+        authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none',
+        headers: Object.keys(requestOptions.headers)
       });
     }
 
@@ -180,8 +183,8 @@ class ApiService {
           url,
           status: response.status,
           ok: response.ok,
-          authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none',
-          headers: Object.keys(requestOptions.headers)
+          sentAuthHeader: !!currentToken,
+          responseHeaders: Object.fromEntries(response.headers.entries())
         });
       }
 
