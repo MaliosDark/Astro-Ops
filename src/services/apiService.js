@@ -12,8 +12,8 @@ class ApiService {
     this.jwt = null;
     this.isRefreshing = false;
     this.refreshPromise = null;
-    this.baseURL = 'https://api.bonkraiders.com';
-    this.verifyURL = 'https://verify.bonkraiders.com';
+    this.baseURL = ENV.API_BASE_URL;
+    this.verifyURL = ENV.VERIFY_API_URL;
   }
 
   /**
