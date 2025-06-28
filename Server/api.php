@@ -278,8 +278,8 @@ function getJson(): array {
   if (!empty($_SERVER['CONTENT_LENGTH']) && $_SERVER['CONTENT_LENGTH'] > 1024*1024) {
     jsonErr('Payload too large', 413);
   }
-  $body = file_get_contents('php://input');
-  return json_decode($body, true) ?: [];
+  // Use globally stored JSON input instead of re-reading php://input
+  return $GLOBALS['_json_input'] ?: [];
 }
 
 function rateLimit(PDO $pdo): void {
@@ -439,15 +439,12 @@ function getAuthToken(): string {
   
   // Método 1: En el cuerpo de la petición (POST/PUT/PATCH)
   if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'])) {
-    $body = file_get_contents('php://input');
-    if ($body) {
-      $data = json_decode($body, true);
-      if ($data && isset($data['_auth_token'])) {
+    // Use globally stored JSON input instead of re-reading php://input
+    if ($GLOBALS['_json_input'] && isset($GLOBALS['_json_input']['_auth_token'])) {
         if (defined('DEBUG_MODE') && DEBUG_MODE) {
           error_log("Found token in request body");
         }
-        return $data['_auth_token'];
-      }
+        return $GLOBALS['_json_input']['_auth_token'];
     }
   }
   

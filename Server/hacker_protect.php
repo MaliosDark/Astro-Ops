@@ -68,14 +68,8 @@ inspectPayload($_GET,   'GET');
 inspectPayload($_POST,  'POST');
 inspectPayload($_COOKIE,'COOKIE');
 // inspect raw JSON body if present
-if (in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','PATCH'])) {
-    $raw = file_get_contents('php://input');
-    if ($raw && strlen($raw) < 1024*1024) {
-        $json = json_decode($raw, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            inspectPayload($json, 'JSON');
-        }
-    }
+if ($GLOBALS['_json_input'] !== null) {
+    inspectPayload($GLOBALS['_json_input'], 'JSON');
 }
 
 // ——— 3) ERROR & EXCEPTION HANDLERS ———
@@ -141,3 +135,18 @@ function handleShutdown() {
 set_exception_handler('handleException');
 set_error_handler('handleError');
 register_shutdown_function('handleShutdown');
+
+// ——— 4) GLOBAL REQUEST DATA STORAGE ———
+// Read php://input only once and store globally
+$GLOBALS['_raw_input'] = '';
+$GLOBALS['_json_input'] = null;
+
+if (in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','PATCH'])) {
+    $GLOBALS['_raw_input'] = file_get_contents('php://input');
+    if ($GLOBALS['_raw_input'] && strlen($GLOBALS['_raw_input']) < 1024*1024) {
+        $decoded = json_decode($GLOBALS['_raw_input'], true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $GLOBALS['_json_input'] = $decoded;
+        }
+    }
+}
