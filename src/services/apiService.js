@@ -146,17 +146,6 @@ class ApiService {
       'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
     };
 
-    // Add authorization header if JWT is available
-    if (currentToken) {
-      // Ensure clean Bearer token format
-      const cleanToken = currentToken.trim();
-      defaultHeaders['Authorization'] = `Bearer ${cleanToken}`;
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🔑 Adding Authorization header:', `Bearer ${cleanToken.substring(0, 20)}...`);
-        console.log('🔑 Full token length:', cleanToken.length);
-      }
-    }
 
     const requestOptions = {
       ...options,
@@ -166,16 +155,56 @@ class ApiService {
       }
     };
 
+    // NUEVA ESTRATEGIA: Enviar token en el cuerpo en lugar del header
+    if (currentToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
+      let bodyData = {};
+      
+      // Parse existing body if present
+      if (options.body) {
+        try {
+          bodyData = JSON.parse(options.body);
+        } catch (e) {
+          bodyData = {};
+        }
+      }
+      
+      // Add token to body
+      bodyData._auth_token = currentToken.trim();
+      requestOptions.body = JSON.stringify(bodyData);
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🔑 Adding token to request body, length:', currentToken.length);
+      }
+    } else if (currentToken && options.method === 'GET') {
+      // For GET requests, add token as query parameter
+      const separator = url.includes('?') ? '&' : '?';
+      const newUrl = `${url}${separator}_auth_token=${encodeURIComponent(currentToken.trim())}`;
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🔑 Adding token to query string');
+      }
+      
+      // Update the fetch URL
+      const response = await this._makeRequest(newUrl, requestOptions, currentToken);
+      return response;
+    }
     if (ENV.DEBUG_MODE) {
       console.log('📡 API Request:', {
         url,
         method: requestOptions.method || 'GET',
         hasAuth: !!currentToken,
-        authHeader: currentToken ? `Bearer ${currentToken.substring(0, 20)}...` : 'none',
+        authMethod: currentToken ? 'body/query' : 'none',
         headers: Object.keys(requestOptions.headers)
       });
     }
 
+    return await this._makeRequest(url, requestOptions, currentToken);
+  }
+
+  /**
+   * Internal method to make the actual request
+   */
+  async _makeRequest(url, requestOptions, currentToken) {
     try {
       const response = await fetch(url, requestOptions);
       
@@ -184,7 +213,7 @@ class ApiService {
           url,
           status: response.status,
           ok: response.ok,
-          sentAuthHeader: !!currentToken,
+          sentAuthToken: !!currentToken,
           responseHeaders: Object.fromEntries(response.headers.entries())
         });
       }
@@ -213,14 +242,14 @@ class ApiService {
           
           if (newToken) {
             // Retry the original request with new token
-            const retryHeaders = {
-              ...requestOptions.headers,
-              'Authorization': `Bearer ${newToken}`
-            };
-            const retryResponse = await fetch(url, {
-              ...requestOptions,
-              headers: retryHeaders
-            });
+            // Update the request with new token
+            if (requestOptions.body) {
+              const bodyData = JSON.parse(requestOptions.body);
+              bodyData._auth_token = newToken;
+              requestOptions.body = JSON.stringify(bodyData);
+            }
+            
+            const retryResponse = await fetch(url, requestOptions);
             
             if (retryResponse.ok) {
               return await retryResponse.json();
