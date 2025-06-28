@@ -5,8 +5,6 @@ import GameUI from './components/GameUI';
 import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
-import walletService from './services/walletService.js';
-import apiService from './services/apiService.js';
 import websocketService from './services/websocketService.js';
 import healthMonitorService from './services/healthMonitor.js';
 import ENV from './config/environment.js';
@@ -97,54 +95,8 @@ function App() {
         // Stop health monitoring when wallet disconnects
         healthMonitorService.stop();
         // Disconnect WebSocket when wallet disconnects
-        websocketService.disconnect();
-        // Stop health monitoring when wallet disconnects
-        healthMonitorService.stop();
         window.location.reload();
       });
-      
-      // Step 6: Connect to WebSocket for real-time features
-      try {
-        const userId = 1; // This should come from your user profile
-        await websocketService.connect(userId, token);
-        
-        // Set up WebSocket event handlers
-        websocketService.on('raid_incoming', (data) => {
-          if (window.AstroUI) {
-            window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
-          }
-          
-          // Trigger defense battle if available
-          if (window.startDefenseBattle) {
-            setTimeout(() => {
-              window.startDefenseBattle();
-            }, 2000);
-          }
-        });
-        
-        websocketService.on('raid_completed', (data) => {
-          if (data.defenderId === userId) {
-            if (data.success) {
-              if (window.AstroUI) {
-                window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
-              }
-            } else {
-              if (window.AstroUI) {
-                window.AstroUI.setStatus(`🛡️ Raid repelled successfully!`);
-              }
-            }
-          }
-        });
-        
-        if (ENV.DEBUG_MODE) {
-          console.log('🌐 WebSocket connected for real-time features');
-        }
-      } catch (wsError) {
-        if (ENV.DEBUG_MODE) {
-          console.warn('⚠️ WebSocket connection failed, continuing without real-time features:', wsError);
-        }
-        // Don't fail the entire connection if WebSocket fails
-      }
       
       // Step 6: Connect to WebSocket for real-time features
       try {
@@ -192,31 +144,6 @@ function App() {
       if (ENV.DEBUG_MODE) {
         console.log('🎮 Game ready!');
       }
-      
-      // Step 7: Start health monitoring
-      healthMonitorService.start();
-      
-      // Set up health monitoring event handlers
-      healthMonitorService.on('health_degraded', (health) => {
-        if (ENV.DEBUG_MODE) {
-          console.warn('🏥 API health degraded:', health);
-        }
-      });
-      
-      healthMonitorService.on('health_recovered', (health) => {
-        if (window.AstroUI) {
-          window.AstroUI.setStatus('✅ Connection restored');
-        }
-        if (ENV.DEBUG_MODE) {
-          console.log('🏥 API health recovered:', health);
-        }
-      });
-      
-      healthMonitorService.on('recovery_attempted', (data) => {
-        if (ENV.DEBUG_MODE) {
-          console.log('🔧 Auto-recovery attempted:', data);
-        }
-      });
       
       // Step 7: Start health monitoring
       healthMonitorService.start();
