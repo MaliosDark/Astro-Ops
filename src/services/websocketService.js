@@ -16,6 +16,7 @@ class WebSocketService {
     this.eventListeners = new Map();
     this.userId = null;
     this.heartbeatInterval = null;
+    this.mockMode = ENV.DEBUG_MODE; // Use mock mode in development
   }
 
   /**
@@ -27,6 +28,11 @@ class WebSocketService {
     }
 
     this.userId = userId;
+    
+    // If in mock mode, simulate connection
+    if (this.mockMode) {
+      return this._setupMockConnection();
+    }
     
     return new Promise((resolve, reject) => {
       try {
@@ -91,15 +97,91 @@ class WebSocketService {
 
       } catch (error) {
         console.error('❌ Failed to create WebSocket connection:', error);
-        reject(error);
+        
+        // Fall back to mock mode if connection fails
+        if (ENV.DEBUG_MODE) {
+          console.log('⚠️ Falling back to mock WebSocket mode');
+          this.mockMode = true;
+          this._setupMockConnection().then(resolve).catch(reject);
+        } else {
+          reject(error);
+        }
       }
     });
+  }
+
+  /**
+   * Set up mock connection for development
+   */
+  _setupMockConnection() {
+    return new Promise((resolve) => {
+      this.isConnected = true;
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🔌 Mock WebSocket connected');
+      }
+      
+      // Start mock heartbeat
+      this.startHeartbeat();
+      
+      // Simulate connection event
+      this._emit('connected');
+      
+      // Set up mock raid events
+      this._setupMockEvents();
+      
+      resolve();
+    });
+  }
+
+  /**
+   * Set up mock events for development
+   */
+  _setupMockEvents() {
+    // Simulate incoming raid after 30-60 seconds
+    setTimeout(() => {
+      if (!this.isConnected) return;
+      
+      this.handleMessage({
+        type: 'raid_incoming',
+        data: {
+          attackerId: 123,
+          attackerName: 'RaidMaster42',
+          missionType: 'BlackMarket',
+          estimatedReward: 8000
+        }
+      });
+    }, 30000 + Math.random() * 30000);
+    
+    // Simulate user status updates every 15 seconds
+    setInterval(() => {
+      if (!this.isConnected) return;
+      
+      const statuses = ['online', 'in_mission', 'offline'];
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      
+      this.handleMessage({
+        type: 'user_status_update',
+        data: {
+          userId: 100 + Math.floor(Math.random() * 10),
+          status: randomStatus,
+          timestamp: Date.now()
+        }
+      });
+    }, 15000);
   }
 
   /**
    * Disconnect from WebSocket
    */
   disconnect() {
+    if (this.mockMode) {
+      this.isConnected = false;
+      this.stopHeartbeat();
+      this._emit('disconnected', { code: 1000, reason: 'Client disconnect' });
+      return;
+    }
+    
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       this.ws = null;
@@ -112,7 +194,7 @@ class WebSocketService {
    * Send message to server
    */
   send(type, data = {}) {
-    if (!this.isConnected || !this.ws) {
+    if (!this.isConnected) {
       console.warn('⚠️ WebSocket not connected, cannot send message');
       return false;
     }
@@ -124,6 +206,31 @@ class WebSocketService {
         timestamp: Date.now(),
         userId: this.userId
       };
+
+      if (this.mockMode) {
+        // In mock mode, just log the message
+        if (ENV.DEBUG_MODE) {
+          console.log('📤 Mock WebSocket message sent:', message);
+        }
+        
+        // Simulate raid completion response
+        if (type === 'raid_initiated') {
+          setTimeout(() => {
+            this.handleMessage({
+              type: 'raid_completed',
+              data: {
+                success: Math.random() > 0.3, // 70% success rate
+                stolenAmount: Math.floor(Math.random() * 5000) + 1000,
+                defenderId: data.targetMissionId,
+                attackerId: this.userId,
+                timestamp: Date.now()
+              }
+            });
+          }, 5000);
+        }
+        
+        return true;
+      }
 
       this.ws.send(JSON.stringify(message));
       return true;
@@ -172,7 +279,7 @@ class WebSocketService {
     
     // Show notification to user
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`🚨 INCOMING RAID from ${attackerName}!`);
+      window.AstroUI.setStatus(`🚨 INCOMING RAID from ${attackerName || 'Unknown'}!`);
     }
 
     // Trigger defense battle animation
@@ -182,7 +289,12 @@ class WebSocketService {
       }, 2000);
     }
 
-    this._emit('raid_incoming', data);
+    this._emit('raid_incoming', {
+      type: 'raid_incoming',
+      title: '🚨 INCOMING RAID!',
+      message: `${attackerName || 'An enemy'} is attacking your base!`,
+      details: `Mission type: ${missionType || 'Unknown'}, Potential loss: ${estimatedReward || '???'} BR`
+    });
   }
 
   /**
@@ -197,14 +309,51 @@ class WebSocketService {
         if (window.AstroUI) {
           window.AstroUI.setStatus(`💔 Raid successful! Lost ${stolenAmount} BR`);
         }
+        
+        this._emit('raid_completed', {
+          type: 'raid_failed',
+          title: '💔 BASE RAIDED!',
+          message: `Enemy forces have successfully raided your base!`,
+          details: `You lost ${stolenAmount} BR in the attack.`
+        });
       } else {
         if (window.AstroUI) {
           window.AstroUI.setStatus(`🛡️ Raid repelled! Base defended successfully!`);
         }
+        
+        this._emit('raid_completed', {
+          type: 'raid_success',
+          title: '🛡️ RAID REPELLED!',
+          message: 'Your defenses successfully protected your base!',
+          details: 'All resources are safe. Your troops fought valiantly.'
+        });
+      }
+    } else if (attackerId === this.userId) {
+      // We raided someone
+      if (success) {
+        if (window.AstroUI) {
+          window.AstroUI.setStatus(`💰 Raid successful! Gained ${stolenAmount} BR`);
+        }
+        
+        this._emit('raid_completed', {
+          type: 'raid_success',
+          title: '💰 RAID SUCCESSFUL!',
+          message: `Your forces have successfully raided the enemy base!`,
+          details: `You gained ${stolenAmount} BR from the raid.`
+        });
+      } else {
+        if (window.AstroUI) {
+          window.AstroUI.setStatus(`❌ Raid failed! Target was well defended.`);
+        }
+        
+        this._emit('raid_completed', {
+          type: 'raid_failed',
+          title: '❌ RAID FAILED!',
+          message: 'The enemy defenses were too strong!',
+          details: 'Your forces were repelled. No resources gained.'
+        });
       }
     }
-
-    this._emit('raid_completed', data);
   }
 
   /**
@@ -305,7 +454,8 @@ class WebSocketService {
     return {
       isConnected: this.isConnected,
       reconnectAttempts: this.reconnectAttempts,
-      userId: this.userId
+      userId: this.userId,
+      mockMode: this.mockMode
     };
   }
 }

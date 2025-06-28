@@ -190,6 +190,12 @@ class SmartCache {
         }
         
         $data = file_get_contents($file);
+        
+        // Check if data is compressed
+        if (substr($data, 0, 2) === "\x78\x9c") {
+            $data = gzuncompress($data);
+        }
+        
         return $data ? json_decode($data, true) : null;
     }
     
@@ -224,53 +230,5 @@ class SmartCache {
             unlink($file);
         }
         return true;
-    }
-}
-
-/**
- * Database Connection Pool
- */
-class ConnectionPool {
-    private static $connections = [];
-    private static $maxConnections = 5;
-    private static $currentConnections = 0;
-    
-    public static function getConnection() {
-        // Reuse existing connection if available
-        if (!empty(self::$connections)) {
-            return array_pop(self::$connections);
-        }
-        
-        // Create new connection if under limit
-        if (self::$currentConnections < self::$maxConnections) {
-            try {
-                $pdo = new PDO(
-                    "mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8mb4",
-                    DB_USER, DB_PASS,
-                    [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
-                        PDO::ATTR_PERSISTENT => true, // Use persistent connections
-                        PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false // Reduce memory usage
-                    ]
-                );
-                self::$currentConnections++;
-                return $pdo;
-            } catch (Exception $e) {
-                error_log("Connection pool error: " . $e->getMessage());
-                throw $e;
-            }
-        }
-        
-        // Wait and retry if at connection limit
-        usleep(100000); // Wait 100ms
-        return self::getConnection();
-    }
-    
-    public static function releaseConnection($pdo) {
-        if (count(self::$connections) < self::$maxConnections) {
-            self::$connections[] = $pdo;
-        }
     }
 }
