@@ -4,7 +4,7 @@
 // Allow all origins for development/testing
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization');
 header('Access-Control-Max-Age: 86400'); // 24 hours
 
 // Handle preflight OPTIONS requests
@@ -64,7 +64,11 @@ define('PARTICIPATION_FEE', 0);    // No burn fee for now
 $pdo = new PDO(
   "mysql:host=".DB_HOST.";charset=utf8mb4",
   DB_USER, DB_PASS,
-  [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+  [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+  ]
 );
 
 function runMigrations(PDO $pdo) {
@@ -74,45 +78,97 @@ function runMigrations(PDO $pdo) {
   // if no users table, run migrations.sql
   $has = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
   if (!$has) {
-    // Try multiple possible locations for migrations.sql
-    $migrationPaths = [
-      __DIR__ . '/migrations.sql',
-      __DIR__ . '/../database/migrations.sql',
-      __DIR__ . '/../migrations.sql'
-    ];
+    // Create basic tables directly
+    $pdo->exec("
+      CREATE TABLE users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        public_key VARCHAR(64) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        total_missions INT NOT NULL DEFAULT 0,
+        total_raids_won INT NOT NULL DEFAULT 0,
+        total_kills INT NOT NULL DEFAULT 0,
+        INDEX idx_public_key (public_key)
+      )
+    ");
     
-    $sql = null;
-    foreach ($migrationPaths as $path) {
-      if (file_exists($path)) {
-        $sql = file_get_contents($path);
-        if (ENV.DEBUG_MODE) {
-          error_log("Found migrations.sql at: " . $path);
-        }
-        break;
-      }
-    }
+    $pdo->exec("
+      CREATE TABLE nonces (
+        public_key VARCHAR(64) NOT NULL PRIMARY KEY,
+        nonce CHAR(32) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    ");
     
-    if (!$sql) {
-      error_log("ERROR: migrations.sql not found in any of these locations: " . implode(', ', $migrationPaths));
-      throw new Exception('Database migrations file not found');
-    }
+    $pdo->exec("
+      CREATE TABLE ships (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        level TINYINT NOT NULL DEFAULT 1,
+        last_mission_ts INT NOT NULL DEFAULT 0,
+        br_balance BIGINT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active TINYINT NOT NULL DEFAULT 1,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_is_active (is_active)
+      )
+    ");
     
-    // Split SQL into individual statements and execute them
-    $statements = array_filter(array_map('trim', explode(';', $sql)));
-    foreach ($statements as $statement) {
-      if (!empty($statement) && !preg_match('/^\s*--/', $statement)) {
-        try {
-          $pdo->exec($statement);
-        } catch (Exception $e) {
-          error_log("Migration error executing: " . substr($statement, 0, 100) . "... Error: " . $e->getMessage());
-          // Continue with other statements
-        }
-      }
-    }
+    $pdo->exec("
+      CREATE TABLE missions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ship_id INT NOT NULL,
+        user_id INT NOT NULL,
+        mission_type ENUM('MiningRun','BlackMarket','ArtifactHunt') NOT NULL,
+        mode ENUM('Shielded','Unshielded') NOT NULL,
+        ts_start INT NOT NULL,
+        ts_complete INT NULL,
+        success TINYINT NOT NULL,
+        reward BIGINT NOT NULL,
+        raided TINYINT NOT NULL DEFAULT 0,
+        raided_by INT NULL,
+        ts_raid INT NULL,
+        claimed TINYINT NOT NULL DEFAULT 0,
+        FOREIGN KEY(ship_id) REFERENCES ships(id),
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(raided_by) REFERENCES users(id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_ts_start (ts_start),
+        INDEX idx_raided (raided),
+        INDEX idx_mission_type (mission_type)
+      )
+    ");
     
-    if (ENV.DEBUG_MODE) {
-      error_log("Database migrations completed successfully");
-    }
+    $pdo->exec("
+      CREATE TABLE api_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip VARCHAR(45) NOT NULL,
+        endpoint VARCHAR(64) NOT NULL,
+        ts INT NOT NULL,
+        INDEX idx_ip_ts (ip, ts),
+        INDEX idx_ts (ts)
+      )
+    ");
+    
+    $pdo->exec("
+      CREATE TABLE energy (
+        user_id INT NOT NULL PRIMARY KEY,
+        energy INT NOT NULL DEFAULT 10,
+        last_refill INT NOT NULL DEFAULT 0,
+        max_energy INT NOT NULL DEFAULT 10,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    ");
+    
+    $pdo->exec("
+      CREATE TABLE reputation (
+        user_id INT NOT NULL PRIMARY KEY,
+        rep INT NOT NULL DEFAULT 100,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    ");
   }
 }
 runMigrations($pdo);
@@ -258,50 +314,26 @@ function getOnchainBalance(string $ownerPk): float {
 
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
-  // Try multiple ways to get the authorization header
-  $authHeader = null;
-  
-  // Method 1: Standard HTTP_AUTHORIZATION
-  if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-  }
-  // Method 2: Alternative header name
-  elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-  }
-  // Method 3: Apache mod_rewrite might put it here
-  elseif (function_exists('apache_request_headers')) {
-    $headers = apache_request_headers();
-    if (isset($headers['Authorization'])) {
-      $authHeader = $headers['Authorization'];
-    } elseif (isset($headers['authorization'])) {
-      $authHeader = $headers['authorization'];
-    }
-  }
-  // Method 4: Check if it's in a different format
-  elseif (isset($_SERVER['PHP_AUTH_USER'])) {
-    $authHeader = 'Bearer ' . $_SERVER['PHP_AUTH_USER'];
+  $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+  if (!$authHeader && function_exists('getallheaders')) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
   }
   
-  if (ENV.DEBUG_MODE) {
-    error_log("Auth debug - HTTP_AUTHORIZATION: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'not set'));
-    error_log("Auth debug - REDIRECT_HTTP_AUTHORIZATION: " . ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? 'not set'));
-    error_log("Auth debug - Final authHeader: " . ($authHeader ?? 'not found'));
-    error_log("Auth debug - All headers: " . print_r(getallheaders(), true));
-  }
-  
-  if (!$authHeader || !preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
+  if (!preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
     jsonErr('Missing token', 401);
   }
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
+    error_log("JWT decode error: " . $e->getMessage());
     jsonErr('Invalid token', 401);
   }
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
+    error_log("User not found for public key: " . $data['publicKey']);
     jsonErr('User not found', 401);
   }
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
@@ -385,79 +417,90 @@ switch ($action) {
 
       // USER PROFILE
       case 'user_profile':
-        AntiCheat::validateRequestOrigin();
-        
-        // Ensure we have a valid user
-        if (!$me || !$me['userId']) {
-          jsonErr('User not authenticated', 401);
-        }
-        
-        $stmt = $pdo->prepare("
-          SELECT u.id, u.public_key, u.created_at, u.last_login,
-                 u.total_missions, u.total_raids_won, u.total_kills,
-                 s.id as ship_id, s.level as ship_level, s.br_balance,
-                 s.last_mission_ts, s.purchased_at,
-                 e.energy, e.max_energy, e.last_refill,
-                 r.rep as reputation
-          FROM users u
-          LEFT JOIN ships s ON u.id = s.user_id AND s.is_active = 1
-          LEFT JOIN energy e ON u.id = e.user_id
-          LEFT JOIN reputation r ON u.id = r.user_id
-          WHERE u.id = ?
-        ");
-        $stmt->execute([$me['userId']]);
-        $profile = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$profile) {
-          jsonErr('User profile not found', 404);
-        }
-        
-        // Calculate current energy
-        if ($profile['energy'] !== null) {
-          $now = time();
-          $elapsed = floor(($now - $profile['last_refill']) / 3600);
-          if ($elapsed > 0) {
-            $newEnergy = min($profile['max_energy'], $profile['energy'] + $elapsed);
-            if ($newEnergy != $profile['energy']) {
-              $pdo->prepare("UPDATE energy SET energy = ?, last_refill = ? WHERE user_id = ?")
-                  ->execute([$newEnergy, $now, $me['userId']]);
-              $profile['energy'] = $newEnergy;
+        try {
+          AntiCheat::validateRequestOrigin();
+          
+          // Ensure we have a valid user
+          if (!$me || !$me['userId']) {
+            jsonErr('User not authenticated', 401);
+          }
+          
+          // Initialize energy and reputation if they don't exist
+          $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+              ->execute([$me['userId'], time()]);
+          $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+              ->execute([$me['userId']]);
+          
+          $stmt = $pdo->prepare("
+            SELECT u.id, u.public_key, u.created_at, u.last_login,
+                   u.total_missions, u.total_raids_won, u.total_kills,
+                   s.id as ship_id, s.level as ship_level, s.br_balance,
+                   s.last_mission_ts, s.purchased_at,
+                   e.energy, e.max_energy, e.last_refill,
+                   r.rep as reputation
+            FROM users u
+            LEFT JOIN ships s ON u.id = s.user_id AND s.is_active = 1
+            LEFT JOIN energy e ON u.id = e.user_id
+            LEFT JOIN reputation r ON u.id = r.user_id
+            WHERE u.id = ?
+          ");
+          $stmt->execute([$me['userId']]);
+          $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$profile) {
+            jsonErr('User profile not found', 404);
+          }
+          
+          // Calculate current energy
+          if ($profile['energy'] !== null) {
+            $now = time();
+            $elapsed = floor(($now - $profile['last_refill']) / 3600);
+            if ($elapsed > 0) {
+              $newEnergy = min($profile['max_energy'], $profile['energy'] + $elapsed);
+              if ($newEnergy != $profile['energy']) {
+                $pdo->prepare("UPDATE energy SET energy = ?, last_refill = ? WHERE user_id = ?")
+                    ->execute([$newEnergy, $now, $me['userId']]);
+                $profile['energy'] = $newEnergy;
+              }
             }
           }
-        }
-        
-        // Format response
-        $response = [
-          'user_id' => (int)$profile['id'],
-          'public_key' => $profile['public_key'],
-          'created_at' => $profile['created_at'],
-          'last_login' => $profile['last_login'],
-          'stats' => [
-            'total_missions' => (int)$profile['total_missions'],
-            'total_raids_won' => (int)$profile['total_raids_won'],
-            'total_kills' => (int)$profile['total_kills'],
-            'reputation' => (int)($profile['reputation'] ?? 100)
-          ],
-          'ship' => null,
-          'energy' => [
-            'current' => (int)($profile['energy'] ?? 10),
-            'max' => (int)($profile['max_energy'] ?? 10),
-            'last_refill' => (int)($profile['last_refill'] ?? time())
-          ]
-        ];
-        
-        if ($profile['ship_id']) {
-          $response['ship'] = [
-            'id' => (int)$profile['ship_id'],
-            'level' => (int)$profile['ship_level'],
-            'balance' => (int)$profile['br_balance'],
-            'last_mission_ts' => (int)$profile['last_mission_ts'],
-            'purchased_at' => $profile['purchased_at']
+          
+          // Format response
+          $response = [
+            'user_id' => (int)$profile['id'],
+            'public_key' => $profile['public_key'],
+            'created_at' => $profile['created_at'],
+            'last_login' => $profile['last_login'],
+            'stats' => [
+              'total_missions' => (int)$profile['total_missions'],
+              'total_raids_won' => (int)$profile['total_raids_won'],
+              'total_kills' => (int)$profile['total_kills'],
+              'reputation' => (int)($profile['reputation'] ?? 100)
+            ],
+            'ship' => null,
+            'energy' => [
+              'current' => (int)($profile['energy'] ?? 10),
+              'max' => (int)($profile['max_energy'] ?? 10),
+              'last_refill' => (int)($profile['last_refill'] ?? time())
+            ]
           ];
+          
+          if ($profile['ship_id']) {
+            $response['ship'] = [
+              'id' => (int)$profile['ship_id'],
+              'level' => (int)$profile['ship_level'],
+              'balance' => (int)$profile['br_balance'],
+              'last_mission_ts' => (int)$profile['last_mission_ts'],
+              'purchased_at' => $profile['purchased_at']
+            ];
+          }
+          
+          echo json_encode($response);
+          exit;
+        } catch (Exception $e) {
+          error_log("User profile error: " . $e->getMessage());
+          jsonErr('Failed to load user profile: ' . $e->getMessage(), 500);
         }
-        
-        echo json_encode($response);
-        exit;
 
 
       // RAID SCAN
