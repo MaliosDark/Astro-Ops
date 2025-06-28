@@ -5,6 +5,8 @@ import GameUI from './components/GameUI';
 import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
+import walletService from './services/walletService.js';
+import apiService from './services/apiService.js';
 import websocketService from './services/websocketService.js';
 import healthMonitorService from './services/healthMonitor.js';
 import ENV from './config/environment.js';
@@ -94,7 +96,6 @@ function App() {
         websocketService.disconnect();
         // Stop health monitoring when wallet disconnects
         healthMonitorService.stop();
-        // Disconnect WebSocket when wallet disconnects
         window.location.reload();
       });
       

@@ -114,7 +114,7 @@ const RaidNotification = ({ notification, onClose }) => {
             fontSize: '12px',
             textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
           }}>
-            {notification.title || 'Notification'}
+            {notification.title}
           </h3>
           <p style={{
             margin: '0',
@@ -122,7 +122,7 @@ const RaidNotification = ({ notification, onClose }) => {
             opacity: 0.9,
             lineHeight: '1.3'
           }}>
-            {notification.message || 'You have a new notification'}
+            {notification.message}
           </p>
         </div>
       </div>

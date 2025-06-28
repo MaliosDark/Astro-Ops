@@ -43,7 +43,7 @@ const UserStatusIndicator = ({ user, isCompact = false }) => {
       }}>
         <span>{getStatusIcon(user.status)}</span>
         <span style={{ color: '#0cf' }}>
-          {user.owner_short || user.public_key?.slice(0, 6)}...
+          {user.public_key?.slice(0, 6)}...
         </span>
         <span style={{ color: experience.color }}>
           {experience.icon}
@@ -74,7 +74,7 @@ const UserStatusIndicator = ({ user, isCompact = false }) => {
         }}>
           <span>{getStatusIcon(user.status)}</span>
           <span style={{ color: '#0cf', fontWeight: 'bold' }}>
-            {user.owner_short || user.public_key?.slice(0, 8)}...
+            {user.public_key?.slice(0, 8)}...
           </span>
         </div>
         <div style={{

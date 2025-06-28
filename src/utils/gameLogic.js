@@ -3,6 +3,7 @@ import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnima
 import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, getTokenBalance } from './solanaTransactions';
 import walletService from '../services/walletService.js';
 import apiService from '../services/apiService.js';
+import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
 
@@ -298,6 +299,12 @@ export async function performRaid(missionId) {
       console.log('🏴‍☠️ Starting raid on mission:', missionId);
     }
     
+    // Notify other players via WebSocket
+    websocketService.send('raid_initiated', {
+      targetMissionId: missionId,
+      timestamp: Date.now()
+    });
+    
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
       // REAL API CALL - This will save to database
@@ -326,6 +333,14 @@ export async function performRaid(missionId) {
         window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
         window.AstroUI.setBalance(br_balance);
       }
+      
+      // Notify completion via WebSocket
+      websocketService.send('raid_completed', {
+        missionId,
+        stolen,
+        success: stolen > 0,
+        timestamp: Date.now()
+      });
       
       return { stolen, br_balance };
     });
@@ -377,13 +392,21 @@ export async function scanForRaids() {
       console.log('🔍 Scanning for raids...');
     }
     
-    const { missions, remainingEnergy } = await apiService.scanForRaids();
+    const { missions, users, remainingEnergy } = await apiService.scanForRaids();
     
     if (window.AstroUI) {
       window.AstroUI.setEnergy(remainingEnergy);
     }
     
-    return missions;
+    // Return both missions and user data
+    const result = { missions, users, remainingEnergy };
+    
+    // If we have users data, return it in the expected format
+    if (users && Array.isArray(users)) {
+      result.users = users;
+    }
+    
+    return result.missions || missions; // Maintain backward compatibility
   } catch (error) {
     if (ENV.DEBUG_MODE) {
       console.error('Scan for raids error:', error);
@@ -453,4 +476,3 @@ window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;
 window.performClaim = performClaim;
 window.buyShip = buyShip;
-

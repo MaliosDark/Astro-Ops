@@ -2,7 +2,6 @@
 // Client-side health monitoring and auto-recovery
 
 import ENV from '../config/environment.js';
-import apiService from './apiService.js';
 
 /**
  * Health Monitor Service - Monitors API health and triggers recovery
@@ -61,15 +60,13 @@ class HealthMonitorService {
     try {
       const startTime = performance.now();
       
-      // Simple health check - just try to get user profile
-      const response = await fetch(`${ENV.API_BASE_URL}/api.php?action=player_energy`, {
+      const response = await fetch(`${ENV.API_BASE_URL}/health`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Authorization': `Bearer ${apiService.getToken()}`
+          'Cache-Control': 'no-cache'
         },
-        timeout: 5000 // 5 second timeout
+        timeout: 10000 // 10 second timeout
       });
 
       const endTime = performance.now();
@@ -83,7 +80,7 @@ class HealthMonitorService {
       }
 
       const health = {
-        status: response.ok ? 'healthy' : 'critical',
+        status: response.ok ? healthData.status : 'critical',
         responseTime: Math.round(responseTime),
         timestamp: Date.now(),
         data: healthData,
@@ -188,7 +185,7 @@ class HealthMonitorService {
   async clearLocalCaches() {
     try {
       // Clear sessionStorage
-      sessionStorage.removeItem('bonkraiders_jwt');
+      sessionStorage.clear();
       
       // Clear localStorage (except important data)
       const keysToKeep = ['bonkraiders_session', 'bonkraiders_profile'];
@@ -199,6 +196,14 @@ class HealthMonitorService {
           localStorage.removeItem(key);
         }
       });
+      
+      // Clear browser cache if possible
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+      }
       
       return {
         action: 'clear_local_caches',
@@ -220,8 +225,10 @@ class HealthMonitorService {
    */
   async resetApiConnections() {
     try {
-      // Reset API service
-      apiService.clearToken();
+      // Reset any persistent connections
+      if (window.apiService) {
+        window.apiService.clearToken();
+      }
       
       // Reset WebSocket connections
       if (window.websocketService) {
@@ -281,7 +288,7 @@ class HealthMonitorService {
     if (window.AstroUI) {
       if (health.error?.includes('network') || health.httpStatus === 0) {
         window.AstroUI.setStatus('🌐 Connection issues detected. Attempting to reconnect...');
-      } else if (health.httpStatus >= 500) {
+      } else if (health.data?.status === 'critical') {
         window.AstroUI.setStatus('⚠️ Server maintenance in progress. Please wait...');
       } else {
         window.AstroUI.setStatus('🔧 System optimization in progress...');

@@ -105,7 +105,11 @@ class HealthChecker {
             return [
                 'status' => $responseTime < 100 ? 'healthy' : ($responseTime < 500 ? 'warning' : 'critical'),
                 'response_time' => round($responseTime, 2),
-                'tables' => $tables
+                'tables' => $tables,
+                'connection_pool' => [
+                    'active_connections' => ConnectionPool::$currentConnections ?? 0,
+                    'max_connections' => 5
+                ]
             ];
             
         } catch (Exception $e) {
