@@ -43,9 +43,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 /** ================= Configuration ================= **/
 define('DB_HOST',         'localhost');
-define('DB_NAME',         'bonka_bonkartio');
-define('DB_USER',         'bonka_bonusrtio');
-define('DB_PASS',         '*OxlUH49*69i');
+define('DB_NAME',         'bonkraiders_game');
+define('DB_USER',         'root');
+define('DB_PASS',         '');
 define('JWT_SECRET',      'OAZchPBiIuZu5goVp8HAe5FzUzXFsNBm');
 define('SOLANA_RPC',      'https://api.devnet.solana.com');
 define('GAME_TOKEN_MINT','CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo');
@@ -81,7 +81,7 @@ function runMigrations(PDO $pdo) {
   // if no users table, run migrations.sql
   $has = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
   if (!$has) {
-    // Create basic tables directly
+    // Create tables matching migrations.sql exactly
     $pdo->exec("
       CREATE TABLE users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -175,20 +175,26 @@ function runMigrations(PDO $pdo) {
     
     $pdo->exec("
       CREATE TABLE user_settings (
-        user_id INT NOT NULL PRIMARY KEY,
-        settings JSON,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id INT NOT NULL,
+        setting_key VARCHAR(50) NOT NULL,
+        setting_value VARCHAR(255) NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        PRIMARY KEY (user_id, setting_key),
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        INDEX idx_user_setting (user_id, setting_key)
       )
     ");
     
     $pdo->exec("
       CREATE TABLE user_cache (
-        user_id INT NOT NULL PRIMARY KEY,
-        cache_data JSON,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        user_id INT NOT NULL,
+        cache_key VARCHAR(50) NOT NULL,
+        cache_value TEXT,
+        expires_at INT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, cache_key),
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        INDEX idx_expires (expires_at)
       )
     ");
     
@@ -196,10 +202,13 @@ function runMigrations(PDO $pdo) {
       CREATE TABLE achievements (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        achievement_type VARCHAR(64) NOT NULL,
+        achievement_type VARCHAR(50) NOT NULL,
+        achievement_value INT NOT NULL DEFAULT 1,
         unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id),
-        INDEX idx_user_achievements (user_id, achievement_type)
+        UNIQUE KEY unique_user_achievement (user_id, achievement_type),
+        INDEX idx_user_achievements (user_id),
+        INDEX idx_achievement_type (achievement_type)
       )
     ");
     
@@ -207,13 +216,14 @@ function runMigrations(PDO $pdo) {
       CREATE TABLE user_sessions (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        session_token VARCHAR(128) NOT NULL,
+        token_hash VARCHAR(64) NOT NULL,
+        expires_at INT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL,
-        is_active TINYINT NOT NULL DEFAULT 1,
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        INDEX idx_session_token (session_token),
-        INDEX idx_user_sessions (user_id, is_active)
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+        INDEX idx_token_hash (token_hash),
+        INDEX idx_expires (expires_at),
+        INDEX idx_user_id (user_id)
       )
     ");
   } else {
@@ -570,16 +580,29 @@ switch ($action) {
 
       // BUY SHIP
       case 'buy_ship':
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+          error_log("=== BUY SHIP REQUEST ===");
+          error_log("User ID: " . $me['userId']);
+        }
+        
         AntiCheat::validateRequestOrigin();
         
         // Auto-populate demo data for new users
         $pdo->beginTransaction();
         try {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Starting transaction for user setup");
+          }
+          
           // Initialize user stats if they don't exist
           $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
               ->execute([$me['userId'], time()]);
           $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
               ->execute([$me['userId']]);
+          
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Initialized energy and reputation");
+          }
           
           // Add some demo stats for new users
           $stmt = $pdo->prepare("SELECT total_missions FROM users WHERE id = ?");
@@ -590,37 +613,78 @@ switch ($action) {
             // Give new users some demo stats
             $pdo->prepare("UPDATE users SET total_missions = ?, total_raids_won = ?, total_kills = ? WHERE id = ?")
                 ->execute([rand(5, 15), rand(1, 5), rand(10, 30), $me['userId']]);
+            
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+              error_log("Updated demo stats for new user");
+            }
           }
           
           $pdo->commit();
+          
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Committed user setup transaction");
+          }
         } catch (Exception $e) {
           $pdo->rollback();
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
             error_log("Demo data population error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
           }
+          jsonErr('Failed to initialize user data: ' . $e->getMessage(), 500);
         }
         
         $pdo->beginTransaction();
+        try {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Starting ship purchase transaction");
+          }
+          
           $stmt = $pdo->prepare("SELECT id FROM ships WHERE user_id = ?");
           $stmt->execute([$me['userId']]);
           $existingShip = $stmt->fetch();
           if ($existingShip) {
             $pdo->commit();
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+              error_log("User already has ship: " . $existingShip['id']);
+            }
             echo json_encode(['ship_id' => $existingShip['id'], 'already_owned' => true]);
             exit;
           }
           
           // Create ship with some demo balance for new users
           $demoBalance = rand(50, 200); // Give new users 50-200 BR to start
+          
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Creating new ship with balance: " . $demoBalance);
+          }
+          
           $pdo->prepare("INSERT INTO ships(user_id, br_balance) VALUES (?, ?)")
               ->execute([$me['userId'], $demoBalance]);
           $shipId = $pdo->lastInsertId();
           
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Created ship with ID: " . $shipId);
+          }
+          
           // Update user stats
           $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
               ->execute([$me['userId']]);
-        $pdo->commit();
-        echo json_encode(['ship_id' => $shipId, 'already_owned' => false, 'demo_balance' => $demoBalance]);
+          
+          $pdo->commit();
+          
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Successfully created ship and committed transaction");
+          }
+          
+          echo json_encode(['ship_id' => $shipId, 'already_owned' => false, 'demo_balance' => $demoBalance]);
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Ship creation error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+          }
+          jsonErr('Failed to create ship: ' . $e->getMessage(), 500);
+        }
         exit;
 
 
