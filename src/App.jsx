@@ -9,8 +9,6 @@ import walletService from './services/walletService.js';
 import apiService from './services/apiService.js';
 import websocketService from './services/websocketService.js';
 import healthMonitorService from './services/healthMonitor.js';
-import websocketService from './services/websocketService.js';
-import healthMonitorService from './services/healthMonitor.js';
 import ENV from './config/environment.js';
 
 function App() {
