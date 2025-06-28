@@ -424,6 +424,48 @@ switch ($action) {
     }
     $pdo->prepare("INSERT IGNORE INTO users(public_key) VALUES(?)")
         ->execute([$b['publicKey']]);
+    
+    // Get user ID for new user setup
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
+    $stmt->execute([$b['publicKey']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user) {
+      // Initialize basic data for new users
+      try {
+        $userId = $user['id'];
+        $now = time();
+        
+        // Initialize energy
+        $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+            ->execute([$userId, $now]);
+        
+        // Initialize reputation
+        $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+            ->execute([$userId]);
+        
+        // Check if this is a completely new user (no stats)
+        $stmt = $pdo->prepare("SELECT total_missions FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $userStats = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($userStats && $userStats['total_missions'] == 0) {
+          // Give new users some demo stats so they don't start with all zeros
+          $demoMissions = rand(3, 12);
+          $demoRaids = rand(1, 4);
+          $demoKills = rand(5, 25);
+          
+          $pdo->prepare("UPDATE users SET total_missions = ?, total_raids_won = ?, total_kills = ? WHERE id = ?")
+              ->execute([$demoMissions, $demoRaids, $demoKills, $userId]);
+        }
+      } catch (Exception $e) {
+        // Don't fail login if demo data setup fails
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+          error_log("Demo data setup error: " . $e->getMessage());
+        }
+      }
+    }
+    
     $token = jwt_encode([
       'publicKey' => $b['publicKey'],
       'iat'       => time(),
@@ -436,12 +478,51 @@ switch ($action) {
   // 3+) All other routes require a valid JWT
   default:
     $me = requireAuth($pdo);
+    
+    // Auto-populate basic user data on any authenticated request
+    try {
+      $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+          ->execute([$me['userId'], time()]);
+      $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+          ->execute([$me['userId']]);
+    } catch (Exception $e) {
+      // Ignore errors in auto-population
+    }
 
     switch ($action) {
 
       // BUY SHIP
       case 'buy_ship':
         AntiCheat::validateRequestOrigin();
+        
+        // Auto-populate demo data for new users
+        $pdo->beginTransaction();
+        try {
+          // Initialize user stats if they don't exist
+          $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+              ->execute([$me['userId'], time()]);
+          $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+              ->execute([$me['userId']]);
+          
+          // Add some demo stats for new users
+          $stmt = $pdo->prepare("SELECT total_missions FROM users WHERE id = ?");
+          $stmt->execute([$me['userId']]);
+          $user = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if ($user && $user['total_missions'] == 0) {
+            // Give new users some demo stats
+            $pdo->prepare("UPDATE users SET total_missions = ?, total_raids_won = ?, total_kills = ? WHERE id = ?")
+                ->execute([rand(5, 15), rand(1, 5), rand(10, 30), $me['userId']]);
+          }
+          
+          $pdo->commit();
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Demo data population error: " . $e->getMessage());
+          }
+        }
+        
         $pdo->beginTransaction();
           $stmt = $pdo->prepare("SELECT id FROM ships WHERE user_id = ?");
           $stmt->execute([$me['userId']]);
@@ -451,15 +532,18 @@ switch ($action) {
             echo json_encode(['ship_id' => $existingShip['id'], 'already_owned' => true]);
             exit;
           }
-          $pdo->prepare("INSERT INTO ships(user_id) VALUES (?)")
-              ->execute([$me['userId']]);
+          
+          // Create ship with some demo balance for new users
+          $demoBalance = rand(50, 200); // Give new users 50-200 BR to start
+          $pdo->prepare("INSERT INTO ships(user_id, br_balance) VALUES (?, ?)")
+              ->execute([$me['userId'], $demoBalance]);
           $shipId = $pdo->lastInsertId();
           
           // Update user stats
           $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
               ->execute([$me['userId']]);
         $pdo->commit();
-        echo json_encode(['ship_id' => $shipId, 'already_owned' => false]);
+        echo json_encode(['ship_id' => $shipId, 'already_owned' => false, 'demo_balance' => $demoBalance]);
         exit;
 
 
