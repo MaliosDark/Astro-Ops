@@ -110,11 +110,14 @@ function App() {
       setWalletAddress(publicKey);
       setIsWalletConnected(true);
       
+      // Mark that player has a ship if profile indicates so
       if (profile.ship) {
         window.hasShip = true;
         if (window.AstroUI) {
           window.AstroUI.setBalance(profile.ship.balance || 0);
         }
+      } else {
+        window.hasShip = false;
       }
       
       if (profile.energy && window.AstroUI) {
@@ -151,7 +154,20 @@ function App() {
       setIsLoading(false);
     } catch (err) {
       console.error('❌ Wallet connection failed', err);
-      alert('Connection failed: ' + (err.message || err));
+      
+      // More user-friendly error messages
+      let errorMessage = 'Connection failed';
+      if (err.message?.includes('User rejected')) {
+        errorMessage = 'Connection was cancelled by user';
+      } else if (err.message?.includes('Network')) {
+        errorMessage = 'Network connection failed. Please check your internet connection.';
+      } else if (err.message?.includes('Authentication')) {
+        errorMessage = 'Authentication failed. Please try again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
       setIsLoading(false);
     }
   };
