@@ -4,7 +4,7 @@
 // Allow all origins for development/testing
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma');
 header('Access-Control-Max-Age: 86400'); // 24 hours
 
 // Handle preflight OPTIONS requests
@@ -20,7 +20,7 @@ require __DIR__ . '/vendor/autoload.php';
 // CORS headers before any other output
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma');
 header('Access-Control-Max-Age: 86400');
 
 // Handle preflight requests
