@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
+import ENV from '../../config/environment';
 
 const RaidModal = ({ onClose }) => {
   const [missions, setMissions] = useState([]);
