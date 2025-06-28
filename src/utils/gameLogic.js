@@ -454,10 +454,3 @@ window.performRaid = performRaid;
 window.performClaim = performClaim;
 window.buyShip = buyShip;
 
-// Export all functions for module imports
-export {
-  startMission,
-  performUpgrade,
-  performRaid,
-  performClaim,
-};
