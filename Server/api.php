@@ -348,8 +348,36 @@ function requireAuth(PDO $pdo): array {
  * Get authorization header with comprehensive fallback methods
  */
 function getAuthorizationHeader(): string {
+  // Debug: Log all available headers
+  if (defined('DEBUG_MODE') && DEBUG_MODE) {
+    error_log("=== DEBUGGING AUTHORIZATION HEADER ===");
+    error_log("HTTP_AUTHORIZATION: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'NOT SET'));
+    error_log("REDIRECT_HTTP_AUTHORIZATION: " . ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? 'NOT SET'));
+    error_log("HTTP_X_AUTHORIZATION: " . ($_SERVER['HTTP_X_AUTHORIZATION'] ?? 'NOT SET'));
+    
+    // Log all HTTP headers
+    foreach ($_SERVER as $key => $value) {
+      if (strpos($key, 'HTTP_') === 0) {
+        error_log("$key: $value");
+      }
+    }
+    
+    // Try getallheaders if available
+    if (function_exists('getallheaders')) {
+      $headers = getallheaders();
+      error_log("getallheaders() result:");
+      foreach ($headers as $name => $value) {
+        error_log("  $name: $value");
+      }
+    }
+    error_log("=== END DEBUGGING ===");
+  }
+  
   // Método 1: HTTP_AUTHORIZATION estándar
   if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via HTTP_AUTHORIZATION");
+    }
     return $_SERVER['HTTP_AUTHORIZATION'];
   }
   
@@ -358,6 +386,9 @@ function getAuthorizationHeader(): string {
     $headers = getallheaders();
     foreach ($headers as $name => $value) {
       if (strtolower($name) === 'authorization') {
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+          error_log("Found auth header via getallheaders(): $value");
+        }
         return $value;
       }
     }
@@ -365,12 +396,32 @@ function getAuthorizationHeader(): string {
   
   // Método 3: Redirect header para Apache
   if (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via REDIRECT_HTTP_AUTHORIZATION");
+    }
     return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
   }
   
   // Método 4: Fallback para otros servidores
   if (!empty($_SERVER['HTTP_X_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via HTTP_X_AUTHORIZATION");
+    }
     return $_SERVER['HTTP_X_AUTHORIZATION'];
+  }
+  
+  // Método 5: Buscar en todos los headers HTTP_*
+  foreach ($_SERVER as $key => $value) {
+    if (strpos($key, 'HTTP_') === 0 && stripos($key, 'AUTHORIZATION') !== false) {
+      if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log("Found auth header via fallback search: $key = $value");
+      }
+      return $value;
+    }
+  }
+  
+  if (defined('DEBUG_MODE') && DEBUG_MODE) {
+    error_log("NO AUTHORIZATION HEADER FOUND ANYWHERE!");
   }
   
   return '';

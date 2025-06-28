@@ -148,16 +148,17 @@ class ApiService {
 
     // Add authorization header if JWT is available
     if (currentToken) {
-      defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
+      // Ensure clean Bearer token format
+      const cleanToken = currentToken.trim();
+      defaultHeaders['Authorization'] = `Bearer ${cleanToken}`;
       
       if (ENV.DEBUG_MODE) {
-        console.log('🔑 Adding Authorization header:', `Bearer ${currentToken.substring(0, 20)}...`);
+        console.log('🔑 Adding Authorization header:', `Bearer ${cleanToken.substring(0, 20)}...`);
+        console.log('🔑 Full token length:', cleanToken.length);
       }
     }
 
     const requestOptions = {
-      mode: 'cors',
-      credentials: 'omit',
       ...options,
       headers: {
         ...defaultHeaders,
