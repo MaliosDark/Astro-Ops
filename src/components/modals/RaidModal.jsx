@@ -128,6 +128,20 @@ const RaidModal = ({ onClose }) => {
     return { level: 'LOW', color: '#00ff00', icon: '✅' };
   };
 
+  const getPlayerExperience = (mission) => {
+    const totalMissions = mission.total_missions || 0;
+    const totalRaids = mission.total_raids_won || 0;
+    const totalKills = mission.total_kills || 0;
+    
+    const totalExp = totalMissions + (totalRaids * 2) + (totalKills * 0.5);
+    
+    if (totalExp >= 100) return { level: 'VETERAN', color: '#ff0000', icon: '🎖️' };
+    if (totalExp >= 50) return { level: 'EXPERIENCED', color: '#ff8800', icon: '⭐' };
+    if (totalExp >= 20) return { level: 'SKILLED', color: '#ffff00', icon: '🔸' };
+    if (totalExp >= 5) return { level: 'NOVICE', color: '#00ff00', icon: '🔹' };
+    return { level: 'ROOKIE', color: '#888888', icon: '👤' };
+  };
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, rgba(0,20,40,0.95), rgba(0,40,60,0.9))',
@@ -223,7 +237,7 @@ const RaidModal = ({ onClose }) => {
             textAlign: 'center',
             textShadow: '0 0 10px rgba(255, 204, 0, 0.5)'
           }}>
-            📡 DETECTED TARGETS ({missions.length})
+            📡 VULNERABLE TARGETS ({missions.length})
           </h2>
           
           <div style={{
@@ -236,6 +250,7 @@ const RaidModal = ({ onClose }) => {
           }}>
             {missions.map((mission) => {
               const difficulty = getMissionDifficulty(mission.reward);
+              const playerExp = getPlayerExperience(mission);
               const isSelected = selectedTarget?.id === mission.id;
               
               return (
@@ -294,7 +309,7 @@ const RaidModal = ({ onClose }) => {
                   }}>
                     {/* Target Info */}
                     <div style={{ flex: 1 }}>
-              📡 VULNERABLE TARGETS ({missions.length})
+                      <div style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: '8px',
@@ -314,47 +329,45 @@ const RaidModal = ({ onClose }) => {
                             padding: '2px 6px',
                             borderRadius: '4px',
                             border: '1px solid #f80'
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <span>
-                              Pilot: <span style={{ color: '#0cf' }}>
-                                {mission.owner_short || 'Unknown'}...
-                              </span>
-                            </span>
-                            {mission.total_missions && (
-                              <span style={{ color: '#666' }}>
-                                Missions: {mission.total_missions}
-                              </span>
-                            )}
-                            {mission.total_raids_won && (
-                              <span style={{ color: '#f80' }}>
-                                Raids: {mission.total_raids_won}
-                            Completed: {Math.floor((Date.now() / 1000 - mission.ts_start) / 60)} min ago
-                            )}
-                          </div>
+                          }}>
+                            🛡️ SHIELDED
+                          </span>
                         )}
                       </div>
                       
-                      <div style={{ 
-                        fontSize: '11px', 
-                        color: '#888',
-                        marginBottom: '4px'
-                      }}>
-                        Pilot: <span style={{ color: '#0cf' }}>
-                          {mission.owner_short || 'Unknown'}...
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <span>
+                          Pilot: <span style={{ color: '#0cf' }}>
+                            {mission.owner_short || 'Unknown'}...
+                          </span>
                         </span>
+                        {mission.total_missions && (
+                          <span style={{ color: '#666' }}>
+                            Missions: {mission.total_missions}
+                          </span>
+                        )}
+                        {mission.total_raids_won && (
+                          <span style={{ color: '#f80' }}>
+                            Raids: {mission.total_raids_won}
+                          </span>
+                        )}
                       </div>
                       
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
-                        fontSize: '10px'
+                        fontSize: '10px',
+                        marginTop: '8px'
                       }}>
                         <span style={{ color: difficulty.color }}>
                           {difficulty.icon} {difficulty.level} RISK
                         </span>
+                        <span style={{ color: playerExp.color }}>
+                          {playerExp.icon} {playerExp.level}
+                        </span>
                         <span style={{ color: '#888' }}>
-                          Last seen: {Math.floor(Math.random() * 60)} min ago
+                          Completed: {Math.floor((Date.now() / 1000 - mission.ts_start) / 60)} min ago
                         </span>
                       </div>
                     </div>
