@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
+import UserStatusIndicator from '../UserStatusIndicator';
+import RaidNotification from '../RaidNotification';
+import websocketService from '../../services/websocketService';
 import ENV from '../../config/environment';
 
 const RaidModal = ({ onClose }) => {
@@ -8,11 +11,47 @@ const RaidModal = ({ onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [isRaiding, setIsRaiding] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [realTimeUsers, setRealTimeUsers] = useState([]);
 
   useEffect(() => {
     loadInitialData();
   }, []);
 
+  useEffect(() => {
+    // Set up WebSocket listeners for real-time updates
+    const handleUserUpdate = (data) => {
+      setRealTimeUsers(prev => {
+        const updated = [...prev];
+        const index = updated.findIndex(u => u.id === data.userId);
+        if (index >= 0) {
+          updated[index] = { ...updated[index], ...data };
+        }
+        return updated;
+      });
+    };
+
+    const handleRaidNotification = (data) => {
+      const notification = {
+        id: Date.now(),
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        details: data.details
+      };
+      setNotifications(prev => [...prev, notification]);
+    };
+
+    websocketService.on('user_status_update', handleUserUpdate);
+    websocketService.on('raid_incoming', handleRaidNotification);
+    websocketService.on('raid_completed', handleRaidNotification);
+
+    return () => {
+      websocketService.off('user_status_update', handleUserUpdate);
+      websocketService.off('raid_incoming', handleRaidNotification);
+      websocketService.off('raid_completed', handleRaidNotification);
+    };
+  }, []);
   const loadInitialData = async () => {
     try {
       // Load current player energy
@@ -37,6 +76,11 @@ const RaidModal = ({ onClose }) => {
     try {
       setIsScanning(true);
       const scannedMissions = await scanForRaids();
+      
+      // Also get real-time user data
+      if (scannedMissions && scannedMissions.users) {
+        setRealTimeUsers(scannedMissions.users);
+      }
       
       if (scannedMissions && scannedMissions.length > 0) {
         setMissions(scannedMissions);
@@ -128,6 +172,9 @@ const RaidModal = ({ onClose }) => {
     return { level: 'LOW', color: '#00ff00', icon: '✅' };
   };
 
+  const removeNotification = (notificationId) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+  };
   const getPlayerExperience = (mission) => {
     const totalMissions = mission.total_missions || 0;
     const totalRaids = mission.total_raids_won || 0;
@@ -143,6 +190,16 @@ const RaidModal = ({ onClose }) => {
   };
 
   return (
+    <>
+      {/* Notifications */}
+      {notifications.map(notification => (
+        <RaidNotification
+          key={notification.id}
+          notification={notification}
+          onClose={() => removeNotification(notification.id)}
+        />
+      ))}
+
     <div style={{
       background: 'linear-gradient(135deg, rgba(0,20,40,0.95), rgba(0,40,60,0.9))',
       border: '4px solid #0ff',
@@ -239,6 +296,40 @@ const RaidModal = ({ onClose }) => {
           }}>
             📡 VULNERABLE TARGETS ({missions.length})
           </h2>
+          
+          {/* Real-time Users Status */}
+          {realTimeUsers.length > 0 && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px',
+              background: 'rgba(0,60,80,0.4)',
+              border: '1px solid #0cf',
+              borderRadius: '8px'
+            }}>
+              <h3 style={{
+                margin: '0 0 12px',
+                fontSize: '12px',
+                color: '#0ff'
+              }}>
+                🌐 ACTIVE PILOTS ({realTimeUsers.length})
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '8px',
+                maxHeight: '150px',
+                overflowY: 'auto'
+              }}>
+                {realTimeUsers.map(user => (
+                  <UserStatusIndicator
+                    key={user.id}
+                    user={user}
+                    isCompact={true}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           
           <div style={{
             maxHeight: '300px',
@@ -341,6 +432,20 @@ const RaidModal = ({ onClose }) => {
                             {mission.owner_short || 'Unknown'}...
                           </span>
                         </span>
+                        
+                        {/* Real-time status indicator */}
+                        {realTimeUsers.find(u => u.public_key === mission.owner) && (
+                          <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '9px',
+                            color: '#0f0'
+                          }}>
+                            🟢 ONLINE
+                          </span>
+                        )}
+                        
                         {mission.total_missions && (
                           <span style={{ color: '#666' }}>
                             Missions: {mission.total_missions}
@@ -517,6 +622,7 @@ const RaidModal = ({ onClose }) => {
         🧪 TEST NAVIGATION SYSTEMS
       </button>
     </div>
+    </>
   );
 };
 

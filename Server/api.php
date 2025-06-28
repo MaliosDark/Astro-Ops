@@ -798,12 +798,18 @@ switch ($action) {
           $pdo->prepare("UPDATE energy SET energy = energy - 1 WHERE user_id = ?")
               ->execute([$me['userId']]);
           
-          // Get REAL raidable missions from actual users
+          // Get REAL raidable missions AND user status data
           $stmt = $pdo->prepare("
             SELECT m.id, m.mission_type AS type, m.mode, m.reward,
                    u.public_key AS owner, m.ts_start, m.ts_complete,
                    SUBSTRING(u.public_key, 1, 8) AS owner_short,
-                   u.total_missions, u.total_raids_won, u.total_kills
+                   u.total_missions, u.total_raids_won, u.total_kills,
+                   u.last_login,
+                   CASE 
+                     WHEN u.last_login > ? THEN 'online'
+                     WHEN EXISTS(SELECT 1 FROM missions m2 WHERE m2.user_id = u.id AND m2.ts_complete IS NULL) THEN 'in_mission'
+                     ELSE 'offline'
+                   END as user_status
             FROM missions m
             JOIN users u ON m.user_id = u.id
             WHERE m.mode = 'Unshielded' 
@@ -818,21 +824,76 @@ switch ($action) {
           
           // Show missions from the last 12 hours to keep it fresh
           $halfDayAgo = time() - (12 * 3600);
-          $stmt->execute([$me['userId'], $halfDayAgo]);
+          $onlineThreshold = time() - (5 * 60); // 5 minutes ago = online
+          $stmt->execute([$onlineThreshold, $me['userId'], $halfDayAgo]);
           $missions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Get additional active users for real-time display
+          $stmt = $pdo->prepare("
+            SELECT u.id, u.public_key, u.total_missions, u.total_raids_won, u.total_kills,
+                   u.last_login,
+                   SUBSTRING(u.public_key, 1, 8) AS owner_short,
+                   CASE 
+                     WHEN u.last_login > ? THEN 'online'
+                     WHEN EXISTS(SELECT 1 FROM missions m WHERE m.user_id = u.id AND m.ts_complete IS NULL) THEN 'in_mission'
+                     ELSE 'offline'
+                   END as status,
+                   (SELECT mission_type FROM missions m WHERE m.user_id = u.id AND m.ts_complete IS NULL ORDER BY m.ts_start DESC LIMIT 1) as current_mission_type,
+                   (SELECT mode FROM missions m WHERE m.user_id = u.id AND m.ts_complete IS NULL ORDER BY m.ts_start DESC LIMIT 1) as current_mission_mode
+            FROM users u
+            WHERE u.id != ?
+              AND u.last_login > ?
+            ORDER BY u.last_login DESC
+            LIMIT 20
+          ");
+          
+          $recentThreshold = time() - (30 * 60); // 30 minutes ago
+          $stmt->execute([$onlineThreshold, $me['userId'], $recentThreshold]);
+          $activeUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Format active users data
+          $formattedUsers = array_map(function($user) {
+            $userData = [
+              'id' => (int)$user['id'],
+              'public_key' => $user['public_key'],
+              'owner_short' => $user['owner_short'],
+              'status' => $user['status'],
+              'last_seen' => $user['last_login'],
+              'stats' => [
+                'total_missions' => (int)$user['total_missions'],
+                'total_raids_won' => (int)$user['total_raids_won'],
+                'total_kills' => (int)$user['total_kills']
+              ]
+            ];
+            
+            // Add current mission info if available
+            if ($user['current_mission_type']) {
+              $userData['current_mission'] = [
+                'type' => $user['current_mission_type'],
+                'mode' => $user['current_mission_mode']
+              ];
+            }
+            
+            return $userData;
+          }, $activeUsers);
           
           // If no real missions found, get some recent users and create realistic missions
           if (empty($missions)) {
             // Get other real users from the database
             $stmt = $pdo->prepare("
               SELECT id, public_key, total_missions, total_raids_won, total_kills,
-                     SUBSTRING(public_key, 1, 8) AS owner_short
+                     SUBSTRING(public_key, 1, 8) AS owner_short,
+                     last_login,
+                     CASE 
+                       WHEN last_login > ? THEN 'online'
+                       ELSE 'offline'
+                     END as user_status
               FROM users 
               WHERE id != ? 
               ORDER BY last_login DESC 
               LIMIT 8
             ");
-            $stmt->execute([$me['userId']]);
+            $stmt->execute([$onlineThreshold, $me['userId']]);
             $otherUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             if (!empty($otherUsers)) {
@@ -856,7 +917,8 @@ switch ($action) {
                   'ts_start' => time() - rand(1800, 7200), // 30min to 2h ago
                   'total_missions' => $user['total_missions'],
                   'total_raids_won' => $user['total_raids_won'],
-                  'total_kills' => $user['total_kills']
+                  'total_kills' => $user['total_kills'],
+                  'user_status' => $user['user_status']
                 ];
               }
             }
@@ -868,6 +930,7 @@ switch ($action) {
           
           echo json_encode([
             'missions' => $missions, 
+            'users' => $formattedUsers,
             'remainingEnergy' => $energy - 1,
             'scanned_at' => time()
           ]);
