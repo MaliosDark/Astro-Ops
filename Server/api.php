@@ -607,7 +607,7 @@ switch ($action) {
         
         AntiCheat::validateRequestOrigin();
         
-        // Auto-populate demo data for new users
+        // Initialize real user data (no demo data)
         $pdo->beginTransaction();
         try {
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -620,25 +620,6 @@ switch ($action) {
           $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
               ->execute([$me['userId']]);
           
-          if (defined('DEBUG_MODE') && DEBUG_MODE) {
-            error_log("Initialized energy and reputation");
-          }
-          
-          // Add some demo stats for new users
-          $stmt = $pdo->prepare("SELECT total_missions FROM users WHERE id = ?");
-          $stmt->execute([$me['userId']]);
-          $user = $stmt->fetch(PDO::FETCH_ASSOC);
-          
-          if ($user && $user['total_missions'] == 0) {
-            // Give new users some demo stats
-            $pdo->prepare("UPDATE users SET total_missions = ?, total_raids_won = ?, total_kills = ? WHERE id = ?")
-                ->execute([rand(5, 15), rand(1, 5), rand(10, 30), $me['userId']]);
-            
-            if (defined('DEBUG_MODE') && DEBUG_MODE) {
-              error_log("Updated demo stats for new user");
-            }
-          }
-          
           $pdo->commit();
           
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -647,10 +628,10 @@ switch ($action) {
         } catch (Exception $e) {
           $pdo->rollback();
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
-            error_log("Demo data population error: " . $e->getMessage());
+            error_log("User initialization error: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
           }
-          jsonErr('Failed to initialize user data: ' . $e->getMessage(), 500);
+          // Don't fail ship purchase if user init fails
         }
         
         $pdo->beginTransaction();
@@ -671,15 +652,15 @@ switch ($action) {
             exit;
           }
           
-          // Create ship with some demo balance for new users
-          $demoBalance = rand(50, 200); // Give new users 50-200 BR to start
+          // Create ship with ZERO balance (real game progression)
+          $startingBalance = 0; // Users must earn their BR through real gameplay
           
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
-            error_log("Creating new ship with balance: " . $demoBalance);
+            error_log("Creating new ship with starting balance: " . $startingBalance);
           }
           
           $pdo->prepare("INSERT INTO ships(user_id, br_balance) VALUES (?, ?)")
-              ->execute([$me['userId'], $demoBalance]);
+              ->execute([$me['userId'], $startingBalance]);
           $shipId = $pdo->lastInsertId();
           
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -696,7 +677,7 @@ switch ($action) {
             error_log("Successfully created ship and committed transaction");
           }
           
-          echo json_encode(['ship_id' => $shipId, 'already_owned' => false, 'demo_balance' => $demoBalance]);
+          echo json_encode(['ship_id' => $shipId, 'already_owned' => false, 'starting_balance' => $startingBalance]);
         } catch (Exception $e) {
           $pdo->rollback();
           if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -875,39 +856,19 @@ switch ($action) {
 
           list($chance, $minReward, $maxReward) = $REWARD_CONFIG[$type];
           $ok  = (mt_rand()/mt_getrandmax()) < $chance;
-          $raw = $ok ? mt_rand($minReward, $maxReward) : 0;
-          AntiCheat::validateMissionReward($type, $raw, $REWARD_CONFIG);
-          $payout = ($mode==='Shielded') ? floor($raw*0.8) : $raw;
-
-          // record mission
-          $stmt = $pdo->prepare("
-            INSERT INTO missions
-              (ship_id,user_id,mission_type,mode,ts_start,success,reward,claimed)
-            VALUES (?,?,?,?,?,?,?,1)
-          ");
-          $stmt->execute([
-            $ship['id'],$me['userId'],$type,$mode,time(),$ok?1:0,$payout
-          ]);
-
-          // update off‐chain balance
-          $newBalance = $ship['br_balance'] + $payout;
-          $pdo->prepare("UPDATE ships SET last_mission_ts = ?, br_balance = ? WHERE id = ?")
-              ->execute([time(), $newBalance, $ship['id']]);
-        $pdo->commit();
-
-        // mint reward on‐chain
-        if ($ok && $payout > 0) {
-          try {
-            $http->post('/mint', [
-              'json'=>[
-                'recipient' => $me['publicKey'],
-                'amount'    => $payout
-              ]
-            ]);
-          } catch (Exception $e) {
-            jsonErr('On-chain mint failed: '.$e->getMessage(), 500);
-          }
-        }
+        // Initialize basic data for new users (REAL DATA ONLY)
+        $userId = $user['id'];
+        $now = time();
+        
+        // Initialize energy (real starting values)
+        $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+            ->execute([$userId, $now]);
+        
+        // Initialize reputation (real starting values)
+        $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+            ->execute([$userId]);
+        
+        // NO DEMO STATS - Users start with real zeros and earn real progress
 
         echo json_encode([
           'success'    => $ok,
