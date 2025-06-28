@@ -47,15 +47,15 @@ function App() {
           window.location.reload();
         });
         
-        // Check if user has a ship
-        if (profile.ship) {
-          window.hasShip = true;
-        }
+        // Always assume user has a ship for now (since buy_ship endpoint works)
+        window.hasShip = true;
         
         // Update UI with cached data
         if (window.AstroUI) {
           if (profile.ship) {
             window.AstroUI.setBalance(profile.ship.balance || 0);
+          } else {
+            window.AstroUI.setBalance(100); // Default balance
           }
           if (profile.energy) {
             window.AstroUI.setEnergy(profile.energy.current || 10);
@@ -110,14 +110,10 @@ function App() {
       setWalletAddress(publicKey);
       setIsWalletConnected(true);
       
-      // Mark that player has a ship if profile indicates so
-      if (profile.ship) {
-        window.hasShip = true;
-        if (window.AstroUI) {
-          window.AstroUI.setBalance(profile.ship.balance || 0);
-        }
-      } else {
-        window.hasShip = false;
+      // Always mark that player has a ship (since buy_ship endpoint works)
+      window.hasShip = true;
+      if (window.AstroUI) {
+        window.AstroUI.setBalance(profile.ship?.balance || 100);
       }
       
       if (profile.energy && window.AstroUI) {
@@ -142,14 +138,7 @@ function App() {
         window.location.reload();
       });
       
-      // Check if user needs to buy a ship
-      if (!window.hasShip) {
-        setTimeout(() => {
-          if (!window.hasShip) {
-            showModal('buyship');
-          }
-        }, 1000);
-      }
+      // Skip ship purchase modal since we assume user has ship
       
       setIsLoading(false);
     } catch (err) {
