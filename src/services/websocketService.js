@@ -30,8 +30,20 @@ class WebSocketService {
     
     return new Promise((resolve, reject) => {
       try {
-        // Use WebSocket URL derived from API base URL
-        const wsUrl = `${ENV.WEBSOCKET_URL}?user_id=${userId}&token=${encodeURIComponent(token)}`;
+        // Use mock WebSocket for development
+        let wsUrl;
+        
+        if (ENV.IS_DEVELOPMENT || ENV.DEBUG_MODE) {
+          // In development, use a mock WebSocket that doesn't actually connect
+          this.mockWebSocketConnection(userId, token);
+          resolve();
+          return;
+        } else {
+          // In production, use the real WebSocket URL
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const apiHost = ENV.API_BASE_URL.replace(/^https?:\/\//, '');
+          wsUrl = `${protocol}//${apiHost}/ws?user_id=${userId}&token=${encodeURIComponent(token)}`;
+        }
         
         if (ENV.DEBUG_MODE) {
           console.log('🔌 Connecting to WebSocket:', wsUrl);
@@ -96,6 +108,44 @@ class WebSocketService {
   }
 
   /**
+   * Create a mock WebSocket connection for development
+   */
+  mockWebSocketConnection(userId, token) {
+    if (ENV.DEBUG_MODE) {
+      console.log('🔌 Creating mock WebSocket connection for development');
+    }
+    
+    // Create a mock WebSocket object
+    this.ws = {
+      send: (message) => {
+        if (ENV.DEBUG_MODE) {
+          console.log('📤 Mock WebSocket message sent:', message);
+        }
+      },
+      close: () => {
+        if (ENV.DEBUG_MODE) {
+          console.log('🔌 Mock WebSocket closed');
+        }
+      }
+    };
+    
+    // Simulate successful connection
+    setTimeout(() => {
+      this.isConnected = true;
+      this._emit('connected');
+      
+      // Simulate periodic user status updates
+      this.mockStatusInterval = setInterval(() => {
+        this._emit('user_status_update', {
+          userId: Math.floor(Math.random() * 100) + 1,
+          status: ['online', 'in_mission', 'offline'][Math.floor(Math.random() * 3)],
+          lastSeen: Date.now()
+        });
+      }, 30000);
+    }, 500);
+  }
+
+  /**
    * Disconnect from WebSocket
    */
   disconnect() {
@@ -105,13 +155,40 @@ class WebSocketService {
     }
     this.isConnected = false;
     this.stopHeartbeat();
+    
+    // Clear mock intervals if they exist
+    if (this.mockStatusInterval) {
+      clearInterval(this.mockStatusInterval);
+      this.mockStatusInterval = null;
+    }
   }
 
   /**
    * Send message to server
    */
   send(type, data = {}) {
-    if (!this.isConnected || !this.ws) {
+    // In development mode with mock WebSocket, always allow sending
+    if (ENV.IS_DEVELOPMENT || ENV.DEBUG_MODE) {
+      if (this.ws && typeof this.ws.send === 'function') {
+        try {
+          const message = {
+            type,
+            data,
+            timestamp: Date.now(),
+            userId: this.userId
+          };
+          
+          this.ws.send(JSON.stringify(message));
+          return true;
+        } catch (error) {
+          console.warn('⚠️ Error sending to mock WebSocket:', error);
+          return false;
+        }
+      }
+    }
+    
+    // For production, check connection status
+    if (!this.isConnected || !this.ws || typeof this.ws.send !== 'function') {
       console.warn('⚠️ WebSocket not connected, cannot send message');
       return false;
     }
@@ -245,6 +322,12 @@ class WebSocketService {
    * Attempt to reconnect
    */
   attemptReconnect() {
+    // Don't attempt reconnection in development mode
+    if (ENV.IS_DEVELOPMENT || ENV.DEBUG_MODE) {
+      this.mockWebSocketConnection(this.userId, null);
+      return;
+    }
+    
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
 
@@ -301,10 +384,21 @@ class WebSocketService {
    * Get connection status
    */
   getStatus() {
+    // In development, always report as connected
+    if (ENV.IS_DEVELOPMENT || ENV.DEBUG_MODE) {
+      return {
+        isConnected: true,
+        reconnectAttempts: 0,
+        userId: this.userId,
+        isMock: true
+      };
+    }
+    
     return {
       isConnected: this.isConnected,
       reconnectAttempts: this.reconnectAttempts,
-      userId: this.userId
+      userId: this.userId,
+      isMock: false
     };
   }
 }
