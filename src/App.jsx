@@ -69,7 +69,21 @@ function App() {
       setIsWalletConnected(true);
       
       // Step 4: Initialize game state
-      window.hasShip = true; // Always assume user has ship
+      // Try to buy ship (will return existing ship if already owned)
+      try {
+        const shipResult = await apiService.buyShip();
+        window.hasShip = true;
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('🚢 Ship status:', shipResult);
+        }
+      } catch (error) {
+        if (ENV.DEBUG_MODE) {
+          console.log('🚢 Ship purchase/check failed:', error);
+        }
+        // Don't fail connection if ship check fails
+        window.hasShip = false;
+      }
       
       // Step 5: Set up disconnect handler
       walletService.on('disconnect', () => {

@@ -196,6 +196,51 @@ export async function initCanvas(canvas) {
     }
   };
 
+  // — Función para iniciar batalla durante un raid ofensivo —
+  window.startRaidBattle = async function() {
+    if (battleActive) {
+      return; // No iniciar si ya hay batalla
+    }
+
+    battleActive = true;
+    
+    // No necesitamos animación de nave enemiga porque somos nosotros los atacantes
+    
+    // spawn 3-5 enemy defenders (defensores del objetivo)
+    const enemyCount = Math.floor(Math.random() * 3) + 3; // 3-5 enemies
+    for (let i = 0; i < enemyCount; i++) {
+      characters.push({
+        ix: baseShipPos.ix + (Math.random() - 0.5) * 6,
+        iy: baseShipPos.iy + (Math.random() - 0.5) * 6,
+        dirX: Math.random() - 0.5,
+        dirY: Math.random() - 0.5,
+        type: 'soldier',
+        faction: 'enemy',
+        health: 60 + Math.random() * 40, // 60-100 health
+        maxHealth: 100,
+        lastShot: 0, shootInterval: 1 + Math.random() * 2
+      });
+    }
+
+    // spawn 2-4 ally raiders (nuestras fuerzas de ataque)
+    const allyCount = Math.floor(Math.random() * 3) + 2; // 2-4 allies
+    for (let i = 0; i < allyCount; i++) {
+      characters.push({
+        ix: baseShipPos.ix + (Math.random() - 0.5) * 4,
+        iy: baseShipPos.iy + (Math.random() - 0.5) * 4,
+        dirX: Math.random() - 0.5,
+        dirY: Math.random() - 0.5,
+        type: 'mech',
+        faction: 'ally',
+        health: 80 + Math.random() * 20, // 80-100 health (más fuertes para raid)
+        maxHealth: 100,
+        lastShot: 0, shootInterval: 1 + Math.random() * 2
+      });
+    }
+    
+    // Esperar un poco para que se vea la batalla
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  };
   // — Center camera on our ship initially —
   (c => {
     offsetX = canvas.width / 2 - c.x * scale;

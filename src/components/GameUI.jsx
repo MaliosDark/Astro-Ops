@@ -20,22 +20,47 @@ const GameUI = ({ walletAddress, onShowModal }) => {
     if (gameCanvas) gameCanvas.style.display = 'block';
     if (gbUI) gbUI.style.display = 'flex';
 
-    // Load initial token balance
-    const loadBalance = async () => {
+    // Load initial data from server
+    const loadInitialData = async () => {
       try {
-        const tokenBalance = await getTokenBalance(walletAddress);
-        setBalance(tokenBalance);
+        // Try to get user profile from server to load real data
+        const profile = await apiService.getUserProfile();
+        
+        if (profile) {
+          // Update UI with real data from server
+          if (profile.ship) {
+            setBalance(profile.ship.balance || 0);
+          }
+          
+          if (profile.stats) {
+            setKills(profile.stats.total_kills || 0);
+            setRaidsWon(profile.stats.total_raids_won || 0);
+            
+            // Update global counters
+            window.killCount = profile.stats.total_kills || 0;
+            window.raidWins = profile.stats.total_raids_won || 0;
+          }
+          
+          if (profile.energy) {
+            setEnergy(profile.energy.current || 10);
+          }
+        }
         
         if (ENV.DEBUG_MODE) {
-          console.log('💰 Loaded token balance:', tokenBalance);
+          console.log('💰 Loaded user profile:', profile);
         }
       } catch (error) {
-        console.error('Failed to load token balance:', error);
+        console.error('Failed to load user profile:', error);
+        // Use defaults if loading fails
+        setBalance(0);
+        setKills(0);
+        setRaidsWon(0);
+        setEnergy(10);
       }
     };
     
     if (walletAddress) {
-      loadBalance();
+      loadInitialData();
     }
 
     // Expose AstroUI API globally for compatibility - EXACTLY like original
