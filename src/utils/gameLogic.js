@@ -461,5 +461,4 @@ export {
   performRaid,
   performClaim,
   buyShip,
-  getPlayerEnergy,
 };
