@@ -172,6 +172,62 @@ function runMigrations(PDO $pdo) {
         FOREIGN KEY(user_id) REFERENCES users(id)
       )
     ");
+    
+    $pdo->exec("
+      CREATE TABLE user_settings (
+        user_id INT NOT NULL PRIMARY KEY,
+        settings JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    ");
+    
+    $pdo->exec("
+      CREATE TABLE user_cache (
+        user_id INT NOT NULL PRIMARY KEY,
+        cache_data JSON,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    ");
+    
+    $pdo->exec("
+      CREATE TABLE achievements (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        achievement_type VARCHAR(64) NOT NULL,
+        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        INDEX idx_user_achievements (user_id, achievement_type)
+      )
+    ");
+    
+    $pdo->exec("
+      CREATE TABLE user_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        session_token VARCHAR(128) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        is_active TINYINT NOT NULL DEFAULT 1,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        INDEX idx_session_token (session_token),
+        INDEX idx_user_sessions (user_id, is_active)
+      )
+    ");
+  } else {
+    // Check if max_energy column exists in energy table, add if missing
+    $hasMaxEnergy = $pdo->query("
+      SELECT COUNT(*) FROM information_schema.columns 
+      WHERE table_schema = '".DB_NAME."' 
+      AND table_name = 'energy' 
+      AND column_name = 'max_energy'
+    ")->fetchColumn();
+    
+    if (!$hasMaxEnergy) {
+      $pdo->exec("ALTER TABLE energy ADD COLUMN max_energy INT NOT NULL DEFAULT 10");
+    }
   }
 }
 runMigrations($pdo);

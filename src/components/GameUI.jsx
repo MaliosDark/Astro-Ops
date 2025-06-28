@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
+import apiService from '../services/apiService';
 import ENV from '../config/environment.js';
 
 const GameUI = ({ walletAddress, onShowModal }) => {
