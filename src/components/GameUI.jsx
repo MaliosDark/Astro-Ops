@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
+import walletService from '../services/walletService';
 import ENV from '../config/environment.js';
 
-const GameUI = ({ walletAddress, onShowModal }) => {
+const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);
   const [kills, setKills] = useState(0);
   const [raidsWon, setRaidsWon] = useState(0);
@@ -138,73 +139,156 @@ const GameUI = ({ walletAddress, onShowModal }) => {
     setTooltip({ visible: false, text: '', x: 0, y: 0 });
   };
 
+  const handleDisconnect = async () => {
+    if (window.confirm('Are you sure you want to disconnect your wallet?')) {
+      try {
+        await walletService.disconnect();
+        if (onDisconnect) {
+          onDisconnect();
+        }
+        // Clear any cached data
+        sessionStorage.clear();
+        localStorage.removeItem('bonkraiders_jwt');
+        localStorage.removeItem('bonkraiders_session');
+        // Reload the page to reset state
+        window.location.reload();
+      } catch (error) {
+        console.error('Disconnect error:', error);
+        // Force reload even if disconnect fails
+        window.location.reload();
+      }
+    }
+  };
+
   return (
-    <div id="gb-ui" style={{ display: 'flex' }}>
-      <div id="top-hud">
-        <div className="panel info">Wallet: <span id="wallet-id">{walletAddress}</span></div>
-        <div className="panel info">BR: <span id="balance-val">{balance.toFixed(1)}</span></div>
-        <div className="panel info">Kills: <span id="kill-count">{kills}</span></div>
-        <div className="panel info">Raids Won: <span id="raid-wins">{raidsWon}</span></div>
-        <div className="panel info">Mode: <span id="mode-val">{mode}</span></div>
-        <div className="panel info">Energy: <span id="energy-val">{energy}/10</span></div>
+    <div id="gb-ui" className="game-ui-container">
+      <div id="top-hud" className="top-hud-container">
+        <div className="info-panel-group">
+          <div className="info-panel wallet-panel">
+            <div className="panel-header">PILOT</div>
+            <div className="panel-content">
+              <span className="wallet-address" title={walletAddress}>
+                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+              </span>
+              <button 
+                className="disconnect-btn"
+                onClick={handleDisconnect}
+                title="Disconnect Wallet"
+              >
+                ⏻
+              </button>
+            </div>
+          </div>
+          
+          <div className="info-panel balance-panel">
+            <div className="panel-header">CREDITS</div>
+            <div className="panel-content">
+              <span className="balance-value">{balance.toFixed(1)}</span>
+              <span className="balance-unit">BR</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="stats-panel-group">
+          <div className="info-panel stats-panel">
+            <div className="panel-header">COMBAT</div>
+            <div className="panel-content stats-grid">
+              <div className="stat-item">
+                <span className="stat-label">KILLS</span>
+                <span className="stat-value">{kills}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">RAIDS</span>
+                <span className="stat-value">{raidsWon}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="info-panel status-panel">
+            <div className="panel-header">STATUS</div>
+            <div className="panel-content status-grid">
+              <div className="status-item">
+                <span className="status-label">MODE</span>
+                <span className="status-value">{mode}</span>
+              </div>
+              <div className="status-item">
+                <span className="status-label">ENERGY</span>
+                <span className="status-value">{energy}/10</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {status && (
-        <div id="status-panel" style={{ visibility: 'visible' }}>
-          Status: <span id="status-msg">{status}</span>
+        <div id="status-panel" className="status-message-panel" style={{ visibility: 'visible' }}>
+          <div className="status-content">
+            <span className="status-icon">⚡</span>
+            <span id="status-msg">{status}</span>
+          </div>
         </div>
       )}
 
-      <div id="bottom-hud">
+      <div id="bottom-hud" className="action-panel-container">
         <button 
-          className="gb-btn" 
+          className="action-btn mission-btn" 
           id="btn-mission"
           data-tip="Send your ship on a mission"
           onClick={() => onShowModal('mission')}
           onMouseMove={(e) => handleMouseMove(e, 'Send your ship on a mission')}
           onMouseLeave={handleMouseLeave}
         >
-          MISSION
+          <div className="btn-icon">🚀</div>
+          <div className="btn-text">MISSION</div>
         </button>
+        
         <button 
-          className="gb-btn" 
+          className="action-btn upgrade-btn" 
           id="btn-upgrade"
           data-tip="Upgrade your ship"
           onClick={() => onShowModal('upgrade')}
           onMouseMove={(e) => handleMouseMove(e, 'Upgrade your ship')}
           onMouseLeave={handleMouseLeave}
         >
-          UPGRADE
+          <div className="btn-icon">⚙️</div>
+          <div className="btn-text">UPGRADE</div>
         </button>
+        
         <button 
-          className="gb-btn" 
+          className="action-btn raid-btn" 
           id="btn-raid"
           data-tip="Raid another player"
           onClick={() => onShowModal('raid')}
           onMouseMove={(e) => handleMouseMove(e, 'Raid another player')}
           onMouseLeave={handleMouseLeave}
         >
-          RAID ({energy})
+          <div className="btn-icon">⚔️</div>
+          <div className="btn-text">RAID</div>
+          <div className="btn-badge">{energy}</div>
         </button>
+        
         <button 
-          className="gb-btn" 
+          className="action-btn claim-btn" 
           id="btn-claim"
           data-tip="Claim accumulated AT"
           onClick={() => onShowModal('claim')}
           onMouseMove={(e) => handleMouseMove(e, 'Claim accumulated AT')}
           onMouseLeave={handleMouseLeave}
         >
-          CLAIM
+          <div className="btn-icon">💰</div>
+          <div className="btn-text">CLAIM</div>
         </button>
+        
         <button 
-          className="gb-btn" 
+          className="action-btn help-btn" 
           id="btn-help"
           data-tip="How to Play"
           onClick={() => onShowModal('howto')}
           onMouseMove={(e) => handleMouseMove(e, 'How to Play')}
           onMouseLeave={handleMouseLeave}
         >
-          HELP
+          <div className="btn-icon">❓</div>
+          <div className="btn-text">HELP</div>
         </button>
       </div>
 

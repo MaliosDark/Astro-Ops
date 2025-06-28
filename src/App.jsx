@@ -139,6 +139,10 @@ function App() {
         <GameUI 
           walletAddress={walletAddress}
           onShowModal={showModal}
+          onDisconnect={() => {
+            setIsWalletConnected(false);
+            setWalletAddress('');
+          }}
         />
       )}
 
