@@ -11,15 +11,19 @@ class PerformanceMonitor {
     
     public function __construct($pdo) {
         $this->pdo = $pdo;
-        $this->cacheDir = __DIR__ . '/cache';
-        $this->logFile = __DIR__ . '/logs/performance.log';
+        $this->cacheDir = sys_get_temp_dir() . '/bonk_cache';
+        $this->logFile = sys_get_temp_dir() . '/bonk_performance.log';
         
         // Create directories if they don't exist
-        if (!is_dir($this->cacheDir)) {
-            mkdir($this->cacheDir, 0755, true);
+        if (!is_dir($this->cacheDir) && !@mkdir($this->cacheDir, 0755, true)) {
+            // Fallback to system temp directory
+            $this->cacheDir = sys_get_temp_dir();
         }
-        if (!is_dir(dirname($this->logFile))) {
-            mkdir(dirname($this->logFile), 0755, true);
+        
+        // Test if we can write to the log file
+        if (!@file_put_contents($this->logFile, '', FILE_APPEND | LOCK_EX)) {
+            // Fallback to error_log if we can't write to our log file
+            $this->logFile = null;
         }
     }
     
@@ -36,12 +40,16 @@ class PerformanceMonitor {
             'is_slow' => $executionTime > 2.0 // Flag slow requests
         ];
         
-        // Log to file
-        file_put_contents(
-            $this->logFile, 
-            json_encode($logEntry) . "\n", 
-            FILE_APPEND | LOCK_EX
-        );
+        // Log to file or fallback to error_log
+        if ($this->logFile) {
+            @file_put_contents(
+                $this->logFile, 
+                json_encode($logEntry) . "\n", 
+                FILE_APPEND | LOCK_EX
+            );
+        } else {
+            error_log("Performance: " . json_encode($logEntry));
+        }
         
         // Auto-heal if performance is degraded
         if ($executionTime > 3.0) {
@@ -72,12 +80,12 @@ class PerformanceMonitor {
      * Clear old cache entries
      */
     private function clearOldCache() {
-        $files = glob($this->cacheDir . '/*');
+        $files = @glob($this->cacheDir . '/*') ?: [];
         $now = time();
         
         foreach ($files as $file) {
-            if (is_file($file) && ($now - filemtime($file)) > 3600) { // 1 hour old
-                unlink($file);
+            if (is_file($file) && ($now - @filemtime($file)) > 3600) { // 1 hour old
+                @unlink($file);
             }
         }
     }
@@ -105,11 +113,11 @@ class PerformanceMonitor {
      * Clean up old log files
      */
     private function cleanupLogs() {
-        if (file_exists($this->logFile) && filesize($this->logFile) > 10 * 1024 * 1024) { // 10MB
+        if ($this->logFile && file_exists($this->logFile) && @filesize($this->logFile) > 10 * 1024 * 1024) { // 10MB
             // Keep only last 1000 lines
-            $lines = file($this->logFile);
+            $lines = @file($this->logFile) ?: [];
             $lines = array_slice($lines, -1000);
-            file_put_contents($this->logFile, implode('', $lines));
+            @file_put_contents($this->logFile, implode('', $lines));
         }
     }
     
@@ -129,11 +137,11 @@ class PerformanceMonitor {
      * Get performance statistics
      */
     public function getStats() {
-        if (!file_exists($this->logFile)) {
+        if (!$this->logFile || !file_exists($this->logFile)) {
             return ['status' => 'no_data'];
         }
         
-        $lines = array_slice(file($this->logFile), -100); // Last 100 requests
+        $lines = array_slice(@file($this->logFile) ?: [], -100); // Last 100 requests
         $stats = [
             'total_requests' => count($lines),
             'avg_response_time' => 0,
@@ -168,9 +176,10 @@ class SmartCache {
     private $cacheDir;
     
     public function __construct($cacheDir = null) {
-        $this->cacheDir = $cacheDir ?: __DIR__ . '/cache';
-        if (!is_dir($this->cacheDir)) {
-            mkdir($this->cacheDir, 0755, true);
+        $this->cacheDir = $cacheDir ?: sys_get_temp_dir() . '/bonk_cache';
+        if (!is_dir($this->cacheDir) && !@mkdir($this->cacheDir, 0755, true)) {
+            // Fallback to system temp directory
+            $this->cacheDir = sys_get_temp_dir();
         }
     }
     
@@ -184,12 +193,12 @@ class SmartCache {
             return null;
         }
         
-        if ((time() - filemtime($file)) > $maxAge) {
-            unlink($file);
+        if ((time() - @filemtime($file)) > $maxAge) {
+            @unlink($file);
             return null;
         }
         
-        $data = file_get_contents($file);
+        $data = @file_get_contents($file);
         return $data ? json_decode($data, true) : null;
     }
     
@@ -204,7 +213,7 @@ class SmartCache {
             $json = gzcompress($json);
         }
         
-        return file_put_contents($file, $json, LOCK_EX) !== false;
+        return @file_put_contents($file, $json, LOCK_EX) !== false;
     }
     
     /**
@@ -212,16 +221,16 @@ class SmartCache {
      */
     public function delete($key) {
         $file = $this->cacheDir . '/' . md5($key) . '.cache';
-        return file_exists($file) ? unlink($file) : true;
+        return file_exists($file) ? @unlink($file) : true;
     }
     
     /**
      * Clear all cache
      */
     public function clear() {
-        $files = glob($this->cacheDir . '/*.cache');
+        $files = @glob($this->cacheDir . '/*.cache') ?: [];
         foreach ($files as $file) {
-            unlink($file);
+            @unlink($file);
         }
         return true;
     }

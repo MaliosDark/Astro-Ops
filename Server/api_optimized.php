@@ -22,8 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Initialize cache and performance monitor
-$cache = new SmartCache();
-$performanceMonitor = new PerformanceMonitor(null); // Will be set later
+try {
+    $cache = new SmartCache();
+} catch (Exception $e) {
+    error_log("Cache initialization failed: " . $e->getMessage());
+    $cache = null;
+}
+
+$performanceMonitor = null; // Will be set later
 
 // Enhanced error handling with auto-recovery
 function handleApiError($error, $context = '') {
@@ -34,7 +40,9 @@ function handleApiError($error, $context = '') {
     // Auto-recovery mechanisms
     if (strpos($error, 'database') !== false || strpos($error, 'connection') !== false) {
         // Database connection issues - clear cache and retry
-        $cache->clear();
+        if ($cache) {
+            $cache->clear();
+        }
         
         // Try to reconnect
         try {
@@ -89,7 +97,12 @@ define('PARTICIPATION_FEE', 0);
 // Use connection pool for database
 try {
     $pdo = ConnectionPool::getConnection();
-    $performanceMonitor = new PerformanceMonitor($pdo);
+    try {
+        $performanceMonitor = new PerformanceMonitor($pdo);
+    } catch (Exception $e) {
+        error_log("Performance monitor initialization failed: " . $e->getMessage());
+        $performanceMonitor = null;
+    }
 } catch (Exception $e) {
     handleApiError($e->getMessage(), 'DB_CONNECTION');
     http_response_code(500);
@@ -103,24 +116,26 @@ function smartRateLimit(PDO $pdo, $cache): void {
     $endpoint = $_GET['action'] ?? '';
     $now = time();
     
-    // Check cache first (faster than database)
-    $cacheKey = "rate_limit_{$ip}_{$endpoint}";
-    $cached = $cache->get($cacheKey, 60);
-    
-    if ($cached) {
-        $count = $cached['count'] + 1;
-        if ($count > 60) { // 60 requests per minute
-            http_response_code(429);
-            echo json_encode([
-                'error' => 'Rate limit exceeded',
-                'retry_after' => 60 - ($now - $cached['start_time'])
-            ]);
-            exit;
+    // Check cache first (faster than database) - only if cache is available
+    if ($cache) {
+        $cacheKey = "rate_limit_{$ip}_{$endpoint}";
+        $cached = $cache->get($cacheKey, 60);
+        
+        if ($cached) {
+            $count = $cached['count'] + 1;
+            if ($count > 60) { // 60 requests per minute
+                http_response_code(429);
+                echo json_encode([
+                    'error' => 'Rate limit exceeded',
+                    'retry_after' => 60 - ($now - $cached['start_time'])
+                ]);
+                exit;
+            }
+            $cache->set($cacheKey, ['count' => $count, 'start_time' => $cached['start_time']]);
+        } else {
+            // First request in this minute
+            $cache->set($cacheKey, ['count' => 1, 'start_time' => $now]);
         }
-        $cache->set($cacheKey, ['count' => $count, 'start_time' => $cached['start_time']]);
-    } else {
-        // First request in this minute
-        $cache->set($cacheKey, ['count' => 1, 'start_time' => $now]);
     }
     
     // Log to database (async to avoid blocking)
@@ -152,11 +167,13 @@ function jsonErr(string $msg, int $code = 400): void {
 
 // Cached database operations
 function getCachedUserProfile($pdo, $cache, $userId) {
-    $cacheKey = "user_profile_{$userId}";
-    $cached = $cache->get($cacheKey, 300); // 5 minutes cache
-    
-    if ($cached) {
-        return $cached;
+    if ($cache) {
+        $cacheKey = "user_profile_{$userId}";
+        $cached = $cache->get($cacheKey, 300); // 5 minutes cache
+        
+        if ($cached) {
+            return $cached;
+        }
     }
     
     // Optimized query with single JOIN
@@ -177,7 +194,7 @@ function getCachedUserProfile($pdo, $cache, $userId) {
     $stmt->execute([$userId]);
     $profile = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if ($profile) {
+    if ($profile && $cache) {
         $cache->set($cacheKey, $profile);
     }
     
@@ -194,12 +211,14 @@ function requireAuth(PDO $pdo, $cache): array {
     
     $cleanToken = preg_replace('/^Bearer\s+/', '', $token);
     
-    // Check token cache first
-    $cacheKey = "auth_token_" . md5($cleanToken);
-    $cached = $cache->get($cacheKey, 300); // 5 minutes
-    
-    if ($cached) {
-        return $cached;
+    // Check token cache first - only if cache is available
+    if ($cache) {
+        $cacheKey = "auth_token_" . md5($cleanToken);
+        $cached = $cache->get($cacheKey, 300); // 5 minutes
+        
+        if ($cached) {
+            return $cached;
+        }
     }
     
     try {
@@ -219,8 +238,10 @@ function requireAuth(PDO $pdo, $cache): array {
     
     $authData = ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
     
-    // Cache the auth result
-    $cache->set($cacheKey, $authData);
+    // Cache the auth result - only if cache is available
+    if ($cache) {
+        $cache->set($cacheKey, $authData);
+    }
     
     return $authData;
 }
@@ -355,13 +376,15 @@ try {
         case 'raid/scan':
             $me = requireAuth($pdo, $cache);
             
-            // Check cache first for scan results
-            $cacheKey = "raid_scan_" . $me['userId'];
-            $cached = $cache->get($cacheKey, 60); // 1 minute cache
-            
-            if ($cached) {
-                echo json_encode($cached);
-                break;
+            // Check cache first for scan results - only if cache is available
+            if ($cache) {
+                $cacheKey = "raid_scan_" . $me['userId'];
+                $cached = $cache->get($cacheKey, 60); // 1 minute cache
+                
+                if ($cached) {
+                    echo json_encode($cached);
+                    break;
+                }
             }
             
             // Optimized scan query
@@ -394,8 +417,10 @@ try {
                 'scanned_at' => time()
             ];
             
-            // Cache the result
-            $cache->set($cacheKey, $result);
+            // Cache the result - only if cache is available
+            if ($cache) {
+                $cache->set($cacheKey, $result);
+            }
             
             echo json_encode($result);
             break;
