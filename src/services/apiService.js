@@ -157,7 +157,7 @@ class ApiService {
 
     const requestOptions = {
       mode: 'cors',
-      credentials: 'include',
+      credentials: 'omit',
       ...options,
       headers: {
         ...defaultHeaders,
