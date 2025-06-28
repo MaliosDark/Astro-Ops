@@ -69,7 +69,10 @@ const HeroScreen = ({ onConnect, isLoading }) => {
 
   return (
     <div id="hero">
-      <h1>BONK RAIDERS</h1>
+      <div className="bonk-raiders-title">
+        <div className="bonk-text">BONK</div>
+        <div className="raiders-text">RAIDERS</div>
+      </div>
       <p>Explore. Raid. Earn.</p>
 
       {isLoading && (

@@ -23,11 +23,48 @@ body, html {
   justify-content: center; align-items: center;
   background: url('https://bonkraiders.com/assets/hero-background.png') center/cover no-repeat;
 }
+
+/* Stylized BONK RAIDERS title */
+.bonk-raiders-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.bonk-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 48px;
+  color: #0f0;
+  text-shadow: 
+    4px 4px 0px #ff6600,
+    8px 8px 0px #cc4400,
+    12px 12px 0px #992200;
+  margin-bottom: -8px;
+  letter-spacing: 4px;
+  position: relative;
+  z-index: 2;
+}
+
+.raiders-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 32px;
+  color: #ffffff;
+  text-shadow: 
+    3px 3px 0px #ff6600,
+    6px 6px 0px #cc4400,
+    9px 9px 0px #992200;
+  letter-spacing: 3px;
+  position: relative;
+  z-index: 1;
+}
+
 #hero h1, #hero p {
   margin: 0; padding: 0;
   font-family: 'Press Start 2P', monospace;
   color: #0f0;
 }
+
 #hero button {
   margin-top: 20px;
   padding: 10px 20px;
@@ -383,6 +420,25 @@ body, html {
   /* Mobile hero background */
   #hero {
     background: url('https://bonkraiders.com/assets/mobile.png') center/cover no-repeat;
+  }
+  
+  /* Mobile responsive title */
+  .bonk-text {
+    font-size: 28px;
+    text-shadow: 
+      2px 2px 0px #ff6600,
+      4px 4px 0px #cc4400,
+      6px 6px 0px #992200;
+    letter-spacing: 2px;
+  }
+  
+  .raiders-text {
+    font-size: 20px;
+    text-shadow: 
+      2px 2px 0px #ff6600,
+      4px 4px 0px #cc4400,
+      6px 6px 0px #992200;
+    letter-spacing: 2px;
   }
   
   .game-ui-container {
