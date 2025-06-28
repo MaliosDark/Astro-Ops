@@ -2,30 +2,30 @@
 // Centralized environment configuration
 
 export const ENV = {
-  // API Configuration - NEVER use localhost
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
-  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://verify.bonkraiders.com',
+  // API Configuration
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'http://localhost:3070',
   
   // Solana Configuration
-  SOLANA_RPC_URL: 'https://api.devnet.solana.com',
-  SOLANA_NETWORK: 'devnet',
+  SOLANA_RPC_URL: import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com',
+  SOLANA_NETWORK: import.meta.env.VITE_SOLANA_NETWORK || 'devnet',
   
   // Game Token Configuration
-  GAME_TOKEN_MINT: 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
-  PARTICIPATION_FEE: 0,
+  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
+  PARTICIPATION_FEE: import.meta.env.VITE_PARTICIPATION_FEE || 0,
   
   // Ship Purchase (in SOL equivalent to 15 USDC)
-  SHIP_PRICE_SOL: 0.01, // Reduced for devnet
+  SHIP_PRICE_SOL: import.meta.env.VITE_SHIP_PRICE_SOL || 0.01,
   
   // Asset URLs
-  ASSETS_BASE_URL: 'https://bonkraiders.com/assets',
+  ASSETS_BASE_URL: import.meta.env.VITE_ASSETS_BASE_URL || 'http://localhost:3000/assets',
   
   // Development Settings
-  DEBUG_MODE: true, // Keep debug on for now
-  MOCK_API: false,
+  DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'true' || true,
+  MOCK_API: import.meta.env.VITE_MOCK_API === 'true' || false,
   
   // Security
-  APP_VERSION: '1.0.0',
+  APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
   
   // Derived values
   IS_DEVELOPMENT: import.meta.env.DEV,
