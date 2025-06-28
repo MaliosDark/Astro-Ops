@@ -8,6 +8,7 @@ import { setupHUD } from './utils/hud';
 import walletService from './services/walletService.js';
 import apiService from './services/apiService.js';
 import websocketService from './services/websocketService.js';
+import healthMonitorService from './services/healthMonitor.js';
 import ENV from './config/environment.js';
 
 function App() {
@@ -93,6 +94,8 @@ function App() {
         }
         // Disconnect WebSocket when wallet disconnects
         websocketService.disconnect();
+        // Stop health monitoring when wallet disconnects
+        healthMonitorService.stop();
         window.location.reload();
       });
       
@@ -142,6 +145,31 @@ function App() {
       if (ENV.DEBUG_MODE) {
         console.log('🎮 Game ready!');
       }
+      
+      // Step 7: Start health monitoring
+      healthMonitorService.start();
+      
+      // Set up health monitoring event handlers
+      healthMonitorService.on('health_degraded', (health) => {
+        if (ENV.DEBUG_MODE) {
+          console.warn('🏥 API health degraded:', health);
+        }
+      });
+      
+      healthMonitorService.on('health_recovered', (health) => {
+        if (window.AstroUI) {
+          window.AstroUI.setStatus('✅ Connection restored');
+        }
+        if (ENV.DEBUG_MODE) {
+          console.log('🏥 API health recovered:', health);
+        }
+      });
+      
+      healthMonitorService.on('recovery_attempted', (data) => {
+        if (ENV.DEBUG_MODE) {
+          console.log('🔧 Auto-recovery attempted:', data);
+        }
+      });
       
       setIsLoading(false);
     } catch (err) {

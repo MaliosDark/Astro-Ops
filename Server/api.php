@@ -1,6 +1,11 @@
 <?php
 // Basic security & input hardening
 // ================= CORS Headers (MUST be first) =================
+
+// Performance monitoring
+$startTime = microtime(true);
+$startMemory = memory_get_usage();
+
 // Allow all origins for development/testing
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -15,6 +20,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require 'hacker_protect.php';
 require 'anti_cheat.php';
+
+// Include performance monitor for auto-healing
+if (file_exists(__DIR__ . '/performance_monitor.php')) {
+    require_once __DIR__ . '/performance_monitor.php';
+    $performanceMonitor = new PerformanceMonitor($pdo);
+    $cache = new SmartCache();
+} else {
+    $performanceMonitor = null;
+    $cache = null;
+}
+
 require __DIR__ . '/vendor/autoload.php';
 
 // CORS headers before any other output
@@ -266,6 +282,15 @@ $pdo->exec("USE `".DB_NAME."`");
 
 /** ================= Utility Functions ================= **/
 function jsonErr(string $msg, int $code = 400): void {
+  global $startTime, $startMemory, $performanceMonitor;
+  
+  // Log performance even for errors
+  if ($performanceMonitor) {
+    $executionTime = microtime(true) - $startTime;
+    $memoryUsage = memory_get_usage() - $startMemory;
+    $performanceMonitor->logPerformance($_GET['action'] ?? 'error', $executionTime, $memoryUsage);
+  }
+  
   http_response_code($code);
   echo json_encode(['error' => $msg]);
   exit;
@@ -283,6 +308,15 @@ function getJson(): array {
 }
 
 function rateLimit(PDO $pdo): void {
+  global $cache;
+  
+  // Use smart rate limiting if cache is available
+  if ($cache) {
+    smartRateLimit($pdo, $cache);
+    return;
+  }
+  
+  // Fallback to original rate limiting
   $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
   $ep   = $_GET['action'] ?? '';
   $now  = time();
@@ -295,6 +329,43 @@ function rateLimit(PDO $pdo): void {
   $pdo->prepare("INSERT INTO api_logs(ip, endpoint, ts) VALUES (?, ?, ?)")
       ->execute([$ip, $ep, $now]);
 }
+
+// Smart rate limiting function
+function smartRateLimit(PDO $pdo, $cache): void {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $endpoint = $_GET['action'] ?? '';
+    $now = time();
+    
+    // Check cache first (faster than database)
+    $cacheKey = "rate_limit_{$ip}_{$endpoint}";
+    $cached = $cache->get($cacheKey, 60);
+    
+    if ($cached) {
+        $count = $cached['count'] + 1;
+        if ($count > 60) { // 60 requests per minute
+            http_response_code(429);
+            echo json_encode([
+                'error' => 'Rate limit exceeded',
+                'retry_after' => 60 - ($now - $cached['start_time'])
+            ]);
+            exit;
+        }
+        $cache->set($cacheKey, ['count' => $count, 'start_time' => $cached['start_time']]);
+    } else {
+        // First request in this minute
+        $cache->set($cacheKey, ['count' => 1, 'start_time' => $now]);
+    }
+    
+    // Log to database (async to avoid blocking)
+    try {
+        $stmt = $pdo->prepare("INSERT INTO api_logs(ip, endpoint, ts) VALUES (?, ?, ?)");
+        $stmt->execute([$ip, $endpoint, $now]);
+    } catch (Exception $e) {
+        // Don't fail the request if logging fails
+        error_log("Rate limit logging failed: " . $e->getMessage());
+    }
+}
+
 rateLimit($pdo);
 
 function base58_decode(string $b58): string {
@@ -1218,5 +1289,18 @@ switch ($action) {
         http_response_code(404);
         echo json_encode(['error'=>'Unknown action']);
         exit;
+    }
+}
+
+// Log final performance metrics
+if ($performanceMonitor) {
+    $executionTime = microtime(true) - $startTime;
+    $memoryUsage = memory_get_usage() - $startMemory;
+    $performanceMonitor->logPerformance($action, $executionTime, $memoryUsage);
+    
+    // Add performance headers for debugging
+    if (DEBUG_MODE) {
+        header("X-Execution-Time: {$executionTime}");
+        header("X-Memory-Usage: {$memoryUsage}");
     }
 }
