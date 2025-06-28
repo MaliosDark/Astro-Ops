@@ -462,5 +462,4 @@ export {
   performClaim,
   buyShip,
   getPlayerEnergy,
-  scanForRaids,
 };
