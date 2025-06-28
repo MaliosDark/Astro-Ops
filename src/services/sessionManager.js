@@ -1,18 +1,18 @@
 // src/services/sessionManager.js
-// Dedicated JWT and session management service
+// Dedicated session management service that delegates API calls to apiService
 
 import ENV from '../config/environment.js';
+import apiService from './apiService.js';
 
 /**
- * Session Manager - Handles JWT tokens, session persistence, and user authentication
+ * Session Manager - Handles session persistence and user authentication
+ * Delegates all API calls to apiService for consistent error handling
  */
 class SessionManager {
   constructor() {
-    this.jwt = null;
     this.userProfile = null;
     this.sessionKey = 'bonkraiders_session';
     this.profileKey = 'bonkraiders_profile';
-    this.baseURL = ENV.API_BASE_URL;
   }
 
   /**
@@ -22,8 +22,8 @@ class SessionManager {
     try {
       // Try to restore session from storage
       const storedSession = this.getStoredSession();
-      if (storedSession && !this.isTokenExpired(storedSession.token)) {
-        this.jwt = storedSession.token;
+      if (storedSession && !apiService.isTokenExpired(storedSession.token)) {
+        apiService.setToken(storedSession.token);
         this.userProfile = storedSession.profile;
         
         if (ENV.DEBUG_MODE) {
@@ -53,13 +53,10 @@ class SessionManager {
         console.log('🔐 Starting authentication for:', publicKey);
       }
 
-      // Step 1: Get nonce
-      const nonceResponse = await this.makeRequest('/api.php?action=auth/nonce', {
-        method: 'POST',
-        body: JSON.stringify({ publicKey })
-      });
-
+      // Step 1: Get nonce using apiService
+      const nonceResponse = await apiService.getNonce(publicKey);
       const { nonce } = nonceResponse;
+      
       if (!nonce) {
         throw new Error('Failed to get authentication nonce');
       }
@@ -76,22 +73,14 @@ class SessionManager {
       // Step 3: Convert signature to base64
       const signatureB64 = this.signatureToBase64(rawSignature);
       
-      // Step 4: Login with signature
-      const loginResponse = await this.makeRequest('/api.php?action=auth/login', {
-        method: 'POST',
-        body: JSON.stringify({
-          publicKey,
-          nonce,
-          signature: signatureB64
-        })
-      });
+      // Step 4: Login with signature using apiService
+      const loginResponse = await apiService.login(publicKey, nonce, signatureB64);
 
       if (!loginResponse.token) {
         throw new Error('Authentication failed - no token received');
       }
 
-      // Step 5: Set token and get user profile
-      this.jwt = loginResponse.token;
+      // Step 5: Get user profile using apiService
       await this.loadUserProfile();
 
       // Step 6: Store session
@@ -102,7 +91,7 @@ class SessionManager {
       }
 
       return {
-        token: this.jwt,
+        token: apiService.getToken(),
         profile: this.userProfile
       };
     } catch (error) {
@@ -115,11 +104,11 @@ class SessionManager {
   }
 
   /**
-   * Load user profile from server
+   * Load user profile from server using apiService
    */
   async loadUserProfile() {
     try {
-      const profile = await this.makeAuthenticatedRequest('/api.php?action=user_profile');
+      const profile = await apiService.getUserProfile();
       this.userProfile = profile;
       
       if (ENV.DEBUG_MODE) {
@@ -136,107 +125,12 @@ class SessionManager {
   }
 
   /**
-   * Make authenticated API request with automatic token refresh
-   */
-  async makeAuthenticatedRequest(endpoint, options = {}) {
-    // Check if token needs refresh
-    if (this.jwt && this.isTokenExpired(this.jwt)) {
-      if (ENV.DEBUG_MODE) {
-        console.log('🔄 Token expired, clearing session');
-      }
-      this.clearSession();
-      throw new Error('Session expired. Please reconnect your wallet.');
-    }
-
-    if (!this.jwt) {
-      throw new Error('No authentication token available');
-    }
-
-    return await this.makeRequest(endpoint, {
-      ...options,
-      headers: {
-        'Authorization': `Bearer ${this.jwt}`,
-        'X-Authorization': `Bearer ${this.jwt}`,
-        ...options.headers
-      }
-    });
-  }
-
-  /**
-   * Make basic API request
-   */
-  async makeRequest(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
-    };
-
-    const requestOptions = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers
-      }
-    };
-
-    if (ENV.DEBUG_MODE) {
-      console.log('📡 API Request:', {
-        url,
-        method: requestOptions.method || 'GET',
-        hasAuth: !!requestOptions.headers.Authorization
-      });
-    }
-
-    try {
-      const response = await fetch(url, requestOptions);
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('📡 API Response:', {
-          url,
-          status: response.status,
-          ok: response.ok
-        });
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorText;
-        } catch {
-          errorMessage = errorText;
-        }
-        
-        // Handle authentication errors
-        if (response.status === 401) {
-          this.clearSession();
-          throw new Error('Session expired. Please reconnect your wallet.');
-        }
-        
-        throw new Error(`API Error ${response.status}: ${errorMessage}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      if (ENV.DEBUG_MODE) {
-        console.error('❌ API Request failed:', error);
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Store session in localStorage
    */
   storeSession() {
     try {
       const sessionData = {
-        token: this.jwt,
+        token: apiService.getToken(),
         profile: this.userProfile,
         timestamp: Date.now()
       };
@@ -279,35 +173,18 @@ class SessionManager {
    * Clear session data
    */
   clearSession() {
-    this.jwt = null;
     this.userProfile = null;
+    apiService.clearToken();
     
     try {
       localStorage.removeItem(this.sessionKey);
       localStorage.removeItem(this.profileKey);
-      sessionStorage.removeItem('bonkraiders_jwt');
       
       if (ENV.DEBUG_MODE) {
         console.log('🗑️ Session cleared');
       }
     } catch (error) {
       console.warn('Failed to clear session storage:', error);
-    }
-  }
-
-  /**
-   * Check if JWT token is expired
-   */
-  isTokenExpired(token) {
-    if (!token) return true;
-    
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / 1000);
-      // Consider token expired if it expires in the next 5 minutes
-      return payload.exp < (now + 300);
-    } catch (error) {
-      return true;
     }
   }
 
@@ -373,14 +250,14 @@ class SessionManager {
    * Get current user's public key
    */
   getCurrentUserPublicKey() {
-    return this.userProfile?.public_key || null;
+    return this.userProfile?.public_key || apiService.getCurrentUserPublicKey();
   }
 
   /**
    * Get current JWT token
    */
   getToken() {
-    return this.jwt;
+    return apiService.getToken();
   }
 
   /**
@@ -394,7 +271,8 @@ class SessionManager {
    * Check if user is authenticated
    */
   isAuthenticated() {
-    return !!(this.jwt && this.userProfile && !this.isTokenExpired(this.jwt));
+    const token = apiService.getToken();
+    return !!(token && this.userProfile && !apiService.isTokenExpired(token));
   }
 
   /**
@@ -408,16 +286,14 @@ class SessionManager {
   }
 
   /**
-   * Game-specific methods
+   * Game-specific methods - delegate to apiService
    */
 
   /**
    * Buy ship
    */
   async buyShip() {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=buy_ship', {
-      method: 'POST'
-    });
+    const result = await apiService.buyShip();
     
     // Update profile to reflect ship purchase
     if (result.ship_id && this.userProfile) {
@@ -437,10 +313,7 @@ class SessionManager {
    * Send mission
    */
   async sendMission(type, mode, signedBurnTx) {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=send_mission', {
-      method: 'POST',
-      body: JSON.stringify({ type, mode, signedBurnTx })
-    });
+    const result = await apiService.sendMission(type, mode, signedBurnTx);
     
     // Update cached balance
     if (result.br_balance !== undefined && this.userProfile?.ship) {
@@ -455,10 +328,7 @@ class SessionManager {
    * Upgrade ship
    */
   async upgradeShip(level) {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=upgrade_ship', {
-      method: 'POST',
-      body: JSON.stringify({ level })
-    });
+    const result = await apiService.upgradeShip(level);
     
     // Update cached ship data
     if (this.userProfile?.ship) {
@@ -474,10 +344,7 @@ class SessionManager {
    * Raid mission
    */
   async raidMission(missionId) {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=raid_mission', {
-      method: 'POST',
-      body: JSON.stringify({ mission_id: missionId })
-    });
+    const result = await apiService.raidMission(missionId);
     
     // Update cached balance
     if (result.br_balance !== undefined && this.userProfile?.ship) {
@@ -492,7 +359,7 @@ class SessionManager {
    * Get player energy
    */
   async getPlayerEnergy() {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=player_energy');
+    const result = await apiService.getPlayerEnergy();
     
     // Update cached energy
     if (result.energy !== undefined && this.userProfile?.energy) {
@@ -507,9 +374,7 @@ class SessionManager {
    * Scan for raids
    */
   async scanForRaids() {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=raid/scan', {
-      method: 'POST'
-    });
+    const result = await apiService.scanForRaids();
     
     // Update cached energy
     if (result.remainingEnergy !== undefined && this.userProfile?.energy) {
@@ -524,23 +389,21 @@ class SessionManager {
    * Get missions for raid
    */
   async getMissions() {
-    return await this.makeAuthenticatedRequest('/api.php?action=list_missions');
+    return await apiService.getMissions();
   }
 
   /**
    * Get pending rewards
    */
   async getPendingRewards() {
-    return await this.makeAuthenticatedRequest('/api.php?action=pending_missions');
+    return await apiService.getPendingRewards();
   }
 
   /**
    * Claim rewards
    */
   async claimRewards() {
-    const result = await this.makeAuthenticatedRequest('/api.php?action=claim_rewards', {
-      method: 'POST'
-    });
+    const result = await apiService.claimRewards();
     
     // Update cached balance
     if (result.claimable_AT !== undefined && this.userProfile?.ship) {
@@ -549,6 +412,20 @@ class SessionManager {
     }
     
     return result;
+  }
+
+  /**
+   * Get player stats
+   */
+  async getPlayerStats() {
+    return await apiService.getPlayerStats();
+  }
+
+  /**
+   * Get leaderboard
+   */
+  async getLeaderboard() {
+    return await apiService.getLeaderboard();
   }
 }
 
