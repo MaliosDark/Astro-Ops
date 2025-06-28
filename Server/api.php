@@ -798,16 +798,12 @@ switch ($action) {
           $pdo->prepare("UPDATE energy SET energy = energy - 1 WHERE user_id = ?")
               ->execute([$me['userId']]);
           
-          // Get raidable missions with proper filtering
-          // Only show UNSHIELDED missions that are:
-          // 1. Successful (success = 1)
-          // 2. Not already raided (raided = 0) 
-          // 3. Not from the current user
-          // 4. Actually completed (claimed = 1)
+          // Get REAL raidable missions from actual users
           $stmt = $pdo->prepare("
-            SELECT m.id, m.mission_type AS type, m.mode, m.reward, 
-                   u.public_key AS owner, m.ts_start,
-                   SUBSTRING(u.public_key, 1, 8) AS owner_short
+            SELECT m.id, m.mission_type AS type, m.mode, m.reward,
+                   u.public_key AS owner, m.ts_start, m.ts_complete,
+                   SUBSTRING(u.public_key, 1, 8) AS owner_short,
+                   u.total_missions, u.total_raids_won, u.total_kills
             FROM missions m
             JOIN users u ON m.user_id = u.id
             WHERE m.mode = 'Unshielded' 
@@ -815,49 +811,55 @@ switch ($action) {
               AND m.raided = 0
               AND m.claimed = 1
               AND m.user_id != ?
-              AND m.ts_start > ?
+              AND m.ts_complete > ?
             ORDER BY m.ts_start DESC
-            LIMIT 10
+            LIMIT 15
           ");
           
-          // Only show missions from the last 24 hours to keep it fresh
-          $dayAgo = time() - (24 * 3600);
-          $stmt->execute([$me['userId'], $dayAgo]);
+          // Show missions from the last 12 hours to keep it fresh
+          $halfDayAgo = time() - (12 * 3600);
+          $stmt->execute([$me['userId'], $halfDayAgo]);
           $missions = $stmt->fetchAll(PDO::FETCH_ASSOC);
           
-          // If no real missions found, create some demo missions for testing
+          // If no real missions found, get some recent users and create realistic missions
           if (empty($missions)) {
-            // Create demo missions from other users for testing
-            $demoMissions = [
-              [
-                'id' => 9999,
-                'type' => 'MiningRun',
-                'mode' => 'Unshielded', 
-                'reward' => 4500,
-                'owner' => 'DemoPlayer1...',
-                'owner_short' => 'DemoPlay',
-                'ts_start' => time() - 3600
-              ],
-              [
-                'id' => 9998,
-                'type' => 'BlackMarket',
-                'mode' => 'Unshielded',
-                'reward' => 8000,
-                'owner' => 'DemoPlayer2...',
-                'owner_short' => 'DemoPlay',
-                'ts_start' => time() - 7200
-              ],
-              [
-                'id' => 9997,
-                'type' => 'ArtifactHunt', 
-                'mode' => 'Unshielded',
-                'reward' => 15000,
-                'owner' => 'DemoPlayer3...',
-                'owner_short' => 'DemoPlay',
-                'ts_start' => time() - 1800
-              ]
-            ];
-            $missions = $demoMissions;
+            // Get other real users from the database
+            $stmt = $pdo->prepare("
+              SELECT id, public_key, total_missions, total_raids_won, total_kills,
+                     SUBSTRING(public_key, 1, 8) AS owner_short
+              FROM users 
+              WHERE id != ? 
+              ORDER BY last_login DESC 
+              LIMIT 8
+            ");
+            $stmt->execute([$me['userId']]);
+            $otherUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (!empty($otherUsers)) {
+              // Create realistic missions based on real users
+              $missionTypes = ['MiningRun', 'BlackMarket', 'ArtifactHunt'];
+              $baseRewards = ['MiningRun' => 4500, 'BlackMarket' => 8000, 'ArtifactHunt' => 15000];
+              
+              foreach ($otherUsers as $i => $user) {
+                $missionType = $missionTypes[array_rand($missionTypes)];
+                $baseReward = $baseRewards[$missionType];
+                $variance = rand(80, 120) / 100; // ±20% variance
+                $finalReward = floor($baseReward * $variance);
+                
+                $missions[] = [
+                  'id' => 9990 + $i, // Use high IDs to distinguish from real missions
+                  'type' => $missionType,
+                  'mode' => 'Unshielded',
+                  'reward' => $finalReward,
+                  'owner' => $user['public_key'],
+                  'owner_short' => $user['owner_short'],
+                  'ts_start' => time() - rand(1800, 7200), // 30min to 2h ago
+                  'total_missions' => $user['total_missions'],
+                  'total_raids_won' => $user['total_raids_won'],
+                  'total_kills' => $user['total_kills']
+                ];
+              }
+            }
           }
           
           if (defined('DEBUG_MODE') && DEBUG_MODE) {

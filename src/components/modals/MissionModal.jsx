@@ -5,210 +5,399 @@ const MissionModal = ({ onClose }) => {
   const [selectedMission, setSelectedMission] = useState('MiningRun');
   const [selectedMode, setSelectedMode] = useState('Unshielded');
 
+  const missions = [
+    {
+      id: 'MiningRun',
+      name: 'Mining Run',
+      description: 'Extract valuable resources from asteroid fields',
+      successRate: 90,
+      baseReward: 10,
+      icon: '⛏️',
+      difficulty: 'Easy',
+      duration: '2-3 hours'
+    },
+    {
+      id: 'BlackMarket',
+      name: 'Black Market',
+      description: 'Trade in forbidden goods and contraband',
+      successRate: 70,
+      baseReward: 30,
+      icon: '🏴‍☠️',
+      difficulty: 'Medium',
+      duration: '3-4 hours'
+    },
+    {
+      id: 'ArtifactHunt',
+      name: 'Artifact Hunt',
+      description: 'Search for ancient alien artifacts',
+      successRate: 50,
+      baseReward: 60,
+      icon: '🏺',
+      difficulty: 'Hard',
+      duration: '4-6 hours'
+    }
+  ];
+
+  const modes = [
+    {
+      id: 'Unshielded',
+      name: 'Unshielded',
+      description: 'Full rewards but vulnerable to raids',
+      modifier: '100%',
+      icon: '🔓',
+      risk: 'High Risk'
+    },
+    {
+      id: 'Shielded',
+      name: 'Shielded',
+      description: 'Protected from raids but reduced rewards',
+      modifier: '80%',
+      icon: '🛡️',
+      risk: 'Low Risk'
+    }
+  ];
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Update mode in UI exactly like original
     if (window.AstroUI) {
       window.AstroUI.setMode(selectedMode);
     }
     
-    // Start mission exactly like original
     startMission(selectedMission, selectedMode);
     onClose();
   };
 
+  const selectedMissionData = missions.find(m => m.id === selectedMission);
+  const selectedModeData = modes.find(m => m.id === selectedMode);
+
   return (
-    <div style={{ 
-      background: 'rgba(0,20,40,0.8)',
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(0,20,40,0.95), rgba(0,40,80,0.9))',
       border: '4px solid #0cf',
-      borderRadius: '8px',
-      padding: '20px',
+      borderRadius: '16px',
+      padding: '24px',
       width: '90%',
-      maxWidth: '600px',
+      maxWidth: '900px',
       boxSizing: 'border-box',
-      backdropFilter: 'blur(6px)',
+      backdropFilter: 'blur(12px)',
       fontFamily: "'Press Start 2P', monospace",
-      color: '#0cf'
+      color: '#0cf',
+      boxShadow: '0 8px 32px rgba(0, 255, 255, 0.3)'
     }}>
-      <h1 style={{ 
-        margin: '0 0 16px',
-        fontSize: '24px',
-        textAlign: 'center',
-        color: '#fc0'
-      }}>
-        Select Your Mission
-      </h1>
-      
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <h1 style={{
+          margin: '0 0 8px',
+          fontSize: '24px',
+          background: 'linear-gradient(45deg, #0cf, #ff0)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          textShadow: '0 0 20px rgba(0, 255, 255, 0.5)'
+        }}>
+          🚀 MISSION CONTROL
+        </h1>
+        <p style={{
+          margin: '0',
+          fontSize: '12px',
+          color: '#888',
+          lineHeight: '1.4'
+        }}>
+          Select your mission type and deployment mode
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit}>
-        <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
-          <table style={{ 
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '12px'
+        {/* Mission Selection */}
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{
+            fontSize: '16px',
+            margin: '0 0 16px',
+            color: '#ff0',
+            textAlign: 'center'
           }}>
-            <thead>
-              <tr>
-                <th style={{ border: '2px solid #0cf', padding: '8px', background: 'rgba(0,40,60,0.9)', color: '#0ff', textAlign: 'center', whiteSpace: 'nowrap' }}>Mission</th>
-                <th style={{ border: '2px solid #0cf', padding: '8px', background: 'rgba(0,40,60,0.9)', color: '#0ff', textAlign: 'center', whiteSpace: 'nowrap' }}>Success %</th>
-                <th style={{ border: '2px solid #0cf', padding: '8px', background: 'rgba(0,40,60,0.9)', color: '#0ff', textAlign: 'center', whiteSpace: 'nowrap' }}>Base Reward</th>
-                <th style={{ border: '2px solid #0cf', padding: '8px', background: 'rgba(0,40,60,0.9)', color: '#0ff', textAlign: 'center', whiteSpace: 'nowrap' }}>Select</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Mining Run</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>90%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>10 BR</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
-                  <input 
-                    type="radio" 
-                    name="mission" 
-                    value="MiningRun" 
-                    checked={selectedMission === 'MiningRun'}
-                    onChange={(e) => setSelectedMission(e.target.value)}
-                  />
-                </td>
-              </tr>
-              <tr style={{ background: 'rgba(0,30,50,0.3)' }}>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Black Market</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>70%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>30 BR</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
-                  <input 
-                    type="radio" 
-                    name="mission" 
-                    value="BlackMarket" 
-                    checked={selectedMission === 'BlackMarket'}
-                    onChange={(e) => setSelectedMission(e.target.value)}
-                  />
-                </td>
-              </tr>
-              <tr style={{ background: 'rgba(0,20,40,0.5)' }}>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>Artifact Hunt</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>50%</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>60 BR</td>
-                <td style={{ border: '2px solid #0cf', padding: '8px', textAlign: 'center' }}>
-                  <input 
-                    type="radio" 
-                    name="mission" 
-                    value="ArtifactHunt" 
-                    checked={selectedMission === 'ArtifactHunt'}
-                    onChange={(e) => setSelectedMission(e.target.value)}
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            📋 MISSION TYPES
+          </h2>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+            marginBottom: '16px'
+          }}>
+            {missions.map((mission) => (
+              <div
+                key={mission.id}
+                onClick={() => setSelectedMission(mission.id)}
+                style={{
+                  background: selectedMission === mission.id ?
+                    'linear-gradient(135deg, rgba(0,255,255,0.2), rgba(0,200,255,0.1))' :
+                    'rgba(0,40,80,0.3)',
+                  border: selectedMission === mission.id ? '2px solid #0ff' : '2px solid #0cf',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedMission !== mission.id) {
+                    e.target.style.background = 'rgba(0,60,120,0.4)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedMission !== mission.id) {
+                    e.target.style.background = 'rgba(0,40,80,0.3)';
+                    e.target.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {/* Selection indicator */}
+                {selectedMission === mission.id && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    color: '#0ff',
+                    fontSize: '16px'
+                  }}>
+                    ✓
+                  </div>
+                )}
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '12px'
+                }}>
+                  <span style={{ fontSize: '24px' }}>{mission.icon}</span>
+                  <div>
+                    <h3 style={{
+                      margin: '0 0 4px',
+                      fontSize: '14px',
+                      color: '#0ff'
+                    }}>
+                      {mission.name}
+                    </h3>
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      fontSize: '10px',
+                      color: '#888'
+                    }}>
+                      <span>{mission.difficulty}</span>
+                      <span>{mission.duration}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <p style={{
+                  margin: '0 0 12px',
+                  fontSize: '10px',
+                  color: '#ccc',
+                  lineHeight: '1.4'
+                }}>
+                  {mission.description}
+                </p>
+                
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '11px'
+                }}>
+                  <div>
+                    <span style={{ color: '#0f0' }}>Success: {mission.successRate}%</span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#ff0' }}>Reward: {mission.baseReward} BR</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <fieldset style={{ 
-          border: '2px solid #0cf',
-          borderRadius: '6px',
-          padding: '12px',
-          marginBottom: '16px'
-        }}>
-          <legend style={{ 
-            padding: '0 8px',
-            color: '#0ff',
-            fontSize: '14px'
+        {/* Mode Selection */}
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{
+            fontSize: '16px',
+            margin: '0 0 16px',
+            color: '#ff0',
+            textAlign: 'center'
           }}>
-            Mode
-          </legend>
-          <label style={{ 
-            marginRight: '16px',
-            fontSize: '12px',
-            color: '#0cf'
+            ⚙️ DEPLOYMENT MODE
+          </h2>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '16px'
           }}>
-            <input 
-              type="radio" 
-              name="mode" 
-              value="Unshielded" 
-              checked={selectedMode === 'Unshielded'}
-              onChange={(e) => setSelectedMode(e.target.value)}
-            />
-            Unshielded
-          </label>
-          <label style={{ 
-            fontSize: '12px',
-            color: '#0cf'
-          }}>
-            <input 
-              type="radio" 
-              name="mode" 
-              value="Shielded" 
-              checked={selectedMode === 'Shielded'}
-              onChange={(e) => setSelectedMode(e.target.value)}
-            />
-            Shielded
-          </label>
-        </fieldset>
+            {modes.map((mode) => (
+              <div
+                key={mode.id}
+                onClick={() => setSelectedMode(mode.id)}
+                style={{
+                  background: selectedMode === mode.id ?
+                    'linear-gradient(135deg, rgba(255,255,0,0.2), rgba(255,200,0,0.1))' :
+                    'rgba(0,40,80,0.3)',
+                  border: selectedMode === mode.id ? '2px solid #ff0' : '2px solid #0cf',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedMode !== mode.id) {
+                    e.target.style.background = 'rgba(0,60,120,0.4)';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedMode !== mode.id) {
+                    e.target.style.background = 'rgba(0,40,80,0.3)';
+                    e.target.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {/* Selection indicator */}
+                {selectedMode === mode.id && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    color: '#ff0',
+                    fontSize: '16px'
+                  }}>
+                    ✓
+                  </div>
+                )}
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '12px'
+                }}>
+                  <span style={{ fontSize: '24px' }}>{mode.icon}</span>
+                  <div>
+                    <h3 style={{
+                      margin: '0 0 4px',
+                      fontSize: '14px',
+                      color: '#ff0'
+                    }}>
+                      {mode.name}
+                    </h3>
+                    <span style={{
+                      fontSize: '10px',
+                      color: mode.id === 'Unshielded' ? '#f80' : '#0f0'
+                    }}>
+                      {mode.risk}
+                    </span>
+                  </div>
+                </div>
+                
+                <p style={{
+                  margin: '0 0 12px',
+                  fontSize: '10px',
+                  color: '#ccc',
+                  lineHeight: '1.4'
+                }}>
+                  {mode.description}
+                </p>
+                
+                <div style={{
+                  fontSize: '12px',
+                  color: '#ff0',
+                  textAlign: 'center'
+                }}>
+                  Reward Modifier: {mode.modifier}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <button 
+        {/* Mission Summary */}
+        {selectedMissionData && selectedModeData && (
+          <div style={{
+            background: 'rgba(0,60,80,0.6)',
+            border: '2px solid #0cf',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '24px'
+          }}>
+            <h3 style={{
+              margin: '0 0 12px',
+              fontSize: '14px',
+              color: '#0ff',
+              textAlign: 'center'
+            }}>
+              📊 MISSION SUMMARY
+            </h3>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '16px',
+              fontSize: '11px'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#888', marginBottom: '4px' }}>Mission</div>
+                <div style={{ color: '#0ff' }}>{selectedMissionData.name}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#888', marginBottom: '4px' }}>Mode</div>
+                <div style={{ color: '#ff0' }}>{selectedModeData.name}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#888', marginBottom: '4px' }}>Success Rate</div>
+                <div style={{ color: '#0f0' }}>{selectedMissionData.successRate}%</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#888', marginBottom: '4px' }}>Expected Reward</div>
+                <div style={{ color: '#ff0' }}>
+                  {Math.floor(selectedMissionData.baseReward * (selectedModeData.modifier === '100%' ? 1 : 0.8))} BR
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Launch Button */}
+        <button
           type="submit"
           style={{
-            display: 'block',
             width: '100%',
-            padding: '12px 0',
-            background: '#0cf',
-            border: '2px solid #0ff',
-            borderRadius: '6px',
-            fontFamily: "'Press Start 2P', monospace",
-            fontSize: '14px',
+            padding: '16px',
+            background: 'linear-gradient(135deg, #0cf, #0af)',
             color: '#000',
+            border: '2px solid #0ff',
+            borderRadius: '12px',
+            fontFamily: "'Press Start 2P', monospace",
+            fontSize: '16px',
             cursor: 'pointer',
-            transition: 'background .1s, color .1s'
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 16px rgba(0, 255, 255, 0.4)',
+            textShadow: '0 0 8px rgba(0, 0, 0, 0.8)'
           }}
           onMouseEnter={(e) => {
-            e.target.style.background = '#0ff';
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
           }}
           onMouseLeave={(e) => {
-            e.target.style.background = '#0cf';
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
           }}
         >
-          Launch Mission
+          🚀 LAUNCH MISSION
         </button>
       </form>
-      
-      {/* Mobile responsive styles */}
-      <style jsx>{`
-        @media (max-width: 600px) {
-          .window {
-            padding: 12px !important;
-            width: 100% !important;
-            height: 100% !important;
-            overflow-y: auto !important;
-          }
-          h1 { 
-            font-size: 18px !important; 
-            margin-bottom: 12px !important; 
-          }
-          fieldset { 
-            padding: 8px !important; 
-            margin-bottom: 12px !important; 
-          }
-          legend { 
-            font-size: 12px !important; 
-          }
-          label { 
-            font-size: 10px !important; 
-            margin-right: 8px !important; 
-            display: block !important; 
-            margin-bottom: 4px !important; 
-          }
-          .table-container { 
-            margin-bottom: 12px !important; 
-          }
-          th, td { 
-            padding: 6px !important; 
-            font-size: 10px !important; 
-          }
-          button {
-            padding: 10px 0 !important;
-            font-size: 12px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };

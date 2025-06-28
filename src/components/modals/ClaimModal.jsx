@@ -5,6 +5,8 @@ import { getPendingRewards } from '../../utils/gameLogic';
 const ClaimModal = ({ onClose }) => {
   const [pendingRewards, setPendingRewards] = useState([]);
   const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     fetchPendingRewards();
@@ -12,6 +14,7 @@ const ClaimModal = ({ onClose }) => {
 
   const fetchPendingRewards = async () => {
     try {
+      setIsLoading(true);
       const pending = await getPendingRewards();
       setPendingRewards(pending || []);
       
@@ -21,169 +24,304 @@ const ClaimModal = ({ onClose }) => {
       console.error('Failed to fetch pending rewards:', error);
       // Mock data for development
       const mockPending = [
-        { source: 'Mining Run', amount: 10, id: 1 },
-        { source: 'Black Market', amount: 30, id: 2 }
+        { source: 'Mining Run', amount: 450, id: 1, timestamp: Date.now() - 3600000 },
+        { source: 'Black Market', amount: 1200, id: 2, timestamp: Date.now() - 7200000 },
+        { source: 'Artifact Hunt', amount: 2800, id: 3, timestamp: Date.now() - 1800000 }
       ];
       setPendingRewards(mockPending);
-      setTotal(40);
+      setTotal(4450);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleClaim = async () => {
     try {
+      setIsClaiming(true);
       await performClaim();
       onClose();
     } catch (error) {
       console.error('Claim failed:', error);
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) return `${hours}h ago`;
+    return `${minutes}m ago`;
+  };
+
+  const getSourceIcon = (source) => {
+    switch (source) {
+      case 'Mining Run': return '⛏️';
+      case 'Black Market': return '🏴‍☠️';
+      case 'Artifact Hunt': return '🏺';
+      default: return '💰';
+    }
+  };
+
+  const getSourceColor = (source) => {
+    switch (source) {
+      case 'Mining Run': return '#0f0';
+      case 'Black Market': return '#f80';
+      case 'Artifact Hunt': return '#f0f';
+      default: return '#0cf';
     }
   };
 
   return (
     <div style={{
-      background: 'rgba(20,0,20,0.8)',
-      border: '4px solid #f0a',
-      borderRadius: '8px',
-      padding: '20px',
-      width: '80%',
-      maxWidth: '500px',
+      background: 'linear-gradient(135deg, rgba(20,40,0,0.95), rgba(40,80,0,0.9))',
+      border: '4px solid #0f0',
+      borderRadius: '16px',
+      padding: '24px',
+      width: '90%',
+      maxWidth: '700px',
       boxSizing: 'border-box',
-      backdropFilter: 'blur(4px)',
+      backdropFilter: 'blur(12px)',
       fontFamily: "'Press Start 2P', monospace",
-      color: '#0f0'
+      color: '#0f0',
+      boxShadow: '0 8px 32px rgba(0, 255, 0, 0.3)'
     }}>
-      <h1 style={{
-        margin: '0 0 12px',
-        fontSize: '20px',
-        textAlign: 'center',
-        color: '#f0a'
-      }}>
-        CLAIM BR REWARDS
-      </h1>
-      
-      <img 
-        src="https://bonkraiders.com/assets/ship.png" 
-        alt="Ship" 
-        style={{
-          display: 'block',
-          margin: '0 auto 12px',
-          width: '48px',
-          height: '48px',
-          imageRendering: 'pixelated'
-        }}
-      />
-
-      <p style={{
-        fontSize: '14px',
-        lineHeight: '1.5',
-        margin: '0 0 12px'
-      }}>
-        Your pending rewards:
-      </p>
-      
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        marginBottom: '12px',
-        fontSize: '12px'
-      }}>
-        <thead>
-          <tr>
-            <th style={{
-              border: '2px solid #f0a',
-              padding: '4px 6px',
-              textAlign: 'left',
-              background: 'rgba(60,0,60,0.8)',
-              color: '#f0a'
-            }}>
-              Source
-            </th>
-            <th style={{
-              border: '2px solid #f0a',
-              padding: '4px 6px',
-              textAlign: 'left',
-              background: 'rgba(60,0,60,0.8)',
-              color: '#f0a'
-            }}>
-              Pending AT
-              Pending BR
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {pendingRewards.map((item, index) => (
-            <tr key={item.id || index} style={{
-              background: index % 2 === 0 ? 'rgba(40,0,40,0.5)' : 'rgba(60,0,60,0.3)'
-            }}>
-              <td style={{
-                border: '2px solid #f0a',
-                padding: '4px 6px',
-                textAlign: 'left'
-              }}>
-                {item.source}
-              </td>
-              <td style={{
-                border: '2px solid #f0a',
-                padding: '4px 6px',
-                textAlign: 'left'
-              }}>
-                {item.amount} BR
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      
-      <div style={{
-        textAlign: 'right',
-        fontSize: '14px',
-        margin: '0 0 12px',
-        color: '#ff0'
-      }}>
-        Total: <span>{total}</span> BR
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <h1 style={{
+          margin: '0 0 8px',
+          fontSize: '24px',
+          background: 'linear-gradient(45deg, #0f0, #ff0)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          textShadow: '0 0 20px rgba(0, 255, 0, 0.5)'
+        }}>
+          💰 REWARD VAULT
+        </h1>
+        <p style={{
+          margin: '0',
+          fontSize: '12px',
+          color: '#888',
+          lineHeight: '1.4'
+        }}>
+          Claim your accumulated mission rewards
+        </p>
       </div>
 
-      <button
-        onClick={handleClaim}
-        style={{
-          display: 'block',
-          margin: '0 auto',
-          background: 'rgba(0,20,0,0.7)',
-          border: '2px solid #0f0',
-          borderRadius: '4px',
-          padding: '8px 16px',
-          fontFamily: "'Press Start 2P', monospace",
-          fontSize: '14px',
-          color: '#0f0',
-          cursor: 'pointer',
-          transition: 'background .1s, color .1s'
-        }}
-        onMouseDown={(e) => {
-          e.target.style.background = 'rgba(0,20,0,1)';
-          e.target.style.color = '#000';
-        }}
-        onMouseUp={(e) => {
-          e.target.style.background = 'rgba(0,20,0,0.7)';
-          e.target.style.color = '#0f0';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.background = 'rgba(0,20,0,0.7)';
-          e.target.style.color = '#0f0';
-        }}
-      >
-        CLAIM YOUR BR
-      </button>
-      
+      {/* Ship Icon */}
       <div style={{
-        marginTop: '12px',
-        height: '16px',
         textAlign: 'center',
-        fontSize: '12px',
-        color: '#2df',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden'
+        marginBottom: '20px'
       }}>
-        {/* Status messages can be added here */}
+        <img 
+          src="https://bonkraiders.com/assets/ship.png" 
+          alt="Ship" 
+          style={{
+            width: '64px',
+            height: '64px',
+            imageRendering: 'pixelated',
+            filter: 'drop-shadow(0 0 10px rgba(0, 255, 0, 0.5))'
+          }}
+        />
       </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px',
+          fontSize: '12px',
+          color: '#888'
+        }}>
+          <div style={{ marginBottom: '16px', fontSize: '24px' }}>⏳</div>
+          Scanning reward vault...
+        </div>
+      )}
+
+      {/* Pending Rewards List */}
+      {!isLoading && (
+        <>
+          <div style={{
+            background: 'rgba(0,60,0,0.6)',
+            border: '2px solid #0f0',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{
+              margin: '0 0 16px',
+              fontSize: '14px',
+              color: '#ff0',
+              textAlign: 'center'
+            }}>
+              📋 PENDING REWARDS ({pendingRewards.length})
+            </h2>
+
+            {pendingRewards.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '20px',
+                color: '#888',
+                fontSize: '12px'
+              }}>
+                <div style={{ marginBottom: '12px', fontSize: '32px' }}>🚫</div>
+                No pending rewards found
+                <div style={{ fontSize: '10px', marginTop: '8px' }}>
+                  Complete missions to earn BR tokens
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                maxHeight: '300px',
+                overflowY: 'auto',
+                border: '1px solid #0f0',
+                borderRadius: '8px',
+                background: 'rgba(0,40,0,0.3)'
+              }}>
+                {pendingRewards.map((item, index) => (
+                  <div 
+                    key={item.id || index}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px 16px',
+                      borderBottom: index < pendingRewards.length - 1 ? '1px solid rgba(0, 255, 0, 0.2)' : 'none',
+                      background: index % 2 === 0 ? 'rgba(0,60,0,0.2)' : 'transparent',
+                      transition: 'background 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(0,80,0,0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = index % 2 === 0 ? 'rgba(0,60,0,0.2)' : 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '16px' }}>
+                        {getSourceIcon(item.source)}
+                      </span>
+                      <div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: getSourceColor(item.source),
+                          marginBottom: '2px'
+                        }}>
+                          {item.source}
+                        </div>
+                        {item.timestamp && (
+                          <div style={{
+                            fontSize: '9px',
+                            color: '#666'
+                          }}>
+                            {formatTimeAgo(item.timestamp)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div style={{
+                      fontSize: '14px',
+                      color: '#ff0',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 8px rgba(255, 255, 0, 0.5)'
+                    }}>
+                      +{item.amount.toLocaleString()} BR
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Total Summary */}
+          <div style={{
+            background: 'rgba(0,80,0,0.6)',
+            border: '2px solid #ff0',
+            borderRadius: '12px',
+            padding: '16px',
+            marginBottom: '24px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              marginBottom: '8px'
+            }}>
+              TOTAL CLAIMABLE REWARDS
+            </div>
+            <div style={{
+              fontSize: '24px',
+              color: '#ff0',
+              fontWeight: 'bold',
+              textShadow: '0 0 12px rgba(255, 255, 0, 0.8)',
+              marginBottom: '8px'
+            }}>
+              {total.toLocaleString()} BR
+            </div>
+            <div style={{
+              fontSize: '10px',
+              color: '#0cf'
+            }}>
+              Ready for immediate transfer to your wallet
+            </div>
+          </div>
+
+          {/* Claim Button */}
+          <button
+            onClick={handleClaim}
+            disabled={isClaiming || total === 0}
+            style={{
+              width: '100%',
+              padding: '16px',
+              background: isClaiming || total === 0 ? 
+                'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' :
+                'linear-gradient(135deg, #0f0, #0c0)',
+              color: isClaiming || total === 0 ? '#666' : '#000',
+              border: '2px solid #0f0',
+              borderRadius: '12px',
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: '16px',
+              cursor: isClaiming || total === 0 ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: isClaiming || total === 0 ? 'none' : '0 4px 16px rgba(0, 255, 0, 0.4)',
+              textShadow: isClaiming || total === 0 ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
+            }}
+            onMouseEnter={(e) => {
+              if (!isClaiming && total > 0) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 0, 0.6)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isClaiming && total > 0) {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 0, 0.4)';
+              }
+            }}
+          >
+            {isClaiming ? '⏳ PROCESSING CLAIM...' : 
+             total === 0 ? '🚫 NO REWARDS TO CLAIM' :
+             `💰 CLAIM ${total.toLocaleString()} BR TOKENS`}
+          </button>
+
+          {/* Additional Info */}
+          <div style={{
+            marginTop: '16px',
+            fontSize: '10px',
+            color: '#666',
+            textAlign: 'center',
+            lineHeight: '1.4'
+          }}>
+            Claimed tokens will be transferred directly to your connected wallet.
+            <br />
+            Transaction fees may apply based on network conditions.
+          </div>
+        </>
+      )}
     </div>
   );
 };
