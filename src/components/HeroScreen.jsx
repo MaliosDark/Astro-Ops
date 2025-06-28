@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import walletService from '../services/walletService.js';
 import DocumentationModal from './DocumentationModal';
-import DocumentationModal from './DocumentationModal';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
   const [noWallet, setNoWallet] = useState(false);
   const [isScanning, setIsScanning] = useState(true);
-  const [showDocs, setShowDocs] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
 
   useEffect(() => {
@@ -139,51 +137,6 @@ const HeroScreen = ({ onConnect, isLoading }) => {
             Rescan for Wallets
           </button>
         </div>
-      )}
-
-      {/* Documentation Button */}
-      <button
-        className="documentation-btn"
-        onClick={() => setShowDocs(true)}
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          background: 'linear-gradient(135deg, rgba(0,60,120,0.8), rgba(0,40,80,0.9))',
-          border: '2px solid #0cf',
-          borderRadius: '50%',
-          width: '60px',
-          height: '60px',
-          color: '#0cf',
-          cursor: 'pointer',
-          fontSize: '20px',
-          fontFamily: "'Press Start 2P', monospace",
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 4px 16px rgba(0, 255, 255, 0.3)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 1000
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'scale(1.1)';
-          e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.5)';
-          e.target.style.background = 'linear-gradient(135deg, rgba(0,80,160,0.9), rgba(0,60,120,1))';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'scale(1)';
-          e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.3)';
-          e.target.style.background = 'linear-gradient(135deg, rgba(0,60,120,0.8), rgba(0,40,80,0.9))';
-        }}
-        title="View Documentation"
-      >
-        📚
-      </button>
-
-      {/* Documentation Modal */}
-      {showDocs && (
-        <DocumentationModal onClose={() => setShowDocs(false)} />
       )}
 
       {/* Documentation Button */}
