@@ -3,33 +3,33 @@
 
 export const ENV = {
   // API Configuration - PRODUCTION URLs
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
-  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://verify.bonkraiders.com',
+  API_BASE_URL: 'https://api.bonkraiders.com',
+  VERIFY_API_URL: 'https://verify.bonkraiders.com',
   
   // Solana Configuration
-  SOLANA_RPC_URL: import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com',
-  SOLANA_NETWORK: import.meta.env.VITE_SOLANA_NETWORK || 'devnet',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com',
+  SOLANA_NETWORK: 'devnet',
   
   // Game Token Configuration
-  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
-  PARTICIPATION_FEE: parseInt(import.meta.env.VITE_PARTICIPATION_FEE) || 0,
+  GAME_TOKEN_MINT: 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
+  PARTICIPATION_FEE: 0,
   
   // Ship Purchase (in SOL equivalent to 15 USDC)
-  SHIP_PRICE_SOL: parseFloat(import.meta.env.VITE_SHIP_PRICE_SOL) || 0.01,
+  SHIP_PRICE_SOL: 0.01,
   
   // Asset URLs
   ASSETS_BASE_URL: 'https://bonkraiders.com/assets',
   
   // Development Settings
-  DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'true' || import.meta.env.DEV,
-  MOCK_API: import.meta.env.VITE_MOCK_API === 'true',
+  DEBUG_MODE: false, // Disabled for production
+  MOCK_API: false,
   
   // Security
-  APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  APP_VERSION: '1.0.0',
   
   // Derived values
-  IS_DEVELOPMENT: import.meta.env.DEV,
-  IS_PRODUCTION: import.meta.env.PROD
+  IS_DEVELOPMENT: false,
+  IS_PRODUCTION: true
 };
 
 // Validation
