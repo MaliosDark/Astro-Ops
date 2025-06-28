@@ -82,14 +82,24 @@ if (in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','PATCH'])) {
 function handleException(Throwable $e) {
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
+    
     // log full context
     $ip = $_SERVER['REMOTE_ADDR']    ?? 'unknown';
     $ua = $_SERVER['HTTP_USER_AGENT']?? 'unknown';
-    error_log(sprintf(
-        "[%s] EXCEPTION %s:%d by %s %s\nMessage: %s\nTrace:\n%s\n",
-        date('c'), $e->getFile(), $e->getLine(),
-        $ip, $ua, $e->getMessage(), $e->getTraceAsString()
-    ));
+    
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log(sprintf(
+            "[%s] EXCEPTION %s:%d by %s %s\nMessage: %s\nTrace:\n%s\n",
+            date('c'), $e->getFile(), $e->getLine(),
+            $ip, $ua, $e->getMessage(), $e->getTraceAsString()
+        ));
+    } else {
+        error_log(sprintf(
+            "[%s] EXCEPTION: %s",
+            date('c'), $e->getMessage()
+        ));
+    }
+    
     echo json_encode(['error'=>'Internal Server Error']);
     exit;
 }
@@ -102,6 +112,7 @@ function handleShutdown() {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
         http_response_code(500);
+        
         // decide JSON vs HTML
         $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
         if (stripos($accept, 'application/json') !== false) {
@@ -112,10 +123,17 @@ function handleShutdown() {
             require __DIR__ . '/error.php';
         }
         // final log
-        error_log(sprintf(
-            "[%s] SHUTDOWN_ERROR %s:%d type %d — %s",
-            date('c'), $err['file'], $err['line'], $err['type'], $err['message']
-        ));
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log(sprintf(
+                "[%s] SHUTDOWN_ERROR %s:%d type %d — %s",
+                date('c'), $err['file'], $err['line'], $err['type'], $err['message']
+            ));
+        } else {
+            error_log(sprintf(
+                "[%s] SHUTDOWN_ERROR: %s",
+                date('c'), $err['message']
+            ));
+        }
         exit;
     }
 }

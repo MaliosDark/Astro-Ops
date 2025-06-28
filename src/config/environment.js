@@ -21,15 +21,15 @@ export const ENV = {
   ASSETS_BASE_URL: 'https://bonkraiders.com/assets',
   
   // Development Settings
-  DEBUG_MODE: false, // Disabled for production
+  DEBUG_MODE: true, // Enabled for debugging
   MOCK_API: false,
   
   // Security
   APP_VERSION: '1.0.0',
   
   // Derived values
-  IS_DEVELOPMENT: false,
-  IS_PRODUCTION: true
+  IS_DEVELOPMENT: true,
+  IS_PRODUCTION: false
 };
 
 // Validation

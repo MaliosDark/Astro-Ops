@@ -51,6 +51,9 @@ define('SOLANA_RPC',      'https://api.devnet.solana.com');
 define('GAME_TOKEN_MINT','CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo');
 define('SOLANA_API_URL',  'https://verify.bonkraiders.com');
 
+// Debug mode constant
+define('DEBUG_MODE', false); // Set to true for debugging
+
 // Treasury-safe mission config
 $REWARD_CONFIG = [
   'MiningRun'   => [0.90,  3000,  6000],
@@ -331,7 +334,7 @@ function requireAuth(PDO $pdo): array {
     $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
   }
   
-  if (ENV.DEBUG_MODE) {
+  if (defined('DEBUG_MODE') && DEBUG_MODE) {
     error_log("Auth header check: " . ($authHeader ? "Found" : "Missing"));
     if ($authHeader) {
       error_log("Auth header: " . substr($authHeader, 0, 20) . "...");
@@ -339,20 +342,26 @@ function requireAuth(PDO $pdo): array {
   }
   
   if (!preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
-    error_log("Missing or invalid authorization header format");
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Missing or invalid authorization header format");
+    }
     jsonErr('Missing token', 401);
   }
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
-    error_log("JWT decode error: " . $e->getMessage());
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("JWT decode error: " . $e->getMessage());
+    }
     jsonErr('Invalid token', 401);
   }
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
-    error_log("User not found for public key: " . $data['publicKey']);
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("User not found for public key: " . $data['publicKey']);
+    }
     jsonErr('User not found', 401);
   }
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
@@ -470,6 +479,10 @@ switch ($action) {
             jsonErr('User profile not found', 404);
           }
           
+          // Update last login
+          $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
+              ->execute([$me['userId']]);
+          
           // Calculate current energy
           if ($profile['energy'] !== null) {
             $now = time();
@@ -517,7 +530,10 @@ switch ($action) {
           echo json_encode($response);
           exit;
         } catch (Exception $e) {
-          error_log("User profile error: " . $e->getMessage());
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("User profile error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+          }
           jsonErr('Failed to load user profile: ' . $e->getMessage(), 500);
         }
 
