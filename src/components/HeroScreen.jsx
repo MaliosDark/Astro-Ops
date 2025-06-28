@@ -141,9 +141,10 @@ const HeroScreen = ({ onConnect, isLoading }) => {
 
       {/* Documentation Button */}
       <button
+        className="documentation-btn"
         onClick={() => setShowDocs(true)}
         style={{
-          position: 'absolute',
+          position: 'fixed',
           bottom: '20px',
           right: '20px',
           background: 'linear-gradient(135deg, rgba(0,60,120,0.8), rgba(0,40,80,0.9))',
@@ -160,7 +161,8 @@ const HeroScreen = ({ onConnect, isLoading }) => {
           justifyContent: 'center',
           transition: 'all 0.3s ease',
           boxShadow: '0 4px 16px rgba(0, 255, 255, 0.3)',
-          backdropFilter: 'blur(8px)'
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000
         }}
         onMouseEnter={(e) => {
           e.target.style.transform = 'scale(1.1)';

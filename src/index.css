@@ -22,7 +22,6 @@ body, html {
   display: flex; flex-direction: column;
   justify-content: center; align-items: center;
   background: url('https://bonkraiders.com/assets/hero-background.png') center/cover no-repeat;
-  position: relative;
 }
 #hero h1, #hero p {
   margin: 0; padding: 0;
@@ -457,12 +456,12 @@ body, html {
   }
   
   /* Mobile documentation button */
-  #hero button[title="View Documentation"] {
+  .documentation-btn {
     bottom: 10px !important;
     right: 10px !important;
     width: 50px !important;
     height: 50px !important;
-    fontSize: 16px !important;
+    font-size: 16px !important;
   }
   
   .modal-content {
