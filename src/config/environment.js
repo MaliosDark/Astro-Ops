@@ -6,6 +6,16 @@ export const ENV = {
   API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
   VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://verify.bonkraiders.com',
   
+  // WebSocket Configuration - Derived from API_BASE_URL
+  get WEBSOCKET_URL() {
+    const apiUrl = this.API_BASE_URL;
+    // Convert HTTP(S) to WS(S) protocol
+    const wsProtocol = apiUrl.startsWith('https://') ? 'wss://' : 'ws://';
+    // Extract hostname and port from API URL
+    const urlParts = apiUrl.replace(/^https?:\/\//, '');
+    return `${wsProtocol}${urlParts}/ws`;
+  },
+  
   // Solana Configuration
   SOLANA_RPC_URL: import.meta.env.VITE_SOLANA_RPC_URL || 'https://api.devnet.solana.com',
   SOLANA_NETWORK: import.meta.env.VITE_SOLANA_NETWORK || 'devnet',

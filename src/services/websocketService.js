@@ -30,9 +30,8 @@ class WebSocketService {
     
     return new Promise((resolve, reject) => {
       try {
-        // Use secure WebSocket for production, regular for development
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//api.bonkraiders.com/ws?user_id=${userId}&token=${encodeURIComponent(token)}`;
+        // Use WebSocket URL derived from API base URL
+        const wsUrl = `${ENV.WEBSOCKET_URL}?user_id=${userId}&token=${encodeURIComponent(token)}`;
         
         if (ENV.DEBUG_MODE) {
           console.log('🔌 Connecting to WebSocket:', wsUrl);
