@@ -317,76 +317,90 @@ function getOnchainBalance(string $ownerPk): float {
 
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
-  // Try multiple ways to get the authorization header
-  $authHeader = '';
+  // Get authorization header with comprehensive fallback methods
+  $authHeader = getAuthorizationHeader();
   
-  // Method 1: Direct from $_SERVER
-  if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-  }
-  // Method 2: Try getallheaders() if available
-  elseif (function_exists('getallheaders')) {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-  }
-  // Method 3: Try alternative header names
-  elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-  }
-  // Method 4: Try X-Authorization header (some proxies use this)
-  elseif (isset($_SERVER['HTTP_X_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['HTTP_X_AUTHORIZATION'];
-  }
-  // Method 5: Check for Authorization in apache_request_headers if available
-  elseif (function_exists('apache_request_headers')) {
-    $apacheHeaders = apache_request_headers();
-    $authHeader = $apacheHeaders['Authorization'] ?? $apacheHeaders['authorization'] ?? '';
-  }
-  
-  if (defined('DEBUG_MODE') && DEBUG_MODE) {
-    error_log("Auth header sources checked:");
-    error_log("HTTP_AUTHORIZATION: " . (isset($_SERVER['HTTP_AUTHORIZATION']) ? "Found" : "Missing"));
-    error_log("getallheaders: " . (function_exists('getallheaders') ? "Available" : "Not available"));
-    error_log("REDIRECT_HTTP_AUTHORIZATION: " . (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) ? "Found" : "Missing"));
-    error_log("HTTP_X_AUTHORIZATION: " . (isset($_SERVER['HTTP_X_AUTHORIZATION']) ? "Found" : "Missing"));
-    error_log("Final auth header: " . ($authHeader ? "Found" : "Missing"));
-    if ($authHeader) {
-      error_log("Auth header: " . substr($authHeader, 0, 20) . "...");
-    }
-    // Log all headers for debugging
-    error_log("All HTTP headers: " . json_encode(array_filter($_SERVER, function($key) {
-      return strpos($key, 'HTTP_') === 0;
-    }, ARRAY_FILTER_USE_KEY)));
+  if (!$authHeader) {
+    jsonErr('Missing token - Authorization header not found', 401);
   }
   
   if (!preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-      error_log("Missing or invalid authorization header format");
-      error_log("Raw auth header: " . $authHeader);
-    }
-    jsonErr('Missing token - Authorization header not found', 401);
+    jsonErr('Invalid token format', 401);
   }
+  
   try {
     $data = jwt_decode($m[1], JWT_SECRET);
   } catch (Exception $e) {
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-      error_log("JWT decode error: " . $e->getMessage());
-      error_log("JWT token: " . substr($m[1], 0, 50) . "...");
-    }
     jsonErr('Invalid token', 401);
   }
+  
   $stmt = $pdo->prepare("SELECT id FROM users WHERE public_key = ?");
   $stmt->execute([$data['publicKey']]);
   $user = $stmt->fetch(PDO::FETCH_ASSOC);
   if (!$user) {
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-      error_log("User not found for public key: " . $data['publicKey']);
-    }
     jsonErr('User not found', 401);
   }
+  
   return ['publicKey' => $data['publicKey'], 'userId' => (int)$user['id']];
 }
 
+/**
+ * Get authorization header with comprehensive fallback methods
+ */
+function getAuthorizationHeader(): string {
+  // Method 1: Standard HTTP_AUTHORIZATION
+  if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    return $_SERVER['HTTP_AUTHORIZATION'];
+  }
+  
+  // Method 2: getallheaders() function
+  if (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (isset($headers['Authorization'])) {
+      return $headers['Authorization'];
+    }
+    if (isset($headers['authorization'])) {
+      return $headers['authorization'];
+    }
+  }
+  
+  // Method 3: Redirect header (for some Apache configurations)
+  if (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+  }
+  
+  // Method 4: X-Authorization fallback
+  if (isset($_SERVER['HTTP_X_AUTHORIZATION'])) {
+    return $_SERVER['HTTP_X_AUTHORIZATION'];
+  }
+  
+  // Method 5: Apache request headers
+  if (function_exists('apache_request_headers')) {
+    $apacheHeaders = apache_request_headers();
+    if (isset($apacheHeaders['Authorization'])) {
+      return $apacheHeaders['Authorization'];
+    }
+    if (isset($apacheHeaders['authorization'])) {
+      return $apacheHeaders['authorization'];
+    }
+  }
+  
+  // Method 6: Check for Bearer token in query string (last resort)
+  if (isset($_GET['token'])) {
+    return 'Bearer ' . $_GET['token'];
+  }
+  
+  // Method 7: Check for Bearer token in POST body (last resort)
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    if (isset($data['token'])) {
+      return 'Bearer ' . $data['token'];
+    }
+  }
+  
+  return '';
+}
 
 /** ================= Routing ================= **/
 $action = $_GET['action'] ?? '';

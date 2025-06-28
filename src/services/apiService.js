@@ -143,14 +143,14 @@ class ApiService {
     const defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`
+      'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
     };
 
     // Add authorization header if JWT is available
     if (currentToken) {
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
-      // Also add X-Authorization as fallback for some servers
-      defaultHeaders['X-Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
