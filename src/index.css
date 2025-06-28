@@ -380,6 +380,11 @@ body, html {
 
 /* ===== Mobile-friendly overrides ===== */
 @media (max-width: 600px) {
+  /* Mobile hero background */
+  #hero {
+    background: url('https://bonkraiders.com/assets/mobile.png') center/cover no-repeat;
+  }
+  
   .game-ui-container {
     padding: 4px;
   }
