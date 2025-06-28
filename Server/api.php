@@ -691,6 +691,101 @@ switch ($action) {
         }
 
 
+      // USER PROFILE
+      case 'user_profile':
+        try {
+          AntiCheat::validateRequestOrigin();
+          
+          // Ensure we have a valid user
+          if (!$me || !$me['userId']) {
+            jsonErr('User not authenticated', 401);
+          }
+          
+          // Initialize energy and reputation if they don't exist
+          $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
+              ->execute([$me['userId'], time()]);
+          $pdo->prepare("INSERT IGNORE INTO reputation (user_id, rep) VALUES (?, 100)")
+              ->execute([$me['userId']]);
+          
+          $stmt = $pdo->prepare("
+            SELECT u.id, u.public_key, u.created_at, u.last_login,
+                   u.total_missions, u.total_raids_won, u.total_kills,
+                   s.id as ship_id, s.level as ship_level, s.br_balance,
+                   s.last_mission_ts, s.purchased_at,
+                   e.energy, e.max_energy, e.last_refill,
+                   r.rep as reputation
+            FROM users u
+            LEFT JOIN ships s ON u.id = s.user_id AND s.is_active = 1
+            LEFT JOIN energy e ON u.id = e.user_id
+            LEFT JOIN reputation r ON u.id = r.user_id
+            WHERE u.id = ?
+          ");
+          $stmt->execute([$me['userId']]);
+          $profile = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$profile) {
+            jsonErr('User profile not found', 404);
+          }
+          
+          // Update last login
+          $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
+              ->execute([$me['userId']]);
+          
+          // Calculate current energy
+          if ($profile['energy'] !== null) {
+            $now = time();
+            $elapsed = floor(($now - $profile['last_refill']) / 3600);
+            if ($elapsed > 0) {
+              $newEnergy = min($profile['max_energy'], $profile['energy'] + $elapsed);
+              if ($newEnergy != $profile['energy']) {
+                $pdo->prepare("UPDATE energy SET energy = ?, last_refill = ? WHERE user_id = ?")
+                    ->execute([$newEnergy, $now, $me['userId']]);
+                $profile['energy'] = $newEnergy;
+              }
+            }
+          }
+          
+          // Format response
+          $response = [
+            'user_id' => (int)$profile['id'],
+            'public_key' => $profile['public_key'],
+            'created_at' => $profile['created_at'],
+            'last_login' => $profile['last_login'],
+            'stats' => [
+              'total_missions' => (int)$profile['total_missions'],
+              'total_raids_won' => (int)$profile['total_raids_won'],
+              'total_kills' => (int)$profile['total_kills'],
+              'reputation' => (int)($profile['reputation'] ?? 100)
+            ],
+            'ship' => null,
+            'energy' => [
+              'current' => (int)($profile['energy'] ?? 10),
+              'max' => (int)($profile['max_energy'] ?? 10),
+              'last_refill' => (int)($profile['last_refill'] ?? time())
+            ]
+          ];
+          
+          if ($profile['ship_id']) {
+            $response['ship'] = [
+              'id' => (int)$profile['ship_id'],
+              'level' => (int)$profile['ship_level'],
+              'balance' => (int)$profile['br_balance'],
+              'last_mission_ts' => (int)$profile['last_mission_ts'],
+              'purchased_at' => $profile['purchased_at']
+            ];
+          }
+          
+          echo json_encode($response);
+          exit;
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("User profile error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+          }
+          jsonErr('Failed to load user profile: ' . $e->getMessage(), 500);
+        }
+
+
       // RAID SCAN
       case 'raid/scan':
         AntiCheat::validateRequestOrigin();
