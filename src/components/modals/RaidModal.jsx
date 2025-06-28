@@ -1,3 +1,5 @@
+Here's the fixed version with missing closing brackets and required whitespace added:
+
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
 import UserStatusIndicator from '../UserStatusIndicator';
@@ -52,6 +54,7 @@ const RaidModal = ({ onClose }) => {
       websocketService.off('raid_completed', handleRaidNotification);
     };
   }, []);
+
   const loadInitialData = async () => {
     try {
       // Load current player energy
@@ -175,6 +178,7 @@ const RaidModal = ({ onClose }) => {
   const removeNotification = (notificationId) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
+
   const getPlayerExperience = (mission) => {
     const totalMissions = mission.total_missions || 0;
     const totalRaids = mission.total_raids_won || 0;
@@ -200,437 +204,436 @@ const RaidModal = ({ onClose }) => {
         />
       ))}
 
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(0,20,40,0.95), rgba(0,40,60,0.9))',
-      border: '4px solid #0ff',
-      borderRadius: '12px',
-      padding: '24px',
-      width: '90%',
-      maxWidth: '800px',
-      boxSizing: 'border-box',
-      fontFamily: "'Press Start 2P', monospace",
-      color: '#0ff',
-      boxShadow: '0 8px 32px rgba(0, 255, 255, 0.3)',
-      backdropFilter: 'blur(10px)',
-      maxHeight: '90vh',
-      overflowY: 'auto'
-    }}>
-      {/* Header Section */}
-      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-        <h1 style={{
-          margin: '0 0 16px',
-          fontSize: '24px',
-          background: 'linear-gradient(45deg, #0ff, #ff0)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          textShadow: '0 0 20px rgba(0, 255, 255, 0.5)'
-        }}>
-          🎯 RAID OPERATIONS
-        </h1>
-        
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-          marginBottom: '16px',
-          padding: '12px',
-          background: 'rgba(0,60,80,0.6)',
-          border: '2px solid #0cf',
-          borderRadius: '8px',
-          boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)'
-          flexWrap: 'wrap',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px' }}>⚡</span>
-            <span>Energy: <strong style={{ color: '#ff0' }}>{energy}/10</strong></span>
-          </div>
-          <div style={{ fontSize: '10px', color: '#888' }}>
-            Refills 1/hour • Required for scanning
-          </div>
-        </div>
-        
-        <button
-          onClick={handleScanForRaids}
-          disabled={energy < 1 || isScanning}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: energy < 1 || isScanning ? 
-              'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' : 
-              'linear-gradient(135deg, #0cf, #0af)',
-            color: energy < 1 || isScanning ? '#666' : '#000',
-            border: '2px solid #0cf',
-            borderRadius: '8px',
-            fontFamily: "'Press Start 2P', monospace",
-            fontSize: '14px',
-            cursor: energy < 1 || isScanning ? 'not-allowed' : 'pointer',
-            marginBottom: '20px',
-            transition: 'all 0.3s ease',
-            boxShadow: energy < 1 || isScanning ? 'none' : '0 4px 16px rgba(0, 255, 255, 0.4)',
-            textShadow: energy < 1 || isScanning ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
-          }}
-          onMouseEnter={(e) => {
-            if (energy >= 1 && !isScanning) {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (energy >= 1 && !isScanning) {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
-            }
-          }}
-        >
-          {isScanning ? '🔍 SCANNING SECTOR...' : `🛰️ INITIATE DEEP SCAN (1 Energy)`}
-        </button>
-      </div>
-      
-      {/* Target Selection Section */}
-      {missions.length > 0 ? (
-        <div>
-          <h2 style={{
-            fontSize: '16px',
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,20,40,0.95), rgba(0,40,60,0.9))',
+        border: '4px solid #0ff',
+        borderRadius: '12px',
+        padding: '24px',
+        width: '90%',
+        maxWidth: '800px',
+        boxSizing: 'border-box',
+        fontFamily: "'Press Start 2P', monospace",
+        color: '#0ff',
+        boxShadow: '0 8px 32px rgba(0, 255, 255, 0.3)',
+        backdropFilter: 'blur(10px)',
+        maxHeight: '90vh',
+        overflowY: 'auto'
+      }}>
+        {/* Header Section */}
+        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <h1 style={{
             margin: '0 0 16px',
-            color: '#fc0',
-            textAlign: 'center',
-            textShadow: '0 0 10px rgba(255, 204, 0, 0.5)'
+            fontSize: '24px',
+            background: 'linear-gradient(45deg, #0ff, #ff0)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            textShadow: '0 0 20px rgba(0, 255, 255, 0.5)'
           }}>
-            📡 VULNERABLE TARGETS ({missions.length})
-          </h2>
-          
-          {/* Real-time Users Status */}
-          {realTimeUsers.length > 0 && (
-            <div style={{
-              marginBottom: '16px',
-              padding: '12px',
-              background: 'rgba(0,60,80,0.4)',
-              border: '1px solid #0cf',
-              borderRadius: '8px'
-            }}>
-              <h3 style={{
-                margin: '0 0 12px',
-                fontSize: '12px',
-                color: '#0ff'
-              }}>
-                🌐 ACTIVE PILOTS ({realTimeUsers.length})
-              </h3>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: window.innerWidth <= 600 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '8px',
-                maxHeight: '150px',
-                overflowY: 'auto'
-              }}>
-                {realTimeUsers.map(user => (
-                  <UserStatusIndicator
-                    key={user.id}
-                    user={user}
-                    isCompact={true}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+            🎯 RAID OPERATIONS
+          </h1>
           
           <div style={{
-            maxHeight: '300px',
-            overflowY: 'auto',
-            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '12px',
+            marginBottom: '16px',
+            padding: '12px',
+            background: 'rgba(0,60,80,0.6)',
             border: '2px solid #0cf',
             borderRadius: '8px',
-            background: 'rgba(0,20,40,0.3)'
+            boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)',
+            flexWrap: 'wrap',
+            gap: '8px'
           }}>
-            {missions.map((mission) => {
-              const difficulty = getMissionDifficulty(mission.reward);
-              const playerExp = getPlayerExperience(mission);
-              const isSelected = selectedTarget?.id === mission.id;
-              
-              return (
-                <div 
-                  key={mission.id} 
-                  onClick={() => handleSelectTarget(mission)}
-                  style={{
-                    margin: '0',
-                    padding: '16px',
-                    background: isSelected ? 
-                      'linear-gradient(135deg, rgba(0,255,255,0.2), rgba(0,200,255,0.1))' :
-                      mission.mode === 'Shielded' ? 
-                        'linear-gradient(135deg, rgba(255,136,0,0.1), rgba(255,68,0,0.05))' : 
-                        'rgba(0,40,60,0.2)',
-                    border: isSelected ? '2px solid #0ff' : '1px solid #0cf',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    borderBottom: '1px solid #0cf',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(0,255,255,0.1), rgba(0,150,255,0.05))';
-                      e.target.style.transform = 'translateX(4px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.target.style.background = mission.mode === 'Shielded' ? 
-                        'linear-gradient(135deg, rgba(255,136,0,0.1), rgba(255,68,0,0.05))' : 
-                        'rgba(0,40,60,0.2)';
-                      e.target.style.transform = 'translateX(0)';
-                    }
-                  }}
-                >
-                  {/* Selection indicator */}
-                  {isSelected && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '0',
-                      bottom: '0',
-                      width: '4px',
-                      background: 'linear-gradient(180deg, #0ff, #0af)',
-                      boxShadow: '0 0 10px rgba(0, 255, 255, 0.8)'
-                    }} />
-                  )}
-                  
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: window.innerWidth <= 600 ? 'column' : 'row',
-                    justifyContent: 'space-between',
-                    alignItems: window.innerWidth <= 600 ? 'stretch' : 'flex-start',
-                    gap: window.innerWidth <= 600 ? '12px' : '16px'
-                  }}>
-                    {/* Target Info */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '8px',
-                        marginBottom: '8px',
-                        flexWrap: 'wrap'
-                      }}>
-                        <span style={{ fontSize: '18px' }}>
-                          {getMissionTypeIcon(mission.type)}
-                        </span>
-                        <strong style={{ fontSize: '14px', color: '#0ff' }}>
-                          {mission.type.replace(/([A-Z])/g, ' $1').trim()}
-                        </strong>
-                        {mission.mode === 'Shielded' && (
-                          <span style={{ 
-                            color: '#f80', 
-                            fontSize: '12px',
-                            background: 'rgba(255, 136, 0, 0.2)',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            border: '1px solid #f80'
-                          }}>
-                            🛡️ SHIELDED
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                        <span>
-                          Pilot: <span style={{ color: '#0cf' }}>
-                            {mission.owner_short || 'Unknown'}...
-                        flexWrap: 'wrap',
-                        fontSize: window.innerWidth <= 600 ? '10px' : '12px'
-                        </span>
-                        
-                        {/* Real-time status indicator */}
-                        {realTimeUsers.find(u => u.public_key === mission.owner) && (
-                          <span style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '9px',
-                            color: '#0f0'
-                          }}>
-                            🟢 ONLINE
-                          </span>
-                        )}
-                        
-                        {mission.total_missions && (
-                          <span style={{ color: '#666' }}>
-                            Missions: {mission.total_missions}
-                          </span>
-                        )}
-                        {mission.total_raids_won && (
-                          <span style={{ color: '#f80' }}>
-                            Raids: {mission.total_raids_won}
-                          </span>
-                        )}
-                      </div>
-                      
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>⚡</span>
+              <span>Energy: <strong style={{ color: '#ff0' }}>{energy}/10</strong></span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#888' }}>
+              Refills 1/hour • Required for scanning
+            </div>
+          </div>
+          
+          <button
+            onClick={handleScanForRaids}
+            disabled={energy < 1 || isScanning}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: energy < 1 || isScanning ? 
+                'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' : 
+                'linear-gradient(135deg, #0cf, #0af)',
+              color: energy < 1 || isScanning ? '#666' : '#000',
+              border: '2px solid #0cf',
+              borderRadius: '8px',
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: '14px',
+              cursor: energy < 1 || isScanning ? 'not-allowed' : 'pointer',
+              marginBottom: '20px',
+              transition: 'all 0.3s ease',
+              boxShadow: energy < 1 || isScanning ? 'none' : '0 4px 16px rgba(0, 255, 255, 0.4)',
+              textShadow: energy < 1 || isScanning ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
+            }}
+            onMouseEnter={(e) => {
+              if (energy >= 1 && !isScanning) {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (energy >= 1 && !isScanning) {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
+              }
+            }}
+          >
+            {isScanning ? '🔍 SCANNING SECTOR...' : '🛰️ INITIATE DEEP SCAN (1 Energy)'}
+          </button>
+        </div>
+        
+        {/* Target Selection Section */}
+        {missions.length > 0 ? (
+          <div>
+            <h2 style={{
+              fontSize: '16px',
+              margin: '0 0 16px',
+              color: '#fc0',
+              textAlign: 'center',
+              textShadow: '0 0 10px rgba(255, 204, 0, 0.5)'
+            }}>
+              📡 VULNERABLE TARGETS ({missions.length})
+            </h2>
+            
+            {/* Real-time Users Status */}
+            {realTimeUsers.length > 0 && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px',
+                background: 'rgba(0,60,80,0.4)',
+                border: '1px solid #0cf',
+                borderRadius: '8px'
+              }}>
+                <h3 style={{
+                  margin: '0 0 12px',
+                  fontSize: '12px',
+                  color: '#0ff'
+                }}>
+                  🌐 ACTIVE PILOTS ({realTimeUsers.length})
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: window.innerWidth <= 600 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '8px',
+                  maxHeight: '150px',
+                  overflowY: 'auto'
+                }}>
+                  {realTimeUsers.map(user => (
+                    <UserStatusIndicator
+                      key={user.id}
+                      user={user}
+                      isCompact={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div style={{
+              maxHeight: '300px',
+              overflowY: 'auto',
+              marginBottom: '20px',
+              border: '2px solid #0cf',
+              borderRadius: '8px',
+              background: 'rgba(0,20,40,0.3)'
+            }}>
+              {missions.map((mission) => {
+                const difficulty = getMissionDifficulty(mission.reward);
+                const playerExp = getPlayerExperience(mission);
+                const isSelected = selectedTarget?.id === mission.id;
+                
+                return (
+                  <div 
+                    key={mission.id} 
+                    onClick={() => handleSelectTarget(mission)}
+                    style={{
+                      margin: '0',
+                      padding: '16px',
+                      background: isSelected ? 
+                        'linear-gradient(135deg, rgba(0,255,255,0.2), rgba(0,200,255,0.1))' :
+                        mission.mode === 'Shielded' ? 
+                          'linear-gradient(135deg, rgba(255,136,0,0.1), rgba(255,68,0,0.05))' : 
+                          'rgba(0,40,60,0.2)',
+                      border: isSelected ? '2px solid #0ff' : '1px solid #0cf',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      borderBottom: '1px solid #0cf',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.target.style.background = 'linear-gradient(135deg, rgba(0,255,255,0.1), rgba(0,150,255,0.05))';
+                        e.target.style.transform = 'translateX(4px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.target.style.background = mission.mode === 'Shielded' ? 
+                          'linear-gradient(135deg, rgba(255,136,0,0.1), rgba(255,68,0,0.05))' : 
+                          'rgba(0,40,60,0.2)';
+                        e.target.style.transform = 'translateX(0)';
+                      }
+                    }}
+                  >
+                    {/* Selection indicator */}
+                    {isSelected && (
                       <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        fontSize: window.innerWidth <= 600 ? '9px' : '10px',
-                        marginTop: '8px'
-                        flexWrap: 'wrap'
+                        position: 'absolute',
+                        left: '0',
+                        top: '0',
+                        bottom: '0',
+                        width: '4px',
+                        background: 'linear-gradient(180deg, #0ff, #0af)',
+                        boxShadow: '0 0 10px rgba(0, 255, 255, 0.8)'
+                      }} />
+                    )}
+                    
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: window.innerWidth <= 600 ? 'column' : 'row',
+                      justifyContent: 'space-between',
+                      alignItems: window.innerWidth <= 600 ? 'stretch' : 'flex-start',
+                      gap: window.innerWidth <= 600 ? '12px' : '16px'
+                    }}>
+                      {/* Target Info */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          marginBottom: '8px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <span style={{ fontSize: '18px' }}>
+                            {getMissionTypeIcon(mission.type)}
+                          </span>
+                          <strong style={{ fontSize: '14px', color: '#0ff' }}>
+                            {mission.type.replace(/([A-Z])/g, ' $1').trim()}
+                          </strong>
+                          {mission.mode === 'Shielded' && (
+                            <span style={{ 
+                              color: '#f80', 
+                              fontSize: '12px',
+                              background: 'rgba(255, 136, 0, 0.2)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid #f80'
+                            }}>
+                              🛡️ SHIELDED
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>
+                            Pilot: <span style={{ color: '#0cf' }}>
+                              {mission.owner_short || 'Unknown'}
+                            </span>
+                          </span>
+                          
+                          {/* Real-time status indicator */}
+                          {realTimeUsers.find(u => u.public_key === mission.owner) && (
+                            <span style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '9px',
+                              color: '#0f0'
+                            }}>
+                              🟢 ONLINE
+                            </span>
+                          )}
+                          
+                          {mission.total_missions && (
+                            <span style={{ color: '#666' }}>
+                              Missions: {mission.total_missions}
+                            </span>
+                          )}
+                          {mission.total_raids_won && (
+                            <span style={{ color: '#f80' }}>
+                              Raids: {mission.total_raids_won}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          fontSize: window.innerWidth <= 600 ? '9px' : '10px',
+                          marginTop: '8px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <span style={{ color: difficulty.color }}>
+                            {difficulty.icon} {difficulty.level} RISK
+                          </span>
+                          <span style={{ color: playerExp.color }}>
+                            {playerExp.icon} {playerExp.level}
+                          </span>
+                          <span style={{ color: '#888' }}>
+                            Completed: {Math.floor((Date.now() / 1000 - mission.ts_start) / 60)} min ago
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Reward Info */}
+                      <div style={{ 
+                        textAlign: window.innerWidth <= 600 ? 'center' : 'right',
+                        minWidth: window.innerWidth <= 600 ? 'auto' : '120px',
+                        alignSelf: window.innerWidth <= 600 ? 'center' : 'auto'
                       }}>
-                        <span style={{ color: difficulty.color }}>
-                          {difficulty.icon} {difficulty.level} RISK
-                        </span>
-                        <span style={{ color: playerExp.color }}>
-                          {playerExp.icon} {playerExp.level}
-                        </span>
-                        <span style={{ color: '#888' }}>
-                          Completed: {Math.floor((Date.now() / 1000 - mission.ts_start) / 60)} min ago
-                        </span>
+                        <div style={{
+                          fontSize: '16px',
+                          color: '#ff0',
+                          fontWeight: 'bold',
+                          marginBottom: '4px',
+                          textShadow: '0 0 8px rgba(255, 255, 0, 0.5)'
+                        }}>
+                          {mission.reward.toLocaleString()} BR
+                        </div>
+                        <div style={{
+                          fontSize: '9px',
+                          color: '#888'
+                        }}>
+                          Potential Loot
+                        </div>
                       </div>
                     </div>
                     
-                    {/* Reward Info */}
-                    <div style={{ 
-                      textAlign: window.innerWidth <= 600 ? 'center' : 'right',
-                      minWidth: window.innerWidth <= 600 ? 'auto' : '120px',
-                      alignSelf: window.innerWidth <= 600 ? 'center' : 'auto'
-                    }}>
+                    {/* Selection prompt */}
+                    {isSelected && (
                       <div style={{
-                        fontSize: '16px',
-                        color: '#ff0',
-                        fontWeight: 'bold',
-                        marginBottom: '4px',
-                        textShadow: '0 0 8px rgba(255, 255, 0, 0.5)'
+                        marginTop: '12px',
+                        padding: '8px',
+                        background: 'rgba(0, 255, 255, 0.1)',
+                        border: '1px solid #0ff',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        color: '#0ff',
+                        textAlign: 'center'
                       }}>
-                        {mission.reward.toLocaleString()} BR
+                        🎯 TARGET LOCKED • Ready for raid execution
                       </div>
-                      <div style={{
-                        fontSize: '9px',
-                        color: '#888'
-                      }}>
-                        Potential Loot
-                      </div>
-                    </div>
+                    )}
                   </div>
-                  
-                  {/* Selection prompt */}
-                  {isSelected && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '8px',
-                      background: 'rgba(0, 255, 255, 0.1)',
-                      border: '1px solid #0ff',
-                      borderRadius: '4px',
-                      fontSize: '10px',
-                      color: '#0ff',
-                      textAlign: 'center'
-                    }}>
-                      🎯 TARGET LOCKED • Ready for raid execution
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            
+            {/* Raid Execution Button */}
+            {selectedTarget && (
+              <button
+                onClick={handleConfirmRaid}
+                disabled={isRaiding}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: isRaiding ? 
+                    'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' :
+                    selectedTarget.mode === 'Shielded' ? 
+                      'linear-gradient(135deg, #f80, #f60)' : 
+                      'linear-gradient(135deg, #f00, #c00)',
+                  color: isRaiding ? '#666' : '#fff',
+                  border: '2px solid #f00',
+                  borderRadius: '8px',
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: window.innerWidth <= 600 ? '12px' : '14px',
+                  cursor: isRaiding ? 'not-allowed' : 'pointer',
+                  marginBottom: '16px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: isRaiding ? 'none' : '0 4px 16px rgba(255, 0, 0, 0.4)',
+                  textShadow: isRaiding ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isRaiding) {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 0, 0.6)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isRaiding) {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 0, 0.4)';
+                  }
+                }}
+              >
+                {isRaiding ? '⚔️ RAID IN PROGRESS...' : 
+                 selectedTarget.mode === 'Shielded' ? '🛡️ ATTEMPT BREACH RAID' : 
+                 '⚔️ EXECUTE RAID MISSION'}
+              </button>
+            )}
           </div>
-          
-          {/* Raid Execution Button */}
-          {selectedTarget && (
-            <button
-              onClick={handleConfirmRaid}
-              disabled={isRaiding}
-              style={{
-                width: '100%',
-                padding: '16px',
-                background: isRaiding ? 
-                  'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' :
-                  selectedTarget.mode === 'Shielded' ? 
-                    'linear-gradient(135deg, #f80, #f60)' : 
-                    'linear-gradient(135deg, #f00, #c00)',
-                color: isRaiding ? '#666' : '#fff',
-                border: '2px solid #f00',
-                borderRadius: '8px',
-                fontFamily: "'Press Start 2P', monospace",
-                fontSize: window.innerWidth <= 600 ? '12px' : '14px',
-                cursor: isRaiding ? 'not-allowed' : 'pointer',
-                marginBottom: '16px',
-                transition: 'all 0.3s ease',
-                boxShadow: isRaiding ? 'none' : '0 4px 16px rgba(255, 0, 0, 0.4)',
-                textShadow: isRaiding ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
-              }}
-              onMouseEnter={(e) => {
-                if (!isRaiding) {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 0, 0.6)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isRaiding) {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 0, 0.4)';
-                }
-              }}
-            >
-              {isRaiding ? '⚔️ RAID IN PROGRESS...' : 
-               selectedTarget.mode === 'Shielded' ? '🛡️ ATTEMPT BREACH RAID' : 
-               '⚔️ EXECUTE RAID MISSION'}
-            </button>
-          )}
-        </div>
-      ) : (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px 20px',
-          color: '#888',
-          fontSize: '12px',
-          background: 'rgba(0,20,40,0.3)',
-          border: '2px dashed #0cf',
-          borderRadius: '8px'
-        }}>
-          {energy < 1 ? (
-            <div>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
-              <p style={{ marginBottom: '8px' }}>Insufficient energy for sector scanning.</p>
-              <p style={{ fontSize: '10px', color: '#666' }}>
-                Energy regenerates automatically at 1 point per hour.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛰️</div>
-              <p>Initiate deep scan to detect vulnerable targets.</p>
-              <p style={{ fontSize: '10px', color: '#666' }}>
-                Scanning reveals unshielded missions ripe for raiding.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* Test Travel Button */}
-      <button
-        onClick={handleTestTravel}
-        style={{
-          display: 'block',
-          margin: '16px auto 0',
-          background: 'linear-gradient(135deg, #f0f, #c0c)',
-          color: '#fff',
-          border: '2px solid #f0f',
-          padding: '8px 16px',
-          cursor: 'pointer',
-          fontFamily: "'Press Start 2P', monospace",
-          fontSize: window.innerWidth <= 600 ? '8px' : '10px',
-          borderRadius: '6px',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 2px 8px rgba(255, 0, 255, 0.3)'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.transform = 'translateY(-1px)';
-          e.target.style.boxShadow = '0 4px 12px rgba(255, 0, 255, 0.5)';
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.transform = 'translateY(0)';
-          e.target.style.boxShadow = '0 2px 8px rgba(255, 0, 255, 0.3)';
-        }}
-      >
-        🧪 TEST NAVIGATION SYSTEMS
-      </button>
-    </div>
+        ) : (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            color: '#888',
+            fontSize: '12px',
+            background: 'rgba(0,20,40,0.3)',
+            border: '2px dashed #0cf',
+            borderRadius: '8px'
+          }}>
+            {energy < 1 ? (
+              <div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
+                <p style={{ marginBottom: '8px' }}>Insufficient energy for sector scanning.</p>
+                <p style={{ fontSize: '10px', color: '#666' }}>
+                  Energy regenerates automatically at 1 point per hour.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛰️</div>
+                <p>Initiate deep scan to detect vulnerable targets.</p>
+                <p style={{ fontSize: '10px', color: '#666' }}>
+                  Scanning reveals unshielded missions ripe for raiding.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Test Travel Button */}
+        <button
+          onClick={handleTestTravel}
+          style={{
+            display: 'block',
+            margin: '16px auto 0',
+            background: 'linear-gradient(135deg, #f0f, #c0c)',
+            color: '#fff',
+            border: '2px solid #f0f',
+            padding: '8px 16px',
+            cursor: 'pointer',
+            fontFamily: "'Press Start 2P', monospace",
+            fontSize: window.innerWidth <= 600 ? '8px' : '10px',
+            borderRadius: '6px',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 2px 8px rgba(255, 0, 255, 0.3)'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-1px)';
+            e.target.style.boxShadow = '0 4px 12px rgba(255, 0, 255, 0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 2px 8px rgba(255, 0, 255, 0.3)';
+          }}
+        >
+          🧪 TEST NAVIGATION SYSTEMS
+        </button>
+      </div>
     </>
   );
 };
