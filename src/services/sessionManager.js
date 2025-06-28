@@ -129,26 +129,20 @@ class SessionManager {
   }
 
   /**
-   * Load user profile from server using apiService (DISABLED)
+   * Load user profile from server using apiService (REAL DATA)
    */
   async loadUserProfile() {
-    // DISABLED: This endpoint is problematic
-    // Return existing profile or create a mock one
-    if (!this.userProfile) {
-      this.userProfile = {
-        user_id: 1,
-        public_key: apiService.getCurrentUserPublicKey() || 'unknown',
-        stats: {
-          total_missions: 10,
-          total_raids_won: 3,
-          total_kills: 25,
-          reputation: 100
-        },
-        ship: null,
-        energy: { current: 10, max: 10, last_refill: Math.floor(Date.now() / 1000) }
-      };
+    try {
+      // Load REAL profile from server
+      this.userProfile = await apiService.getUserProfile();
+      this.storeSession();
+      return this.userProfile;
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Failed to load user profile:', error);
+      }
+      throw error;
     }
-    return this.userProfile;
   }
 
   /**

@@ -24,11 +24,11 @@ const GameUI = ({ walletAddress, onShowModal }) => {
     // Load initial data from server
     const loadInitialData = async () => {
       try {
-        // Try to get user profile from server to load real data
+        // Load REAL user profile from server
         const profile = await apiService.getUserProfile();
         
         if (profile) {
-          // Update UI with real data from server
+          // Update UI with REAL data from database
           if (profile.ship) {
             setBalance(profile.ship.balance || 0);
           }
@@ -37,7 +37,7 @@ const GameUI = ({ walletAddress, onShowModal }) => {
             setKills(profile.stats.total_kills || 0);
             setRaidsWon(profile.stats.total_raids_won || 0);
             
-            // Update global counters
+            // Update global counters with REAL data
             window.killCount = profile.stats.total_kills || 0;
             window.raidWins = profile.stats.total_raids_won || 0;
           }
@@ -48,11 +48,11 @@ const GameUI = ({ walletAddress, onShowModal }) => {
         }
         
         if (ENV.DEBUG_MODE) {
-          console.log('💰 Loaded user profile:', profile);
+          console.log('💰 Loaded REAL user profile from database:', profile);
         }
       } catch (error) {
-        console.error('Failed to load user profile:', error);
-        // Use defaults if loading fails
+        console.error('Failed to load REAL user profile:', error);
+        // Use zeros if loading fails (real starting values)
         setBalance(0);
         setKills(0);
         setRaidsWon(0);

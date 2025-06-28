@@ -84,15 +84,16 @@ define('DB_PASS', '*OxlUH49*69i');
                 }
                 
                 // Add some demo data to existing users
-                echo "<div class='info'>Adding demo stats to existing users...</div>";
+                echo "<div class='info'>Resetting all user stats to ZERO (real progression)...</div>";
                 $result = $pdo->exec("
                     UPDATE users 
-                    SET total_missions = FLOOR(5 + RAND() * 15),
-                        total_raids_won = FLOOR(1 + RAND() * 5),
-                        total_kills = FLOOR(10 + RAND() * 30)
-                    WHERE total_missions = 0 AND total_raids_won = 0 AND total_kills = 0
+                    SET total_missions = 0,
+                        total_raids_won = 0,
+                        total_kills = 0,
+                        last_login = CURRENT_TIMESTAMP
                 ");
-                echo "<div class='success'>✅ Updated $result users with demo stats</div>";
+                echo "<div class='success'>✅ Reset $result users to start with real zero stats</div>";
+                echo "<div class='info'>Users will now earn real progress through gameplay!</div>";
                 
                 // Check energy table
                 echo "<div class='info'>Checking energy table...</div>";

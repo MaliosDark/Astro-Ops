@@ -428,24 +428,21 @@ class ApiService {
   }
 
   /**
-   * Get user profile with caching
+   * Get user profile (REAL DATA FROM SERVER)
    */
   async getUserProfile() {
-    // DISABLED: This endpoint is problematic
-    // Return a mock profile instead
+    // REAL API CALL - Get actual user data from database
+    const result = await this.request('api.php?action=user_profile', {
+      method: 'POST'
+    });
+    
+    // Cache the real profile data
     const publicKey = this.getCurrentUserPublicKey();
-    return {
-      user_id: 1,
-      public_key: publicKey || 'unknown',
-      stats: {
-        total_missions: 10,
-        total_raids_won: 3,
-        total_kills: 25,
-        reputation: 100
-      },
-      ship: null,
-      energy: { current: 10, max: 10, last_refill: Math.floor(Date.now() / 1000) }
-    };
+    if (publicKey && result) {
+      userCacheService.cacheUserProfile(publicKey, result);
+    }
+    
+    return result;
   }
 
   /**

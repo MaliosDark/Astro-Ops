@@ -306,9 +306,15 @@ export async function performRaid(missionId) {
       
       // Update global stats
       if (stolen > 0) {
-        window.raidWins = (window.raidWins || 0) + 1;
-        if (window.AstroUI) {
-          window.AstroUI.setRaidsWon(window.raidWins);
+        // Stats are now updated on server side automatically
+        // Refresh profile to get updated stats
+        try {
+          const profile = await apiService.getUserProfile();
+          if (profile?.stats && window.AstroUI) {
+            window.AstroUI.setRaidsWon(profile.stats.total_raids_won);
+          }
+        } catch (error) {
+          // Ignore profile refresh errors
         }
       }
       

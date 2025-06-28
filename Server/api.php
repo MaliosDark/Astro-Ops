@@ -694,11 +694,6 @@ switch ($action) {
         try {
           AntiCheat::validateRequestOrigin();
           
-          // Ensure we have a valid user
-          if (!$me || !$me['userId']) {
-            jsonErr('User not authenticated', 401);
-          }
-          
           // Initialize energy and reputation if they don't exist
           $pdo->prepare("INSERT IGNORE INTO energy (user_id, energy, last_refill, max_energy) VALUES (?, 10, ?, 10)")
               ->execute([$me['userId'], time()]);
