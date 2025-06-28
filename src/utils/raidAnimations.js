@@ -3,7 +3,6 @@
 
 import { animateShipLaunch, animateShipReturn } from './shipAnimator.js';
 import websocketService from '../services/websocketService.js';
-import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
 
 /**
@@ -149,9 +148,7 @@ async function simulateRaidBattle(targetInfo = {}) {
   const battleTexts = [
     'ENGAGING ENEMY FORCES...',
     `ATTACKING ${targetInfo.type || 'TARGET'} MISSION...`,
-    `ATTACKING ${targetInfo.type || 'TARGET'} MISSION...`,
     'BATTLE IN PROGRESS...',
-    'OVERRIDING SECURITY SYSTEMS...',
     'OVERRIDING SECURITY SYSTEMS...',
     'SECURING TARGET...',
     'EXTRACTING RESOURCES...'
@@ -209,11 +206,6 @@ export async function createRaidTransition(raidLogicCallback) {
     // 8. Simular batalla
     await simulateRaidBattle();
 
-    // 8.5. Notify other players of the raid in progress
-    websocketService.send('raid_in_progress', {
-      timestamp: Date.now(),
-      status: 'extracting'
-    });
     // 8.5. Notify other players of the raid in progress
     websocketService.send('raid_in_progress', {
       timestamp: Date.now(),

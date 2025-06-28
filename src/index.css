@@ -464,15 +464,6 @@ body, html {
     font-size: 16px !important;
   }
   
-  /* Mobile documentation button */
-  .documentation-btn {
-    bottom: 10px !important;
-    right: 10px !important;
-    width: 50px !important;
-    height: 50px !important;
-    font-size: 16px !important;
-  }
-  
   .modal-content {
     max-height: 70vh;
     overflow-y: auto;
