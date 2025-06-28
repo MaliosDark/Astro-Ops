@@ -120,7 +120,9 @@ class ApiService {
    * Make authenticated API request
    */
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    // Ensure endpoint starts with /
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseURL}${cleanEndpoint}`;
     
     // Check if we need to refresh the token before making the request
     let currentToken = this.getToken();
@@ -141,14 +143,12 @@ class ApiService {
     const defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
-      'X-Requested-With': 'XMLHttpRequest',
+      'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`
     };
 
     // Add authorization header if JWT is available
     if (currentToken) {
       defaultHeaders['Authorization'] = `Bearer ${currentToken}`;
-      defaultHeaders['X-Authorization'] = `Bearer ${currentToken}`;
     }
 
     const requestOptions = {
@@ -208,8 +208,7 @@ class ApiService {
             // Retry the original request with new token
             const retryHeaders = {
               ...requestOptions.headers,
-              'Authorization': `Bearer ${newToken}`,
-              'X-Authorization': `Bearer ${newToken}`
+              'Authorization': `Bearer ${newToken}`
             };
             const retryResponse = await fetch(url, {
               ...requestOptions,
@@ -330,7 +329,7 @@ class ApiService {
    * Get authentication nonce
    */
   async getNonce(publicKey) {
-    return await this.request('/api.php?action=auth/nonce', {
+    return await this.request('api.php?action=auth/nonce', {
       method: 'POST',
       body: JSON.stringify({ publicKey })
     });
@@ -340,7 +339,7 @@ class ApiService {
    * Login with signed nonce
    */
   async login(publicKey, nonce, signature) {
-    const response = await this.request('/api.php?action=auth/login', {
+    const response = await this.request('api.php?action=auth/login', {
       method: 'POST',
       body: JSON.stringify({
         publicKey,
@@ -376,7 +375,7 @@ class ApiService {
    * Buy ship
    */
   async buyShip() {
-    const result = await this.request('/api.php?action=buy_ship', {
+    const result = await this.request('api.php?action=buy_ship', {
       method: 'POST'
     });
     
@@ -408,7 +407,7 @@ class ApiService {
     }
 
     // Fetch from server
-    const profile = await this.request('/api.php?action=user_profile');
+    const profile = await this.request('api.php?action=user_profile');
     
     // Cache the result
     userCacheService.cacheUserProfile(publicKey, profile);
@@ -435,7 +434,7 @@ class ApiService {
    * Send mission
    */
   async sendMission(type, mode, signedBurnTx) {
-    const result = await this.request('/api.php?action=send_mission', {
+    const result = await this.request('api.php?action=send_mission', {
       method: 'POST',
       body: JSON.stringify({
         type,
@@ -459,7 +458,7 @@ class ApiService {
    * Upgrade ship
    */
   async upgradeShip(level) {
-    const result = await this.request('/api.php?action=upgrade_ship', {
+    const result = await this.request('api.php?action=upgrade_ship', {
       method: 'POST',
       body: JSON.stringify({ level })
     });
@@ -478,7 +477,7 @@ class ApiService {
    * Raid mission
    */
   async raidMission(missionId) {
-    const result = await this.request('/api.php?action=raid_mission', {
+    const result = await this.request('api.php?action=raid_mission', {
       method: 'POST',
       body: JSON.stringify({ mission_id: missionId })
     });
@@ -498,7 +497,7 @@ class ApiService {
    * Claim rewards
    */
   async claimRewards() {
-    const result = await this.request('/api.php?action=claim_rewards', {
+    const result = await this.request('api.php?action=claim_rewards', {
       method: 'POST'
     });
     
@@ -517,14 +516,14 @@ class ApiService {
    * Get missions for raid
    */
   async getMissions() {
-    return await this.request('/api.php?action=list_missions');
+    return await this.request('api.php?action=list_missions');
   }
 
   /**
    * Get pending rewards
    */
   async getPendingRewards() {
-    return await this.request('/api.php?action=pending_missions');
+    return await this.request('api.php?action=pending_missions');
   }
 
   /**
@@ -541,7 +540,7 @@ class ApiService {
       }
     }
     
-    const result = await this.request('/api.php?action=player_energy');
+    const result = await this.request('api.php?action=player_energy');
     
     // Cache the energy
     if (publicKey && result.energy !== undefined) {
@@ -555,7 +554,7 @@ class ApiService {
    * Scan for raidable missions (costs 1 energy)
    */
   async scanForRaids() {
-    const result = await this.request('/api.php?action=raid/scan', {
+    const result = await this.request('api.php?action=raid/scan', {
       method: 'POST'
     });
     
@@ -574,14 +573,14 @@ class ApiService {
    * Get player stats
    */
   async getPlayerStats() {
-    return await this.request('/api.php?action=player_stats');
+    return await this.request('api.php?action=player_stats');
   }
 
   /**
    * Get leaderboard
    */
   async getLeaderboard() {
-    return await this.request('/api.php?action=leaderboard');
+    return await this.request('api.php?action=leaderboard');
   }
 }
 

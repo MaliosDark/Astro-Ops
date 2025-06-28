@@ -314,13 +314,32 @@ function getOnchainBalance(string $ownerPk): float {
 
 /** ================ Authentication Middleware ================ **/
 function requireAuth(PDO $pdo): array {
-  $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-  if (!$authHeader && function_exists('getallheaders')) {
+  // Try multiple ways to get the authorization header
+  $authHeader = '';
+  
+  // Method 1: Direct from $_SERVER
+  if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+  }
+  // Method 2: Try getallheaders() if available
+  elseif (function_exists('getallheaders')) {
     $headers = getallheaders();
     $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
   }
+  // Method 3: Try alternative header names
+  elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+  }
+  
+  if (ENV.DEBUG_MODE) {
+    error_log("Auth header check: " . ($authHeader ? "Found" : "Missing"));
+    if ($authHeader) {
+      error_log("Auth header: " . substr($authHeader, 0, 20) . "...");
+    }
+  }
   
   if (!preg_match('/Bearer\s+(.+)$/', $authHeader, $m)) {
+    error_log("Missing or invalid authorization header format");
     jsonErr('Missing token', 401);
   }
   try {
