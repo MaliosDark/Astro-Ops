@@ -1015,6 +1015,43 @@ switch ($action) {
         $mid = intval($b['mission_id'] ?? 0);
         if (!$mid) jsonErr('mission_id required', 400);
 
+        // Handle demo missions (IDs >= 9990)
+        if ($mid >= 9990) {
+          // Demo mission raid - simulate success
+          $demoRewards = [
+            9999 => 4500,
+            9998 => 8000, 
+            9997 => 15000
+          ];
+          
+          $stolen = $demoRewards[$mid] ?? 1000;
+          
+          // Get user's ship and add reward
+          $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ?");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            jsonErr('No ship found', 400);
+          }
+          
+          $newBR = $ship['br_balance'] + $stolen;
+          
+          // Update balance
+          $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?")
+              ->execute([$newBR, $ship['id']]);
+          
+          // Update user stats
+          $pdo->prepare("UPDATE users SET total_raids_won = total_raids_won + 1 WHERE id = ?")
+              ->execute([$me['userId']]);
+          
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Demo raid successful: User {$me['userId']} stole {$stolen} BR from demo mission {$mid}");
+          }
+          
+          echo json_encode(['stolen' => $stolen, 'br_balance' => $newBR, 'demo' => true]);
+          exit;
+        }
         $pdo->beginTransaction();
           // lock mission
           $stmt = $pdo->prepare("SELECT * FROM missions WHERE id = ? FOR UPDATE");

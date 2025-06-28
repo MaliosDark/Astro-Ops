@@ -78,15 +78,25 @@ const RaidModal = ({ onClose }) => {
     try {
       setIsRaiding(true);
       
+      if (ENV.DEBUG_MODE) {
+        console.log('🎯 Attempting to raid mission:', missionId);
+      }
+      
       // Usar la nueva función de raid con animaciones completas
       await performRaid(missionId);
       
       // Remover la misión raideada de la lista
       setMissions(prev => prev.filter(m => m.id !== missionId));
       
+      // Close modal after successful raid
       onClose();
     } catch (error) {
-      console.error('Raid failed:', error);
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Raid modal error:', error);
+      }
+      
+      // Don't close modal on error - let user try again
+      // The error message is already shown by performRaid
     } finally {
       setIsRaiding(false);
     }

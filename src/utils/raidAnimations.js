@@ -209,8 +209,12 @@ export async function createRaidTransition(raidLogicCallback) {
       raidResult = await raidLogicCallback();
       await showRaidText('RAID SUCCESSFUL!', 2000);
     } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Raid logic failed:', error);
+      }
       await showRaidText('RAID FAILED!', 2000);
-      throw error;
+      // Don't throw error here - we still need to animate return
+      raidResult = { error: error.message };
     }
 
     // 10. Nave vuela fuera del mapa de vuelta
@@ -235,13 +239,38 @@ export async function createRaidTransition(raidLogicCallback) {
       console.log('✅ Raid transition sequence completed');
     }
 
+    // If there was an error in the raid logic, throw it now after animations are complete
+    if (raidResult && raidResult.error) {
+      throw new Error(raidResult.error);
+    }
+
     return raidResult;
   } catch (error) {
-    // En caso de error, asegurar que la nave regrese
-    if (window.__shipInFlight) {
-      await fadeTransition(false, 400);
-      await animateShipReturn();
+    if (ENV.DEBUG_MODE) {
+      console.error('❌ Raid transition error:', error);
     }
+    
+    // ALWAYS ensure ship returns home, even on error
+    try {
+      // Clean up any overlays
+      await fadeTransition(false, 400);
+      
+      // Make sure ship returns
+      if (window.__shipInFlight) {
+        await animateShipReturn();
+      }
+    } catch (returnError) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Error during return animation:', returnError);
+      }
+      // Force ship to return to base position
+      window.__shipInFlight = false;
+      if (window.shipPos) {
+        window.shipPos = { ix: 5, iy: 5 };
+      }
+    }
+    
+    // Re-throw the original error
     throw error;
   }
 }

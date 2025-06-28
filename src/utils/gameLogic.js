@@ -294,6 +294,10 @@ export async function performUpgrade(level) {
  */
 export async function performRaid(missionId) {
   try {
+    if (ENV.DEBUG_MODE) {
+      console.log('🏴‍☠️ Starting raid on mission:', missionId);
+    }
+    
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
       // REAL API CALL - This will save to database
@@ -326,9 +330,27 @@ export async function performRaid(missionId) {
       return { stolen, br_balance };
     });
   } catch (error) {
-    console.error('Raid failed:', error);
+    if (ENV.DEBUG_MODE) {
+      console.error('❌ Raid failed:', error);
+    }
+    
+    // Show user-friendly error message
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`Raid failed: ${error.message}`);
+      let errorMessage = 'Raid failed';
+      
+      if (error.message?.includes('Mission not found')) {
+        errorMessage = 'Target mission no longer available';
+      } else if (error.message?.includes('Already raided')) {
+        errorMessage = 'Mission already raided by another player';
+      } else if (error.message?.includes('Shielded')) {
+        errorMessage = 'Target was shielded - raid failed';
+      } else if (error.message?.includes('energy')) {
+        errorMessage = 'Not enough energy for raid';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      window.AstroUI.setStatus(errorMessage);
     }
   }
 }
