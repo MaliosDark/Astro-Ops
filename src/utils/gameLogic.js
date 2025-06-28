@@ -463,5 +463,4 @@ export {
   buyShip,
   getPlayerEnergy,
   scanForRaids,
-  getMissionsForRaid,
 };
