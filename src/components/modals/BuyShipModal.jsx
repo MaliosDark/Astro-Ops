@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { buyShip } from '../../utils/gameLogic';
+import sessionManager from '../../services/sessionManager';
 import ENV from '../../config/environment.js';
 
 const BuyShipModal = ({ onClose }) => {
@@ -11,7 +11,7 @@ const BuyShipModal = ({ onClose }) => {
       setIsLoading(true);
       setError('');
       
-      await buyShip();
+      await sessionManager.buyShip();
       
       // Mark that player now has a ship
       window.hasShip = true;
