@@ -7,7 +7,7 @@
 // ——— CORS HEADERS ———
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Bearer, Cache-Control, Pragma');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Bearer, Cache-Control, Pragma, Origin, User-Agent');
 header('Access-Control-Max-Age: 86400'); // 24 hours
 
 // Handle preflight OPTIONS requests
@@ -23,7 +23,7 @@ header('Content-Security-Policy: '
      . "img-src 'self' data: https://pbs.twimg.com https://bonkraiders.com; "
      . "script-src 'self' 'unsafe-inline'; "
      . "style-src 'self' 'unsafe-inline'; "
-     . "connect-src 'self' https://api.bonkraiders.com https://verify.bonkraiders.com https://api.devnet.solana.com https://papaya-cassata-c1174a.netlify.app; "
+     . "connect-src 'self' https://api.bonkraiders.com https://verify.bonkraiders.com https://api.devnet.solana.com https://papaya-cassata-c1174a.netlify.app *.webcontainer-api.io; "
      . "object-src 'none'; "
      . "frame-ancestors 'none'; "
      . "base-uri 'self';");

@@ -4,7 +4,7 @@
 // Allow all origins for development/testing
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma, Origin, User-Agent');
 header('Access-Control-Max-Age: 86400'); // 24 hours
 
 // Handle preflight OPTIONS requests
@@ -20,7 +20,7 @@ require __DIR__ . '/vendor/autoload.php';
 // CORS headers before any other output
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Authorization, Cache-Control, Pragma, Origin, User-Agent');
 header('Access-Control-Max-Age: 86400');
 
 // Handle preflight requests
@@ -348,8 +348,22 @@ function requireAuth(PDO $pdo): array {
  * Get authorization header with comprehensive fallback methods
  */
 function getAuthorizationHeader(): string {
+  // Debug: Log all headers for troubleshooting
+  if (defined('DEBUG_MODE') && DEBUG_MODE) {
+    error_log("=== DEBUG: All HTTP headers ===");
+    foreach ($_SERVER as $key => $value) {
+      if (strpos($key, 'HTTP_') === 0) {
+        error_log("$key: $value");
+      }
+    }
+    error_log("=== END DEBUG headers ===");
+  }
+  
   // Method 1: Standard HTTP_AUTHORIZATION
   if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via HTTP_AUTHORIZATION: " . substr($_SERVER['HTTP_AUTHORIZATION'], 0, 20) . "...");
+    }
     return $_SERVER['HTTP_AUTHORIZATION'];
   }
   
@@ -357,20 +371,32 @@ function getAuthorizationHeader(): string {
   if (function_exists('getallheaders')) {
     $headers = getallheaders();
     if (isset($headers['Authorization'])) {
+      if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log("Found auth header via getallheaders Authorization: " . substr($headers['Authorization'], 0, 20) . "...");
+      }
       return $headers['Authorization'];
     }
     if (isset($headers['authorization'])) {
+      if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log("Found auth header via getallheaders authorization: " . substr($headers['authorization'], 0, 20) . "...");
+      }
       return $headers['authorization'];
     }
   }
   
   // Method 3: Redirect header (for some Apache configurations)
   if (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via REDIRECT_HTTP_AUTHORIZATION: " . substr($_SERVER['REDIRECT_HTTP_AUTHORIZATION'], 0, 20) . "...");
+    }
     return $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
   }
   
   // Method 4: X-Authorization fallback
   if (isset($_SERVER['HTTP_X_AUTHORIZATION'])) {
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+      error_log("Found auth header via HTTP_X_AUTHORIZATION: " . substr($_SERVER['HTTP_X_AUTHORIZATION'], 0, 20) . "...");
+    }
     return $_SERVER['HTTP_X_AUTHORIZATION'];
   }
   
@@ -378,25 +404,34 @@ function getAuthorizationHeader(): string {
   if (function_exists('apache_request_headers')) {
     $apacheHeaders = apache_request_headers();
     if (isset($apacheHeaders['Authorization'])) {
+      if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log("Found auth header via apache_request_headers Authorization: " . substr($apacheHeaders['Authorization'], 0, 20) . "...");
+      }
       return $apacheHeaders['Authorization'];
     }
     if (isset($apacheHeaders['authorization'])) {
+      if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        error_log("Found auth header via apache_request_headers authorization: " . substr($apacheHeaders['authorization'], 0, 20) . "...");
+      }
       return $apacheHeaders['authorization'];
     }
   }
   
-  // Method 6: Check for Bearer token in query string (last resort)
-  if (isset($_GET['token'])) {
-    return 'Bearer ' . $_GET['token'];
+  // Method 6: Manual header parsing from raw HTTP headers
+  if (function_exists('getallheaders')) {
+    $allHeaders = getallheaders();
+    foreach ($allHeaders as $name => $value) {
+      if (strtolower($name) === 'authorization') {
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+          error_log("Found auth header via manual parsing: " . substr($value, 0, 20) . "...");
+        }
+        return $value;
+      }
+    }
   }
   
-  // Method 7: Check for Bearer token in POST body (last resort)
-  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = file_get_contents('php://input');
-    $data = json_decode($input, true);
-    if (isset($data['token'])) {
-      return 'Bearer ' . $data['token'];
-    }
+  if (defined('DEBUG_MODE') && DEBUG_MODE) {
+    error_log("No authorization header found in any method");
   }
   
   return '';
