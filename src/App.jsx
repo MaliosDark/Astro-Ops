@@ -71,13 +71,6 @@ function App() {
       // Step 4: Initialize game state
       window.hasShip = true; // Always assume user has ship
       
-      if (window.AstroUI) {
-        window.AstroUI.setBalance(100); // Default balance
-        window.AstroUI.setKills(Math.floor(Math.random() * 20) + 5);
-        window.AstroUI.setRaidsWon(Math.floor(Math.random() * 5) + 1);
-        window.AstroUI.setEnergy(10);
-      }
-      
       // Step 5: Set up disconnect handler
       walletService.on('disconnect', () => {
         if (ENV.DEBUG_MODE) {
