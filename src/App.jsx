@@ -7,6 +7,7 @@ import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
 import walletService from './services/walletService.js';
 import apiService from './services/apiService.js';
+import websocketService from './services/websocketService.js';
 import ENV from './config/environment.js';
 
 function App() {
@@ -90,8 +91,53 @@ function App() {
         if (ENV.DEBUG_MODE) {
           console.log('🔌 Wallet disconnected, reloading…');
         }
+        // Disconnect WebSocket when wallet disconnects
+        websocketService.disconnect();
         window.location.reload();
       });
+      
+      // Step 6: Connect to WebSocket for real-time features
+      try {
+        const userId = 1; // This should come from your user profile
+        await websocketService.connect(userId, token);
+        
+        // Set up WebSocket event handlers
+        websocketService.on('raid_incoming', (data) => {
+          if (window.AstroUI) {
+            window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
+          }
+          
+          // Trigger defense battle if available
+          if (window.startDefenseBattle) {
+            setTimeout(() => {
+              window.startDefenseBattle();
+            }, 2000);
+          }
+        });
+        
+        websocketService.on('raid_completed', (data) => {
+          if (data.defenderId === userId) {
+            if (data.success) {
+              if (window.AstroUI) {
+                window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
+              }
+            } else {
+              if (window.AstroUI) {
+                window.AstroUI.setStatus(`🛡️ Raid repelled successfully!`);
+              }
+            }
+          }
+        });
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('🌐 WebSocket connected for real-time features');
+        }
+      } catch (wsError) {
+        if (ENV.DEBUG_MODE) {
+          console.warn('⚠️ WebSocket connection failed, continuing without real-time features:', wsError);
+        }
+        // Don't fail the entire connection if WebSocket fails
+      }
       
       if (ENV.DEBUG_MODE) {
         console.log('🎮 Game ready!');
