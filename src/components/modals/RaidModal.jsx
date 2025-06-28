@@ -27,27 +27,46 @@ const RaidModal = ({ onClose }) => {
 
   const handleScanForRaids = async () => {
     if (energy < 1) {
-      alert('Not enough energy to scan! Energy refills 1 point per hour.');
+      if (window.AstroUI) {
+        window.AstroUI.setStatus('Not enough energy to scan! Energy refills 1 point per hour.');
+      }
       return;
     }
 
     try {
       setIsScanning(true);
       const scannedMissions = await scanForRaids();
-      setMissions(scannedMissions);
-      setEnergy(prev => prev - 1);
       
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Found ${scannedMissions.length} raidable missions`);
+      if (scannedMissions && scannedMissions.length > 0) {
+        setMissions(scannedMissions);
+        setEnergy(prev => prev - 1);
+        
+        if (window.AstroUI) {
+          window.AstroUI.setStatus(`Found ${scannedMissions.length} raidable missions`);
+          window.AstroUI.setEnergy(energy - 1);
+        }
+      } else {
+        setMissions([]);
+        setEnergy(prev => prev - 1);
+        
+        if (window.AstroUI) {
+          window.AstroUI.setStatus('No raidable missions found. Try again later.');
+          window.AstroUI.setEnergy(energy - 1);
+        }
       }
+      
     } catch (error) {
       console.error('Failed to scan for raids:', error);
-      // Mock data for development
-      setMissions([
-        { id: 1, type: 'Mining Run', mode: 'Unshielded', reward: 10 },
-        { id: 2, type: 'Black Market', mode: 'Shielded', reward: 24 },
-        { id: 3, type: 'Artifact Hunt', mode: 'Unshielded', reward: 60 }
-      ]);
+      
+      if (window.AstroUI) {
+        if (error.message?.includes('energy')) {
+          window.AstroUI.setStatus('Not enough energy to scan!');
+        } else {
+          window.AstroUI.setStatus('Scan failed. Please try again.');
+        }
+      }
+      
+      setMissions([]);
     } finally {
       setIsScanning(false);
     }
@@ -157,7 +176,7 @@ const RaidModal = ({ onClose }) => {
               <li key={mission.id} style={{
                 margin: '8px 0',
                 padding: '8px',
-                background: 'rgba(0,20,40,0.3)',
+                background: mission.mode === 'Shielded' ? 'rgba(40,20,0,0.3)' : 'rgba(0,20,40,0.3)',
                 border: '1px solid #0cf',
                 borderRadius: '4px',
                 display: 'flex',
@@ -168,16 +187,26 @@ const RaidModal = ({ onClose }) => {
                 <div>
                   <div style={{ marginBottom: '4px' }}>
                     <strong>{mission.type}</strong>
+                    {mission.mode === 'Shielded' && (
+                      <span style={{ 
+                        color: '#ff0', 
+                        fontSize: '10px', 
+                        marginLeft: '8px' 
+                      }}>
+                        🛡️ SHIELDED
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '10px', color: '#888' }}>
-                    {mission.mode} • {mission.reward} BR
+                    {mission.owner_short || 'Unknown'} • {mission.reward} BR
                   </div>
                 </div>
                 <button
                   onClick={() => handleRaid(mission.id)}
                   disabled={isRaiding}
                   style={{
-                    background: isRaiding ? 'rgba(20,20,20,0.5)' : '#0ff',
+                    background: isRaiding ? 'rgba(20,20,20,0.5)' : 
+                               mission.mode === 'Shielded' ? '#f80' : '#0ff',
                     color: isRaiding ? '#666' : '#000',
                     border: '2px solid #0ff',
                     padding: '6px 12px',
@@ -187,7 +216,8 @@ const RaidModal = ({ onClose }) => {
                     borderRadius: '4px'
                   }}
                 >
-                  {isRaiding ? 'RAIDING...' : 'RAID'}
+                  {isRaiding ? 'RAIDING...' : 
+                   mission.mode === 'Shielded' ? 'TRY RAID' : 'RAID'}
                 </button>
               </li>
             ))}
