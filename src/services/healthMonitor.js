@@ -233,22 +233,6 @@ class HealthMonitorService {
       // Reset WebSocket connections
       if (window.websocketService) {
         window.websocketService.disconnect();
-        // Try to reconnect after a short delay
-        setTimeout(() => {
-          try {
-            if (window.websocketService && window.apiService) {
-              const userId = 1; // Default user ID
-              const token = window.apiService.getToken();
-              if (token) {
-                window.websocketService.connect(userId, token).catch(() => {
-                  // Ignore reconnection errors
-                });
-              }
-            }
-          } catch (error) {
-            // Ignore reconnection errors
-          }
-        }, 5000);
       }
       
       return {

@@ -102,13 +102,7 @@ function App() {
       // Step 6: Connect to WebSocket for real-time features
       try {
         const userId = 1; // This should come from your user profile
-        
-        try {
-          await websocketService.connect(userId, token);
-        } catch (wsError) {
-          console.warn('⚠️ WebSocket connection failed, continuing without real-time features:', wsError);
-          // Don't fail the entire connection if WebSocket fails
-        }
+        await websocketService.connect(userId, token);
         
         // Set up WebSocket event handlers
         websocketService.on('raid_incoming', (data) => {
@@ -138,9 +132,14 @@ function App() {
           }
         });
         
-      } catch (error) {
-        console.error('Failed to set up WebSocket handlers:', error);
-        // Continue without WebSocket features
+        if (ENV.DEBUG_MODE) {
+          console.log('🌐 WebSocket connected for real-time features');
+        }
+      } catch (wsError) {
+        if (ENV.DEBUG_MODE) {
+          console.warn('⚠️ WebSocket connection failed, continuing without real-time features:', wsError);
+        }
+        // Don't fail the entire connection if WebSocket fails
       }
       
       if (ENV.DEBUG_MODE) {

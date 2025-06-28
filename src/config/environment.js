@@ -9,17 +9,11 @@ export const ENV = {
   // WebSocket Configuration - Derived from API_BASE_URL
   get WEBSOCKET_URL() {
     const apiUrl = this.API_BASE_URL;
-    try {
-      // Convert HTTP(S) to WS(S) protocol
-      const wsProtocol = apiUrl.startsWith('https://') ? 'wss://' : 'ws://';
-      // Extract hostname and port from API URL
-      const urlParts = apiUrl.replace(/^https?:\/\//, '');
-      return `${wsProtocol}${urlParts}/ws`;
-    } catch (error) {
-      console.error('Failed to derive WebSocket URL:', error);
-      // Fallback to a default WebSocket URL
-      return 'ws://localhost:3000/ws';
-    }
+    // Convert HTTP(S) to WS(S) protocol
+    const wsProtocol = apiUrl.startsWith('https://') ? 'wss://' : 'ws://';
+    // Extract hostname and port from API URL
+    const urlParts = apiUrl.replace(/^https?:\/\//, '');
+    return `${wsProtocol}${urlParts}/ws`;
   },
   
   // Solana Configuration
