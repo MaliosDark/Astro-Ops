@@ -211,7 +211,9 @@ const RaidModal = ({ onClose }) => {
       fontFamily: "'Press Start 2P', monospace",
       color: '#0ff',
       boxShadow: '0 8px 32px rgba(0, 255, 255, 0.3)',
-      backdropFilter: 'blur(10px)'
+      backdropFilter: 'blur(10px)',
+      maxHeight: '90vh',
+      overflowY: 'auto'
     }}>
       {/* Header Section */}
       <div style={{ marginBottom: '20px', textAlign: 'center' }}>
@@ -237,6 +239,8 @@ const RaidModal = ({ onClose }) => {
           border: '2px solid #0cf',
           borderRadius: '8px',
           boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)'
+          flexWrap: 'wrap',
+          gap: '8px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '16px' }}>⚡</span>
@@ -315,7 +319,7 @@ const RaidModal = ({ onClose }) => {
               </h3>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gridTemplateColumns: window.innerWidth <= 600 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: '8px',
                 maxHeight: '150px',
                 overflowY: 'auto'
@@ -394,9 +398,10 @@ const RaidModal = ({ onClose }) => {
                   
                   <div style={{
                     display: 'flex',
+                    flexDirection: window.innerWidth <= 600 ? 'column' : 'row',
                     justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: '16px'
+                    alignItems: window.innerWidth <= 600 ? 'stretch' : 'flex-start',
+                    gap: window.innerWidth <= 600 ? '12px' : '16px'
                   }}>
                     {/* Target Info */}
                     <div style={{ flex: 1 }}>
@@ -404,7 +409,8 @@ const RaidModal = ({ onClose }) => {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: '8px',
-                        marginBottom: '8px'
+                        marginBottom: '8px',
+                        flexWrap: 'wrap'
                       }}>
                         <span style={{ fontSize: '18px' }}>
                           {getMissionTypeIcon(mission.type)}
@@ -430,7 +436,8 @@ const RaidModal = ({ onClose }) => {
                         <span>
                           Pilot: <span style={{ color: '#0cf' }}>
                             {mission.owner_short || 'Unknown'}...
-                          </span>
+                        flexWrap: 'wrap',
+                        fontSize: window.innerWidth <= 600 ? '10px' : '12px'
                         </span>
                         
                         {/* Real-time status indicator */}
@@ -462,8 +469,9 @@ const RaidModal = ({ onClose }) => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
-                        fontSize: '10px',
+                        fontSize: window.innerWidth <= 600 ? '9px' : '10px',
                         marginTop: '8px'
+                        flexWrap: 'wrap'
                       }}>
                         <span style={{ color: difficulty.color }}>
                           {difficulty.icon} {difficulty.level} RISK
@@ -479,8 +487,9 @@ const RaidModal = ({ onClose }) => {
                     
                     {/* Reward Info */}
                     <div style={{ 
-                      textAlign: 'right',
-                      minWidth: '120px'
+                      textAlign: window.innerWidth <= 600 ? 'center' : 'right',
+                      minWidth: window.innerWidth <= 600 ? 'auto' : '120px',
+                      alignSelf: window.innerWidth <= 600 ? 'center' : 'auto'
                     }}>
                       <div style={{
                         fontSize: '16px',
@@ -537,7 +546,7 @@ const RaidModal = ({ onClose }) => {
                 border: '2px solid #f00',
                 borderRadius: '8px',
                 fontFamily: "'Press Start 2P', monospace",
-                fontSize: '14px',
+                fontSize: window.innerWidth <= 600 ? '12px' : '14px',
                 cursor: isRaiding ? 'not-allowed' : 'pointer',
                 marginBottom: '16px',
                 transition: 'all 0.3s ease',
@@ -605,7 +614,7 @@ const RaidModal = ({ onClose }) => {
           padding: '8px 16px',
           cursor: 'pointer',
           fontFamily: "'Press Start 2P', monospace",
-          fontSize: '10px',
+          fontSize: window.innerWidth <= 600 ? '8px' : '10px',
           borderRadius: '6px',
           transition: 'all 0.3s ease',
           boxShadow: '0 2px 8px rgba(255, 0, 255, 0.3)'
