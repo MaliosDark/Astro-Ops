@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
 import EconomyPanel from './EconomyPanel';
-import EconomyPanel from './EconomyPanel';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import walletService from '../services/walletService';
