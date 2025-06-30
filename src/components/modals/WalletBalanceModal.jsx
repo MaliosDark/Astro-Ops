@@ -32,13 +32,10 @@ const WalletBalanceModal = ({ onClose }) => {
         throw new Error('No wallet connected');
       }
       
-      // Get on-chain token balance
-      const balance = await getTokenBalance(wallet.publicKey);
-      setTokenBalance(balance);
-      
-      // Get claimable balance from game
-      const { claimable_AT } = await apiService.claimRewards();
-      setClaimableBalance(claimable_AT || 0);
+      // Get both on-chain and in-game balances from the new API endpoint
+      const { onchain_balance, ingame_balance } = await apiService.getWalletBalance();
+      setTokenBalance(onchain_balance);
+      setClaimableBalance(ingame_balance || 0);
     } catch (error) {
       console.error('Failed to fetch balances:', error);
       setError(error.message || 'Failed to fetch wallet balance');
@@ -49,16 +46,9 @@ const WalletBalanceModal = ({ onClose }) => {
 
   const fetchTransactionHistory = async () => {
     try {
-      // This would be a real API call in production
-      // For now, we'll use mock data
-      const mockTransactions = [
-        { id: 1, type: 'mission_reward', amount: 450, timestamp: Date.now() - 3600000, status: 'completed' },
-        { id: 2, type: 'raid_reward', amount: 1200, timestamp: Date.now() - 7200000, status: 'completed' },
-        { id: 3, type: 'claim', amount: 3000, timestamp: Date.now() - 86400000, status: 'completed' },
-        { id: 4, type: 'upgrade_cost', amount: -150, timestamp: Date.now() - 172800000, status: 'completed' }
-      ];
-      
-      setTransactions(mockTransactions);
+      // Use the new API endpoint for transaction history
+      const result = await apiService.getTransactionHistory();
+      setTransactions(result.transactions || []);
     } catch (error) {
       console.error('Failed to fetch transaction history:', error);
     }
@@ -70,27 +60,31 @@ const WalletBalanceModal = ({ onClose }) => {
     try {
       setIsClaiming(true);
       
-      // Call the claim API
+      // Call the claim API (which now actually claims in-game balance)
       const result = await apiService.claimRewards();
       
       if (result.claimable_AT !== undefined) {
-        // Update UI with new balance
+        // Update UI: claimable balance becomes 0, on-chain balance increases
         setClaimableBalance(0);
         setTokenBalance((prev) => (prev || 0) + result.claimable_AT);
         
         // Update global UI if available
         if (window.AstroUI) {
           window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens!`);
-          window.AstroUI.setBalance(result.claimable_AT);
+          // Note: AstroUI.setBalance usually updates the in-game balance,
+          // but after claiming, the in-game balance is 0.
+          // You might want to update the on-chain display in the HUD if available.
+          // For now, we'll just set the in-game balance to 0 in HUD.
+          window.AstroUI.setBalance(0); 
         }
         
         // Add to transaction history
         setTransactions(prev => [
           {
-            id: Date.now(),
-            type: 'claim',
+            id: Date.now(), // Use a unique ID for new transactions
+            tx_type: 'claim', // Use tx_type for consistency with backend
             amount: result.claimable_AT,
-            timestamp: Date.now(),
+            created_at: new Date().toISOString(), // Use created_at for consistency
             status: 'completed'
           },
           ...prev
@@ -117,36 +111,39 @@ const WalletBalanceModal = ({ onClose }) => {
       setIsWithdrawing(true);
       setWithdrawError('');
       
-      // This would be a real API call in production
-      // For now, we'll simulate a successful withdrawal
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the new withdraw API
+      const result = await apiService.withdrawTokens(amount);
       
-      // Update balances
-      setClaimableBalance(prev => prev - amount);
-      setTokenBalance((prev) => (prev || 0) + amount);
-      
-      // Show success message
-      setWithdrawSuccess(true);
-      
-      // Add to transaction history
-      setTransactions(prev => [
-        {
-          id: Date.now(),
-          type: 'withdraw',
-          amount: amount,
-          timestamp: Date.now(),
-          status: 'completed'
-        },
-        ...prev
-      ]);
-      
-      // Reset form
-      setWithdrawAmount('');
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setWithdrawSuccess(false);
-      }, 3000);
+      if (result.success) {
+        // Update balances: claimable balance decreases, on-chain balance increases
+        setClaimableBalance(result.br_balance || 0); // br_balance is the new in-game balance
+        setTokenBalance((prev) => (prev || 0) + amount);
+        
+        // Show success message
+        setWithdrawSuccess(true);
+        
+        // Add to transaction history
+        setTransactions(prev => [
+          {
+            id: Date.now(),
+            tx_type: 'withdraw',
+            amount: amount,
+            created_at: new Date().toISOString(),
+            status: 'completed'
+          },
+          ...prev
+        ]);
+        
+        // Reset form
+        setWithdrawAmount('');
+        
+        // Hide success message after 3 seconds
+        setTimeout(() => {
+          setWithdrawSuccess(false);
+        }, 3000);
+      } else {
+        throw new Error(result.error || 'Withdrawal failed');
+      }
     } catch (error) {
       console.error('Withdrawal failed:', error);
       setWithdrawError(error.message || 'Failed to withdraw tokens');
@@ -156,7 +153,7 @@ const WalletBalanceModal = ({ onClose }) => {
   };
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
+    const date = new Date(timestamp); // Assuming timestamp is already in milliseconds or ISO string
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
@@ -167,12 +164,13 @@ const WalletBalanceModal = ({ onClose }) => {
       case 'claim': return '💰';
       case 'withdraw': return '📤';
       case 'upgrade_cost': return '⚙️';
+      case 'burn': return '🔥';
       default: return '📝';
     }
   };
 
   const getTransactionColor = (type, amount) => {
-    if (amount < 0) return '#f00';
+    if (amount < 0) return '#f00'; // Costs are negative
     switch (type) {
       case 'mission_reward': return '#0f0';
       case 'raid_reward': return '#f80';
@@ -509,21 +507,21 @@ const WalletBalanceModal = ({ onClose }) => {
                 borderRadius: '8px',
                 background: 'rgba(0,20,40,0.3)'
               }}>
-                {transactions.map((tx) => (
+                {transactions.map((tx, index) => (
                   <div 
-                    key={tx.id}
+                    key={tx.id || index} // Use tx.id if available, otherwise index
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 16px',
-                      borderBottom: '1px solid rgba(0, 204, 255, 0.2)',
+                      borderBottom: index < transactions.length - 1 ? '1px solid rgba(0, 204, 255, 0.2)' : 'none',
                       background: tx.status === 'completed' ? 'rgba(0,40,80,0.2)' : 'rgba(60,60,0,0.2)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '16px' }}>
-                        {getTransactionIcon(tx.type)}
+                        {getTransactionIcon(tx.tx_type || tx.type)}
                       </span>
                       <div>
                         <div style={{
@@ -532,20 +530,20 @@ const WalletBalanceModal = ({ onClose }) => {
                           marginBottom: '4px',
                           textTransform: 'capitalize'
                         }}>
-                          {tx.type.replace('_', ' ')}
+                          {(tx.tx_type || tx.type || '').replace('_', ' ')}
                         </div>
                         <div style={{
                           fontSize: '9px',
                           color: '#666'
                         }}>
-                          {formatDate(tx.timestamp)}
+                          {formatDate(tx.created_at || tx.timestamp)}
                         </div>
                       </div>
                     </div>
                     
                     <div style={{
                       fontSize: '14px',
-                      color: getTransactionColor(tx.type, tx.amount),
+                      color: getTransactionColor(tx.tx_type || tx.type, tx.amount),
                       fontWeight: 'bold'
                     }}>
                       {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()} BR
