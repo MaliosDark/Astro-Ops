@@ -299,13 +299,11 @@ export async function performRaid(missionId) {
       console.log('🏴‍☠️ Starting raid on mission:', missionId);
     }
     
-    // Notify other players via WebSocket if connected
-    if (websocketService.isConnected) {
-      websocketService.send('raid_initiated', {
-        targetMissionId: missionId,
-        timestamp: Date.now()
-      });
-    }
+    // Notify other players via WebSocket
+    websocketService.send('raid_initiated', {
+      targetMissionId: missionId,
+      timestamp: Date.now()
+    });
     
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
@@ -336,15 +334,13 @@ export async function performRaid(missionId) {
         window.AstroUI.setBalance(br_balance);
       }
       
-      // Notify completion via WebSocket if connected
-      if (websocketService.isConnected) {
-        websocketService.send('raid_completed', {
-          missionId,
-          stolen,
-          success: stolen > 0,
-          timestamp: Date.now()
-        });
-      }
+      // Notify completion via WebSocket
+      websocketService.send('raid_completed', {
+        missionId,
+        stolen,
+        success: stolen > 0,
+        timestamp: Date.now()
+      });
       
       return { stolen, br_balance };
     });
@@ -474,35 +470,9 @@ export async function getPendingRewards() {
   }
 }
 
-/**
- * Get earnings data - REAL API CALL
- */
-export async function getEarnings() {
-  try {
-    return await apiService.getEarnings();
-  } catch (error) {
-    console.error('Get earnings error:', error);
-    throw error;
-  }
-}
-
-/**
- * Withdraw tokens - REAL API CALL
- */
-export async function withdrawTokens(amount) {
-  try {
-    return await apiService.withdrawTokens(amount);
-  } catch (error) {
-    console.error('Withdraw tokens error:', error);
-    throw error;
-  }
-}
-
 // Expose functions globally for compatibility
 window.startMission = startMission;
 window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;
 window.performClaim = performClaim;
 window.buyShip = buyShip;
-window.getEarnings = getEarnings;
-window.withdrawTokens = withdrawTokens;

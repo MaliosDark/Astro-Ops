@@ -102,43 +102,38 @@ function App() {
       // Step 6: Connect to WebSocket for real-time features
       try {
         const userId = 1; // This should come from your user profile
-        // Try to connect to WebSocket but don't fail if it doesn't work
-          // Don't throw error - continue without WebSocket
         await websocketService.connect(userId, token);
         
-        // Only set up WebSocket event handlers if connection was successful
-        if (websocketService.isConnected) {
-          // Set up WebSocket event handlers
-          websocketService.on('raid_incoming', (data) => {
-            if (window.AstroUI) {
-              window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
-            }
-            
-            // Trigger defense battle if available
-            if (window.startDefenseBattle) {
-              setTimeout(() => {
-                window.startDefenseBattle();
-              }, 2000);
-            }
-          });
+        // Set up WebSocket event handlers
+        websocketService.on('raid_incoming', (data) => {
+          if (window.AstroUI) {
+            window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
+          }
           
-          websocketService.on('raid_completed', (data) => {
-            if (data.defenderId === userId) {
-              if (data.success) {
-                if (window.AstroUI) {
-                  window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
-                }
-              } else {
-                if (window.AstroUI) {
-                  window.AstroUI.setStatus(`🛡️ Raid repelled successfully!`);
-                }
+          // Trigger defense battle if available
+          if (window.startDefenseBattle) {
+            setTimeout(() => {
+              window.startDefenseBattle();
+            }, 2000);
+          }
+        });
+        
+        websocketService.on('raid_completed', (data) => {
+          if (data.defenderId === userId) {
+            if (data.success) {
+              if (window.AstroUI) {
+                window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
+              }
+            } else {
+              if (window.AstroUI) {
+                window.AstroUI.setStatus(`🛡️ Raid repelled successfully!`);
               }
             }
-          });
-          
-          if (ENV.DEBUG_MODE) {
-            console.log('🌐 WebSocket connected for real-time features');
           }
+        });
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('🌐 WebSocket connected for real-time features');
         }
       } catch (wsError) {
         if (ENV.DEBUG_MODE) {

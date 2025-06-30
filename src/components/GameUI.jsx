@@ -3,9 +3,7 @@ import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import walletService from '../services/walletService';
-import websocketService from '../services/websocketService';
 import ENV from '../config/environment.js';
-import EconomyPanel from './EconomyPanel';
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);
@@ -14,9 +12,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [mode, setMode] = useState('—');
   const [status, setStatus] = useState('');
   const [energy, setEnergy] = useState(10);
-  const [showEconomyPanel, setShowEconomyPanel] = useState(false);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
-  const [isWsConnected, setIsWsConnected] = useState(false);
 
   useEffect(() => {
     // Show the game UI - EXACTLY like original
@@ -68,16 +64,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     if (walletAddress) {
       loadInitialData();
     }
-
-    // Subscribe to WebSocket connection status
-    const handleWsConnected = () => setIsWsConnected(true);
-    const handleWsDisconnected = () => setIsWsConnected(false);
-
-    websocketService.on('connected', handleWsConnected);
-    websocketService.on('disconnected', handleWsDisconnected);
-
-    // Set initial status based on current WebSocket state
-    setIsWsConnected(websocketService.getStatus().isConnected);
 
     // Expose AstroUI API globally for compatibility - EXACTLY like original
     window.AstroUI = {
@@ -136,12 +122,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     // Initialize global counters - EXACTLY like original
     window.killCount = 0;
     window.raidWins = 0;
-    
-    // Cleanup listeners on component unmount
-    return () => {
-      websocketService.off('connected', handleWsConnected);
-      websocketService.off('disconnected', handleWsDisconnected);
-    };
   }, [walletAddress]);
 
   const handleMouseMove = (e, tip) => {
@@ -157,10 +137,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
   const handleMouseLeave = () => {
     setTooltip({ visible: false, text: '', x: 0, y: 0 });
-  };
-
-  const toggleEconomyPanel = () => {
-    setShowEconomyPanel(prev => !prev);
   };
 
   const handleDisconnect = async () => {
@@ -183,10 +159,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       }
     }
   };
-
-  const raidButtonTip = isWsConnected 
-    ? "Raid another player" 
-    : "WebSocket service unavailable. Raid feature disabled.";
 
   return (
     <div id="gb-ui" className="game-ui-container">
@@ -211,15 +183,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel balance-panel">
             <div className="panel-header">CREDITS</div>
             <div className="panel-content">
-              <span className="balance-value">{balance.toFixed(1)}
-                <button 
-                  className="economy-btn"
-                  onClick={toggleEconomyPanel}
-                  title="View Economy Dashboard"
-                >
-                  💰
-                </button>
-              </span>
+              <span className="balance-value">{balance.toFixed(1)}</span>
               <span className="balance-unit">BR</span>
             </div>
           </div>
@@ -293,15 +257,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         <button 
           className="action-btn raid-btn" 
           id="btn-raid"
-          data-tip={raidButtonTip}
+          data-tip="Raid another player"
           onClick={() => onShowModal('raid')}
-          onMouseMove={(e) => handleMouseMove(e, raidButtonTip)}
+          onMouseMove={(e) => handleMouseMove(e, 'Raid another player')}
           onMouseLeave={handleMouseLeave}
-          disabled={!isWsConnected}
-          style={{ 
-            opacity: isWsConnected ? 1 : 0.5, 
-            cursor: isWsConnected ? 'pointer' : 'not-allowed' 
-          }}
         >
           <div className="btn-icon">⚔️</div>
           <div className="btn-text">RAID</div>
@@ -334,20 +293,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       </div>
 
       <Tooltip tooltip={tooltip} />
-      
-      {showEconomyPanel && (
-        <div className="economy-panel-overlay">
-          <div className="economy-panel-container">
-            <button 
-              className="close-economy-btn"
-              onClick={() => setShowEconomyPanel(false)}
-            >
-              ✖
-            </button>
-            <EconomyPanel walletAddress={walletAddress} />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

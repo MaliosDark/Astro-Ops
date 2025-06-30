@@ -8,13 +8,12 @@ export const ENV = {
   
   // WebSocket Configuration - Derived from API_BASE_URL
   get WEBSOCKET_URL() {
-    // Use simple WebSocket URL
     const apiUrl = this.API_BASE_URL;
     // Convert HTTP(S) to WS(S) protocol
     const wsProtocol = apiUrl.startsWith('https://') ? 'wss://' : 'ws://';
-    // Extract hostname from API URL
-    const hostname = apiUrl.replace(/^https?:\/\//, '');
-    return `${wsProtocol}${hostname}:8082`;
+    // Extract hostname and port from API URL
+    const urlParts = apiUrl.replace(/^https?:\/\//, '');
+    return `${wsProtocol}${urlParts}/ws`;
   },
   
   // Solana Configuration
