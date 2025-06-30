@@ -258,36 +258,35 @@ function runMigrations(PDO $pdo) {
     ];
     
     foreach ($tables as $tableName => $sql) {
+      try {
+        $pdo->exec($sql);
+        if (DEBUG_MODE) {
+          error_log("Created table: $tableName");
+        }
+      } catch (Exception $e) {
+        if (DEBUG_MODE) {
+          error_log("Error creating table $tableName: " . $e->getMessage());
+        }
+        // Continue with other tables even if one fails
+      }
+    }
+  } else {
+    // Tables exist, check for missing columns
     try {
-      $pdo->exec($sql);
-      if (DEBUG_MODE) {
-        error_log("Ensured table: $tableName"); // Changed log message
+      $hasMaxEnergy = $pdo->query("
+        SELECT COUNT(*) FROM information_schema.columns 
+        WHERE table_schema = '".DB_NAME."' 
+        AND table_name = 'energy' 
+        AND column_name = 'max_energy'
+      ")->fetchColumn();
+      
+      if (!$hasMaxEnergy) {
+        $pdo->exec("ALTER TABLE energy ADD COLUMN max_energy INT NOT NULL DEFAULT 10");
       }
     } catch (Exception $e) {
       if (DEBUG_MODE) {
-        error_log("Error ensuring table $tableName: " . $e->getMessage());
+        error_log("Error checking/adding max_energy column: " . $e->getMessage());
       }
-    }
-  }
-
-  // After ensuring all tables exist, check for specific column additions/modifications
-  try {
-    $hasMaxEnergy = $pdo->query("
-      SELECT COUNT(*) FROM information_schema.columns 
-      WHERE table_schema = '".DB_NAME."' 
-      AND table_name = 'energy' 
-      AND column_name = 'max_energy'
-    ")->fetchColumn();
-    
-    if (!$hasMaxEnergy) {
-      $pdo->exec("ALTER TABLE energy ADD COLUMN max_energy INT NOT NULL DEFAULT 10");
-      if (DEBUG_MODE) {
-        error_log("Added max_energy column to energy table.");
-      }
-    }
-  } catch (Exception $e) {
-    if (DEBUG_MODE) {
-      error_log("Error checking/adding max_energy column: " . $e->getMessage());
     }
   }
 }
