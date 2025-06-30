@@ -87,212 +87,198 @@ function runMigrations(PDO $pdo) {
   
   $pdo->exec("USE `".DB_NAME."`");
   
-  // if no users table, run migrations.sql
-  try {
-    $has = $pdo->query("SHOW TABLES LIKE 'users'")->fetch();
-  } catch (Exception $e) {
-    if (DEBUG_MODE) {
-      error_log("Table check error: " . $e->getMessage());
-    }
-    $has = false;
-  }
+  // Define all table creation SQL statements
+  $tables = [
+    'users' => "
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        public_key VARCHAR(64) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        total_missions INT NOT NULL DEFAULT 0,
+        total_raids_won INT NOT NULL DEFAULT 0,
+        total_kills INT NOT NULL DEFAULT 0,
+        INDEX idx_public_key (public_key)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'nonces' => "
+      CREATE TABLE IF NOT EXISTS nonces (
+        public_key VARCHAR(64) NOT NULL PRIMARY KEY,
+        nonce CHAR(32) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'ships' => "
+      CREATE TABLE IF NOT EXISTS ships (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        level TINYINT NOT NULL DEFAULT 1,
+        last_mission_ts INT NOT NULL DEFAULT 0,
+        br_balance BIGINT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active TINYINT NOT NULL DEFAULT 1,
+        INDEX idx_user_id (user_id),
+        INDEX idx_is_active (is_active)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'missions' => "
+      CREATE TABLE IF NOT EXISTS missions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ship_id INT NOT NULL,
+        user_id INT NOT NULL,
+        mission_type ENUM('MiningRun','BlackMarket','ArtifactHunt') NOT NULL,
+        mode ENUM('Shielded','Unshielded') NOT NULL,
+        ts_start INT NOT NULL,
+        ts_complete INT NULL,
+        success TINYINT NOT NULL,
+        reward BIGINT NOT NULL,
+        raided TINYINT NOT NULL DEFAULT 0,
+        raided_by INT NULL,
+        ts_raid INT NULL,
+        claimed TINYINT NOT NULL DEFAULT 0,
+        INDEX idx_user_id (user_id),
+        INDEX idx_ship_id (ship_id),
+        INDEX idx_ts_start (ts_start),
+        INDEX idx_raided (raided),
+        INDEX idx_mission_type (mission_type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'api_logs' => "
+      CREATE TABLE IF NOT EXISTS api_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip VARCHAR(45) NOT NULL,
+        endpoint VARCHAR(64) NOT NULL,
+        ts INT NOT NULL,
+        INDEX idx_ip_ts (ip, ts),
+        INDEX idx_ts (ts)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'energy' => "
+      CREATE TABLE IF NOT EXISTS energy (
+        user_id INT NOT NULL PRIMARY KEY,
+        energy INT NOT NULL DEFAULT 10,
+        last_refill INT NOT NULL DEFAULT 0,
+        max_energy INT NOT NULL DEFAULT 10
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'reputation' => "
+      CREATE TABLE IF NOT EXISTS reputation (
+        user_id INT NOT NULL PRIMARY KEY,
+        rep INT NOT NULL DEFAULT 100
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'user_settings' => "
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id INT NOT NULL,
+        setting_key VARCHAR(50) NOT NULL,
+        setting_value VARCHAR(255) NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, setting_key),
+        INDEX idx_user_setting (user_id, setting_key)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'user_cache' => "
+      CREATE TABLE IF NOT EXISTS user_cache (
+        user_id INT NOT NULL,
+        cache_key VARCHAR(50) NOT NULL,
+        cache_value TEXT,
+        expires_at INT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, cache_key),
+        INDEX idx_expires (expires_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'achievements' => "
+      CREATE TABLE IF NOT EXISTS achievements (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        achievement_type VARCHAR(50) NOT NULL,
+        achievement_value INT NOT NULL DEFAULT 1,
+        unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_achievement (user_id, achievement_type),
+        INDEX idx_user_achievements (user_id),
+        INDEX idx_achievement_type (achievement_type)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'user_sessions' => "
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token_hash VARCHAR(64) NOT NULL,
+        expires_at INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_token_hash (token_hash),
+        INDEX idx_expires (expires_at),
+        INDEX idx_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'token_transactions' => "
+      CREATE TABLE IF NOT EXISTS token_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount BIGINT NOT NULL,
+        tx_hash VARCHAR(100) NULL,
+        tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn') NOT NULL,
+        status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        INDEX idx_tx_type (tx_type),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ",
+    'token_withdrawals' => "
+      CREATE TABLE IF NOT EXISTS token_withdrawals (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        amount BIGINT NOT NULL,
+        tx_hash VARCHAR(100) NULL,
+        status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP NULL,
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    "
+  ];
   
-  if (!$has) {
-    // Create tables one by one with error handling
-    $tables = [
-      'users' => "
-        CREATE TABLE IF NOT EXISTS users (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          public_key VARCHAR(64) NOT NULL UNIQUE,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          total_missions INT NOT NULL DEFAULT 0,
-          total_raids_won INT NOT NULL DEFAULT 0,
-          total_kills INT NOT NULL DEFAULT 0,
-          INDEX idx_public_key (public_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'nonces' => "
-        CREATE TABLE IF NOT EXISTS nonces (
-          public_key VARCHAR(64) NOT NULL PRIMARY KEY,
-          nonce CHAR(32) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'ships' => "
-        CREATE TABLE IF NOT EXISTS ships (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          level TINYINT NOT NULL DEFAULT 1,
-          last_mission_ts INT NOT NULL DEFAULT 0,
-          br_balance BIGINT NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          is_active TINYINT NOT NULL DEFAULT 1,
-          INDEX idx_user_id (user_id),
-          INDEX idx_is_active (is_active)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'missions' => "
-        CREATE TABLE IF NOT EXISTS missions (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          ship_id INT NOT NULL,
-          user_id INT NOT NULL,
-          mission_type ENUM('MiningRun','BlackMarket','ArtifactHunt') NOT NULL,
-          mode ENUM('Shielded','Unshielded') NOT NULL,
-          ts_start INT NOT NULL,
-          ts_complete INT NULL,
-          success TINYINT NOT NULL,
-          reward BIGINT NOT NULL,
-          raided TINYINT NOT NULL DEFAULT 0,
-          raided_by INT NULL,
-          ts_raid INT NULL,
-          claimed TINYINT NOT NULL DEFAULT 0,
-          INDEX idx_user_id (user_id),
-          INDEX idx_ship_id (ship_id),
-          INDEX idx_ts_start (ts_start),
-          INDEX idx_raided (raided),
-          INDEX idx_mission_type (mission_type)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'api_logs' => "
-        CREATE TABLE IF NOT EXISTS api_logs (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          ip VARCHAR(45) NOT NULL,
-          endpoint VARCHAR(64) NOT NULL,
-          ts INT NOT NULL,
-          INDEX idx_ip_ts (ip, ts),
-          INDEX idx_ts (ts)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'energy' => "
-        CREATE TABLE IF NOT EXISTS energy (
-          user_id INT NOT NULL PRIMARY KEY,
-          energy INT NOT NULL DEFAULT 10,
-          last_refill INT NOT NULL DEFAULT 0,
-          max_energy INT NOT NULL DEFAULT 10
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'reputation' => "
-        CREATE TABLE IF NOT EXISTS reputation (
-          user_id INT NOT NULL PRIMARY KEY,
-          rep INT NOT NULL DEFAULT 100
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'user_settings' => "
-        CREATE TABLE IF NOT EXISTS user_settings (
-          user_id INT NOT NULL,
-          setting_key VARCHAR(50) NOT NULL,
-          setting_value VARCHAR(255) NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          PRIMARY KEY (user_id, setting_key),
-          INDEX idx_user_setting (user_id, setting_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'user_cache' => "
-        CREATE TABLE IF NOT EXISTS user_cache (
-          user_id INT NOT NULL,
-          cache_key VARCHAR(50) NOT NULL,
-          cache_value TEXT,
-          expires_at INT NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          PRIMARY KEY (user_id, cache_key),
-          INDEX idx_expires (expires_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'achievements' => "
-        CREATE TABLE IF NOT EXISTS achievements (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          achievement_type VARCHAR(50) NOT NULL,
-          achievement_value INT NOT NULL DEFAULT 1,
-          unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE KEY unique_user_achievement (user_id, achievement_type),
-          INDEX idx_user_achievements (user_id),
-          INDEX idx_achievement_type (achievement_type)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'user_sessions' => "
-        CREATE TABLE IF NOT EXISTS user_sessions (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          token_hash VARCHAR(64) NOT NULL,
-          expires_at INT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          INDEX idx_token_hash (token_hash),
-          INDEX idx_expires (expires_at),
-          INDEX idx_user_id (user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'token_transactions' => "
-        CREATE TABLE IF NOT EXISTS token_transactions (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          amount BIGINT NOT NULL,
-          tx_hash VARCHAR(100) NULL,
-          tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn') NOT NULL,
-          status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          completed_at TIMESTAMP NULL,
-          INDEX idx_user_id (user_id),
-          INDEX idx_status (status),
-          INDEX idx_tx_type (tx_type),
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      ",
-      'token_withdrawals' => "
-        CREATE TABLE IF NOT EXISTS token_withdrawals (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          user_id INT NOT NULL,
-          amount BIGINT NOT NULL,
-          tx_hash VARCHAR(100) NULL,
-          status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          completed_at TIMESTAMP NULL,
-          INDEX idx_user_id (user_id),
-          INDEX idx_status (status),
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-      "
-    ];
-    
-    foreach ($tables as $tableName => $sql) {
-      try {
-        $pdo->exec($sql);
-        if (DEBUG_MODE) {
-          error_log("Created table: $tableName");
-        }
-      } catch (Exception $e) {
-        if (DEBUG_MODE) {
-          error_log("Error creating table $tableName: " . $e->getMessage());
-        }
-        // Continue with other tables even if one fails
-      }
-    }
-  } else {
-    // Tables exist, check for missing columns
+  foreach ($tables as $tableName => $sql) {
     try {
-      $hasMaxEnergy = $pdo->query("
-        SELECT COUNT(*) FROM information_schema.columns 
-        WHERE table_schema = '".DB_NAME."' 
-        AND table_name = 'energy' 
-        AND column_name = 'max_energy'
-      ")->fetchColumn();
-      
-      if (!$hasMaxEnergy) {
-        $pdo->exec("ALTER TABLE energy ADD COLUMN max_energy INT NOT NULL DEFAULT 10");
+      $pdo->exec($sql);
+      if (DEBUG_MODE) {
+        error_log("Created table (if not exists): $tableName");
       }
     } catch (Exception $e) {
       if (DEBUG_MODE) {
-        error_log("Error checking/adding max_energy column: " . $e->getMessage());
+        error_log("Error creating table $tableName: " . $e->getMessage());
       }
+      // Continue with other tables even if one fails
+    }
+  }
+
+  // Check and add missing columns to existing tables if necessary
+  try {
+    // Add total_missions, total_raids_won, total_kills to users table
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_missions INT NOT NULL DEFAULT 0");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_raids_won INT NOT NULL DEFAULT 0");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_kills INT NOT NULL DEFAULT 0");
+    
+    // Add max_energy to energy table
+    $pdo->exec("ALTER TABLE energy ADD COLUMN IF NOT EXISTS max_energy INT NOT NULL DEFAULT 10");
+
+    if (DEBUG_MODE) {
+      error_log("Checked and added missing columns.");
+    }
+  } catch (Exception $e) {
+    if (DEBUG_MODE) {
+      error_log("Error checking/adding columns: " . $e->getMessage());
     }
   }
 }
-runMigrations($pdo);
-$pdo->exec("USE `".DB_NAME."`");
-
 
 /** ================= Utility Functions ================= **/
 function jsonErr(string $msg, int $code = 400): void {
