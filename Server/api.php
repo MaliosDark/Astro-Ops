@@ -68,7 +68,7 @@ define('GAME_TOKEN_MINT','CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo');
 define('SOLANA_API_URL',  'https://verify.bonkraiders.com');
 
 // Debug mode constant
-define('DEBUG_MODE', false); // Disable for production
+define('DEBUG_MODE', true); // Enable for development
 
 // Treasury-safe mission config
 $REWARD_CONFIG = [
@@ -239,6 +239,36 @@ function runMigrations(PDO $pdo) {
           INDEX idx_token_hash (token_hash),
           INDEX idx_expires (expires_at),
           INDEX idx_user_id (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      ",
+      'token_transactions' => "
+        CREATE TABLE IF NOT EXISTS token_transactions (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          amount BIGINT NOT NULL,
+          tx_hash VARCHAR(100) NULL,
+          tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn') NOT NULL,
+          status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          completed_at TIMESTAMP NULL,
+          INDEX idx_user_id (user_id),
+          INDEX idx_status (status),
+          INDEX idx_tx_type (tx_type),
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      ",
+      'token_withdrawals' => "
+        CREATE TABLE IF NOT EXISTS token_withdrawals (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NOT NULL,
+          amount BIGINT NOT NULL,
+          tx_hash VARCHAR(100) NULL,
+          status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          completed_at TIMESTAMP NULL,
+          INDEX idx_user_id (user_id),
+          INDEX idx_status (status),
+          FOREIGN KEY (user_id) REFERENCES users(id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       "
     ];
@@ -1234,6 +1264,182 @@ switch ($action) {
         AntiCheat::validateRequestOrigin();
         $onchain = getOnchainBalance($me['publicKey']);
         
+        // Get claimable balance from ship
+        $stmt = $pdo->prepare("SELECT br_balance FROM ships WHERE user_id = ? AND is_active = 1");
+        $stmt->execute([$me['userId']]);
+        $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$ship) {
+          echo json_encode(['claimable_AT' => 0]);
+          exit;
+        }
+        
+        // Record transaction in token_transactions table
+        $pdo->beginTransaction();
+        try {
+          $pdo->prepare("
+            INSERT INTO token_transactions (
+              user_id, amount, tx_type, status, completed_at
+            ) VALUES (?, ?, 'claim', 'completed', NOW())
+          ")->execute([$me['userId'], $ship['br_balance']]);
+          
+          $pdo->commit();
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Failed to record claim transaction: " . $e->getMessage());
+          }
+          // Continue even if transaction recording fails
+        }
+        
+        echo json_encode(['claimable_AT' => $ship['br_balance']]);
+        exit;
+
+
+      // WALLET BALANCE
+      case 'wallet_balance':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Get on-chain balance
+          $onchainBalance = getOnchainBalance($me['publicKey']);
+          
+          // Get in-game balance
+          $stmt = $pdo->prepare("SELECT br_balance FROM ships WHERE user_id = ? AND is_active = 1");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          $ingameBalance = $ship ? $ship['br_balance'] : 0;
+          
+          echo json_encode([
+            'onchain_balance' => $onchainBalance,
+            'ingame_balance' => $ingameBalance
+          ]);
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Wallet balance error: " . $e->getMessage());
+          }
+          jsonErr('Failed to get wallet balance: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+
+      // TRANSACTION HISTORY
+      case 'transaction_history':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Get transaction history from token_transactions table
+          $stmt = $pdo->prepare("
+            SELECT id, amount, tx_hash, tx_type, status, created_at, completed_at
+            FROM token_transactions
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 20
+          ");
+          $stmt->execute([$me['userId']]);
+          $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Format timestamps
+          foreach ($transactions as &$tx) {
+            $tx['timestamp'] = strtotime($tx['created_at']) * 1000; // Convert to JS timestamp
+            unset($tx['created_at']); // Remove original timestamp
+          }
+          
+          echo json_encode(['transactions' => $transactions]);
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Transaction history error: " . $e->getMessage());
+          }
+          jsonErr('Failed to get transaction history: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+
+      // WITHDRAW TOKENS
+      case 'withdraw_tokens':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $amount = floatval($b['amount'] ?? 0);
+        
+        if ($amount <= 0) {
+          jsonErr('Invalid withdrawal amount', 400);
+        }
+        
+        try {
+          $pdo->beginTransaction();
+          
+          // Get user's ship balance
+          $stmt = $pdo->prepare("SELECT id, br_balance FROM ships WHERE user_id = ? AND is_active = 1 FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            $pdo->rollback();
+            jsonErr('No active ship found', 404);
+          }
+          
+          if ($ship['br_balance'] < $amount) {
+            $pdo->rollback();
+            jsonErr('Insufficient balance for withdrawal', 400);
+          }
+          
+          // Deduct from ship balance
+          $newBalance = $ship['br_balance'] - $amount;
+          $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?")
+              ->execute([$newBalance, $ship['id']]);
+          
+          // Record withdrawal in token_withdrawals table
+          $pdo->prepare("
+            INSERT INTO token_withdrawals (
+              user_id, amount, status
+            ) VALUES (?, ?, 'pending')
+          ")->execute([$me['userId'], $amount]);
+          $withdrawalId = $pdo->lastInsertId();
+          
+          // Record transaction in token_transactions table
+          $pdo->prepare("
+            INSERT INTO token_transactions (
+              user_id, amount, tx_type, status
+            ) VALUES (?, ?, 'withdraw', 'pending')
+          ")->execute([$me['userId'], $amount]);
+          
+          $pdo->commit();
+          
+          // In a real implementation, we would now initiate an on-chain transaction
+          // to transfer tokens to the user's wallet. For now, we'll simulate success.
+          
+          // Update withdrawal status to completed
+          $pdo->prepare("
+            UPDATE token_withdrawals 
+            SET status = 'completed', completed_at = NOW(), tx_hash = ?
+            WHERE id = ?
+          ")->execute(['mock_tx_' . time(), $withdrawalId]);
+          
+          // Update transaction status to completed
+          $pdo->prepare("
+            UPDATE token_transactions 
+            SET status = 'completed', completed_at = NOW(), tx_hash = ?
+            WHERE user_id = ? AND tx_type = 'withdraw' AND status = 'pending'
+            ORDER BY created_at DESC LIMIT 1
+          ")->execute(['mock_tx_' . time(), $me['userId']]);
+          
+          echo json_encode([
+            'success' => true,
+            'withdrawal_id' => $withdrawalId,
+            'amount' => $amount,
+            'br_balance' => $newBalance,
+            'status' => 'completed'
+          ]);
+          
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Withdraw tokens error: " . $e->getMessage());
+          }
+          jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
+        }
+        exit;
         // Get claimable balance from database
         $stmt = $pdo->prepare("SELECT SUM(reward) as claimable FROM missions WHERE user_id = ? AND claimed = 0");
         $stmt->execute([$me['userId']]);
