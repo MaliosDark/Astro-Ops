@@ -524,38 +524,38 @@ const WalletBalanceModal = ({ onClose }) => {
                       <span style={{ fontSize: '16px' }}>
                         {getTransactionIcon(tx.tx_type || tx.type)}
                       </span>
-                      <div>
-                        <div style={{
-                          fontSize: '12px',
-                          color: '#0cf',
-                          marginBottom: '4px',
-                          textTransform: 'capitalize'
-                        }}>
-                          {(tx.tx_type || tx.type || '').replace('_', ' ')}
-                        </div>
-                        <div style={{
-                          fontSize: '9px',
-                          color: '#666'
-                        }}>
-                          {formatDate(tx.created_at || tx.timestamp)}
-                        </div>
-                        {tx.tx_hash && (
+                        <div>
                           <div style={{
-                            fontSize: '8px',
-                            color: '#0f0',
-                            marginTop: '4px'
+                            fontSize: '12px',
+                            color: '#0cf',
+                            marginBottom: '4px',
+                            textTransform: 'capitalize'
                           }}>
-                            TX: <a
-                              href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: '#0f0', textDecoration: 'underline' }}
-                            >
-                              {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
-                            </a>
+                            {(tx.tx_type || tx.type || '').replace('_', ' ')}
                           </div>
-                        )}
-                      </div>
+                          <div style={{
+                            fontSize: '9px',
+                            color: '#666'
+                          }}>
+                            {formatDate(tx.created_at || tx.timestamp)}
+                          </div>
+                          {tx.tx_hash && (
+                            <div style={{
+                              fontSize: '8px',
+                              color: '#0f0',
+                              marginTop: '4px'
+                            }}>
+                              TX: <a
+                                href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#0f0', textDecoration: 'underline' }}
+                              >
+                                {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
+                              </a>
+                            </div>
+                          )}
+                        </div>
 
                     </div>
                     
