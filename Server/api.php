@@ -931,7 +931,7 @@ switch ($action) {
             ")->execute([$mint_tx_hash, $transaction_id]);
             
             $pdo->commit();
-            echo json_encode(['success' => true, 'br_balance' => $new_ingame_balance, 'mint_tx_hash' => $mint_tx_hash]);
+            echo json_encode(['success' => true, 'br_balance' => $new_ingame_balance, 'mint_tx_hash' => $mint_tx_hash, 'id' => $transaction_id]);
           } else {
             // Update token_transactions to failed and rollback in-game balance deduction
             $pdo->prepare("
