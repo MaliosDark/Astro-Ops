@@ -30,77 +30,88 @@ class WebSocketService {
     
     return new Promise((resolve, reject) => {
       try {
-        // Use real WebSocket client if available
-        if (window.BonkRaidersWebSocketClient) {
-            // Use mock WebSocket for development
-            let wsUrl;
-            
-            if (ENV.IS_DEVELOPMENT) {
-              // Use mock WebSocket in development
-              this.mockWebSocketConnection(userId, token);
-              resolve();
-              return;
-            }
-            
-            // In production, use the real WebSocket URL
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const apiHost = ENV.API_BASE_URL.replace(/^https?:\/\//, '');
-            wsUrl = `${protocol}//${apiHost}:8082`;
+        // Check if WebSocket client is available
+        if (!window.BonkRaidersWebSocketClient) {
+          console.warn('⚠️ BonkRaidersWebSocketClient not available. Using mock WebSocket.');
+          this.mockWebSocketConnection(userId, token);
+          this._emit('disconnected', { reason: 'client_not_available' });
+          reject(new Error('WebSocket client not available'));
+          return;
+        }
+        
+        // Use mock WebSocket for development
+        if (ENV.IS_DEVELOPMENT) {
+          this.mockWebSocketConnection(userId, token);
+          resolve();
+          return;
+        }
+        
+        // In production, use the real WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const apiHost = ENV.API_BASE_URL.replace(/^https?:\/\//, '');
+        const wsUrl = `${protocol}//${apiHost}:8082`;
+        
+        if (ENV.DEBUG_MODE) {
+          console.log('🔌 Connecting to WebSocket:', wsUrl);
+        }
+
+        try {
+          this.ws = new WebSocket(wsUrl);
+
+          this.ws.onopen = () => {
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
             
             if (ENV.DEBUG_MODE) {
-              console.log('🔌 Connecting to WebSocket:', wsUrl);
+              console.log('✅ WebSocket connected');
             }
 
-            this.ws = new WebSocket(wsUrl);
+            // Start heartbeat
+            this.startHeartbeat();
+            
+            // Send authentication
+            this.send('auth', { userId, token });
+            
+            this._emit('connected');
+            resolve();
+          };
 
-            this.ws.onopen = () => {
-              this.isConnected = true;
-              this.reconnectAttempts = 0;
-              
-              if (ENV.DEBUG_MODE) {
-                console.log('✅ WebSocket connected');
-              }
+          this.ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              this.handleMessage(data);
+            } catch (error) {
+              console.error('❌ Failed to parse WebSocket message:', error);
+            }
+          };
 
-              // Start heartbeat
-              this.startHeartbeat();
-              
-              // Send authentication
-              this.send('auth', { userId, token });
-              
-              this._emit('connected');
-              resolve();
-            };
+          this.ws.onclose = (event) => {
+            this.isConnected = false;
+            this.stopHeartbeat();
+            
+            if (ENV.DEBUG_MODE) {
+              console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+            }
 
-            this.ws.onmessage = (event) => {
-              try {
-                const data = JSON.parse(event.data);
-                this.handleMessage(data);
-              } catch (error) {
-                console.error('❌ Failed to parse WebSocket message:', error);
-              }
-            };
+            this._emit('disconnected', { code: event.code, reason: event.reason });
 
-            this.ws.onclose = (event) => {
-              this.isConnected = false;
-              this.stopHeartbeat();
-              
-              if (ENV.DEBUG_MODE) {
-                console.log('🔌 WebSocket disconnected:', event.code, event.reason);
-              }
+            // Attempt to reconnect if not a clean close
+            if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+              this.attemptReconnect();
+            }
+          };
 
-              this._emit('disconnected', { code: event.code, reason: event.reason });
-
-              // Attempt to reconnect if not a clean close
-              if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-                this.attemptReconnect();
-              }
-            };
-
-            this.ws.onerror = (error) => {
-              console.error('❌ WebSocket error:', error);
-              this._emit('error', error);
-              reject(error);
-            };
+          this.ws.onerror = (error) => {
+            console.error('❌ WebSocket error:', error);
+            this._emit('error', error);
+            this.isConnected = false;
+            reject(error);
+          };
+        } catch (error) {
+          console.error('❌ WebSocket connection failed:', error);
+          this.isConnected = false;
+          this._emit('disconnected', { reason: 'connection_failed' });
+          reject(error);
         }
       } catch (error) {
         console.error('❌ Failed to create WebSocket connection:', error);

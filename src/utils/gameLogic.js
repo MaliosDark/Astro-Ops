@@ -299,11 +299,13 @@ export async function performRaid(missionId) {
       console.log('🏴‍☠️ Starting raid on mission:', missionId);
     }
     
-    // Notify other players via WebSocket
-    websocketService.send('raid_initiated', {
-      targetMissionId: missionId,
-      timestamp: Date.now()
-    });
+    // Notify other players via WebSocket if connected
+    if (websocketService.isConnected) {
+      websocketService.send('raid_initiated', {
+        targetMissionId: missionId,
+        timestamp: Date.now()
+      });
+    }
     
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
@@ -334,13 +336,15 @@ export async function performRaid(missionId) {
         window.AstroUI.setBalance(br_balance);
       }
       
-      // Notify completion via WebSocket
-      websocketService.send('raid_completed', {
-        missionId,
-        stolen,
-        success: stolen > 0,
-        timestamp: Date.now()
-      });
+      // Notify completion via WebSocket if connected
+      if (websocketService.isConnected) {
+        websocketService.send('raid_completed', {
+          missionId,
+          stolen,
+          success: stolen > 0,
+          timestamp: Date.now()
+        });
+      }
       
       return { stolen, br_balance };
     });

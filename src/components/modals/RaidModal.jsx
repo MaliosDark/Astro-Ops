@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
+import websocketService from '../../services/websocketService';
+import ENV from '../../config/environment';
 import UserStatusIndicator from '../UserStatusIndicator';
 import RaidNotification from '../RaidNotification';
 import websocketService from '../../services/websocketService';
@@ -13,11 +15,40 @@ const RaidModal = ({ onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [isRaiding, setIsRaiding] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState(null);
+  const [isWsConnected, setIsWsConnected] = useState(false);
+  const [wsError, setWsError] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [realTimeUsers, setRealTimeUsers] = useState([]);
 
   useEffect(() => {
     loadInitialData();
+    
+    // Check WebSocket connection status
+    const wsStatus = websocketService.getStatus();
+    setIsWsConnected(wsStatus.isConnected);
+    
+    if (!wsStatus.isConnected) {
+      setWsError('WebSocket service is unavailable. Some features may be limited.');
+    }
+    
+    // Subscribe to WebSocket connection events
+    const handleWsConnected = () => {
+      setIsWsConnected(true);
+      setWsError('');
+    };
+    
+    const handleWsDisconnected = (data) => {
+      setIsWsConnected(false);
+      setWsError(`WebSocket disconnected: ${data?.reason || 'Connection lost'}`);
+    };
+    
+    websocketService.on('connected', handleWsConnected);
+    websocketService.on('disconnected', handleWsDisconnected);
+    
+    return () => {
+      websocketService.off('connected', handleWsConnected);
+      websocketService.off('disconnected', handleWsDisconnected);
+    };
   }, []);
 
   useEffect(() => {
@@ -232,6 +263,23 @@ const RaidModal = ({ onClose }) => {
             🎯 RAID OPERATIONS
           </h1>
           
+          {!isWsConnected && (
+            <div style={{
+              background: 'rgba(60,0,0,0.6)',
+              border: '2px solid #f00',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '16px',
+              color: '#f00',
+              fontSize: '12px'
+            }}>
+              ⚠️ WebSocket service unavailable
+              <div style={{ fontSize: '10px', marginTop: '8px', color: '#ccc' }}>
+                Raid functionality is limited. You can still test the interface, but real-time features are disabled.
+              </div>
+            </div>
+          )}
+          
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -257,38 +305,40 @@ const RaidModal = ({ onClose }) => {
           
           <button
             onClick={handleScanForRaids}
-            disabled={energy < 1 || isScanning}
+            disabled={energy < 1 || isScanning || !isWsConnected}
             style={{
               width: '100%',
               padding: '12px',
-              background: energy < 1 || isScanning ? 
+              background: energy < 1 || isScanning || !isWsConnected ? 
                 'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' : 
                 'linear-gradient(135deg, #0cf, #0af)',
-              color: energy < 1 || isScanning ? '#666' : '#000',
+              color: energy < 1 || isScanning || !isWsConnected ? '#666' : '#000',
               border: '2px solid #0cf',
               borderRadius: '8px',
               fontFamily: "'Press Start 2P', monospace",
               fontSize: '14px',
-              cursor: energy < 1 || isScanning ? 'not-allowed' : 'pointer',
+              cursor: energy < 1 || isScanning || !isWsConnected ? 'not-allowed' : 'pointer',
               marginBottom: '20px',
               transition: 'all 0.3s ease',
-              boxShadow: energy < 1 || isScanning ? 'none' : '0 4px 16px rgba(0, 255, 255, 0.4)',
-              textShadow: energy < 1 || isScanning ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
+              boxShadow: energy < 1 || isScanning || !isWsConnected ? 'none' : '0 4px 16px rgba(0, 255, 255, 0.4)',
+              textShadow: energy < 1 || isScanning || !isWsConnected ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
             }}
             onMouseEnter={(e) => {
-              if (energy >= 1 && !isScanning) {
+              if (energy >= 1 && !isScanning && isWsConnected) {
                 e.target.style.transform = 'translateY(-2px)';
                 e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
               }
             }}
             onMouseLeave={(e) => {
-              if (energy >= 1 && !isScanning) {
+              if (energy >= 1 && !isScanning && isWsConnected) {
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
               }
             }}
           >
-            {isScanning ? '🔍 SCANNING SECTOR...' : '🛰️ INITIATE DEEP SCAN (1 Energy)'}
+            {!isWsConnected ? '⚠️ WEBSOCKET UNAVAILABLE' : 
+             isScanning ? '🔍 SCANNING SECTOR...' : 
+             '🛰️ INITIATE DEEP SCAN (1 Energy)'}
           </button>
         </div>
         
@@ -536,40 +586,41 @@ const RaidModal = ({ onClose }) => {
             {selectedTarget && (
               <button
                 onClick={handleConfirmRaid}
-                disabled={isRaiding}
+                disabled={isRaiding || !isWsConnected}
                 style={{
                   width: '100%',
                   padding: '16px',
-                  background: isRaiding ? 
+                  background: isRaiding || !isWsConnected ? 
                     'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' :
                     selectedTarget.mode === 'Shielded' ? 
                       'linear-gradient(135deg, #f80, #f60)' : 
                       'linear-gradient(135deg, #f00, #c00)',
-                  color: isRaiding ? '#666' : '#fff',
+                  color: isRaiding || !isWsConnected ? '#666' : '#fff',
                   border: '2px solid #f00',
                   borderRadius: '8px',
                   fontFamily: "'Press Start 2P', monospace",
                   fontSize: window.innerWidth <= 600 ? '12px' : '14px',
-                  cursor: isRaiding ? 'not-allowed' : 'pointer',
+                  cursor: isRaiding || !isWsConnected ? 'not-allowed' : 'pointer',
                   marginBottom: '16px',
                   transition: 'all 0.3s ease',
-                  boxShadow: isRaiding ? 'none' : '0 4px 16px rgba(255, 0, 0, 0.4)',
-                  textShadow: isRaiding ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
+                  boxShadow: isRaiding || !isWsConnected ? 'none' : '0 4px 16px rgba(255, 0, 0, 0.4)',
+                  textShadow: isRaiding || !isWsConnected ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
                 }}
                 onMouseEnter={(e) => {
-                  if (!isRaiding) {
+                  if (!isRaiding && isWsConnected) {
                     e.target.style.transform = 'translateY(-2px)';
                     e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 0, 0.6)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!isRaiding) {
+                  if (!isRaiding && isWsConnected) {
                     e.target.style.transform = 'translateY(0)';
                     e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 0, 0.4)';
                   }
                 }}
               >
-                {isRaiding ? '⚔️ RAID IN PROGRESS...' : 
+                {!isWsConnected ? '⚠️ WEBSOCKET UNAVAILABLE' :
+                 isRaiding ? '⚔️ RAID IN PROGRESS...' : 
                  selectedTarget.mode === 'Shielded' ? '🛡️ ATTEMPT BREACH RAID' : 
                  '⚔️ EXECUTE RAID MISSION'}
               </button>
@@ -585,7 +636,15 @@ const RaidModal = ({ onClose }) => {
             border: '2px dashed #0cf',
             borderRadius: '8px'
           }}>
-            {energy < 1 ? (
+            {!isWsConnected ? (
+              <div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+                <p style={{ marginBottom: '8px' }}>WebSocket service is currently unavailable.</p>
+                <p style={{ fontSize: '10px', color: '#666' }}>
+                  Raid functionality requires real-time communication.
+                </p>
+              </div>
+            ) : energy < 1 ? (
               <div>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚡</div>
                 <p style={{ marginBottom: '8px' }}>Insufficient energy for sector scanning.</p>
