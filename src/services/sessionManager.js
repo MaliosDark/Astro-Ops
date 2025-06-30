@@ -448,6 +448,50 @@ class SessionManager {
   async getLeaderboard() {
     return await apiService.getLeaderboard();
   }
+
+  /**
+   * Get wallet balance
+   */
+  async getWalletBalance() {
+    try {
+      return await apiService.getWalletBalance();
+    } catch (error) {
+      console.error('Get wallet balance error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Withdraw tokens
+   */
+  async withdrawTokens(amount) {
+    try {
+      const result = await apiService.withdrawTokens(amount);
+      
+      // Update profile to reflect new balance
+      if (result.br_balance !== undefined && this.userProfile?.ship) {
+        this.userProfile.ship.balance = result.br_balance;
+        this.storeSession();
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Withdraw tokens error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get transaction history
+   */
+  async getTransactionHistory() {
+    try {
+      return await apiService.getTransactionHistory();
+    } catch (error) {
+      console.error('Get transaction history error:', error);
+      return { transactions: [] };
+    }
+  }
 }
 
 // Create singleton instance

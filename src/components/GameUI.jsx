@@ -125,6 +125,8 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         const btn = document.getElementById('btn-help');
         if (btn) btn.onclick = fn;
       },
+      
+      // Hook wallet balance button
       onWalletBalance: (fn) => {
         const btn = document.getElementById('btn-wallet');
         if (btn) btn.onclick = fn;
