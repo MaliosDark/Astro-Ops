@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonk Raiders WebSocket Server</title>
+    <style>
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #000;
+            color: #0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            background: rgba(0, 40, 0, 0.5);
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        h1 {
+            color: #0ff;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background: rgba(0, 60, 0, 0.5);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+        }
+        .status.online {
+            color: #0f0;
+        }
+        .status.offline {
+            color: #f00;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #0f0;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            text-align: left;
+            overflow-x: auto;
+            margin: 20px 0;
+            color: #0ff;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Bonk Raiders WebSocket Server</h1>
+        
+        <div class="status" id="server-status">
+            Checking server status...
+        </div>
+        
+        <p>This server provides real-time communication for the Bonk Raiders game, enabling:</p>
+        <ul>
+            <li>Player status updates</li>
+            <li>Raid notifications</li>
+            <li>In-game chat</li>
+            <li>Real-time battles</li>
+            <li>Leaderboard updates</li>
+        </ul>
+        
+        <p>To connect to the WebSocket server from your client:</p>
+        
+        <div class="code">
+            const ws = new WebSocket('wss://webrtc.bonkraiders.com/ws');<br><br>
+            
+            // Authenticate after connection<br>
+            ws.onopen = () => {<br>
+            &nbsp;&nbsp;ws.send(JSON.stringify({<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;type: 'auth',<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;data: {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;token: 'your-jwt-token'<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+            &nbsp;&nbsp;}));<br>
+            };<br><br>
+            
+            // Handle messages<br>
+            ws.onmessage = (event) => {<br>
+            &nbsp;&nbsp;const message = JSON.parse(event.data);<br>
+            &nbsp;&nbsp;console.log('Received:', message);<br>
+            };
+        </div>
+        
+        <p>For more information, please refer to the <a href="https://github.com/bonkraiders/websocket-server" style="color: #0ff;">documentation</a>.</p>
+    </div>
+    
+    <script>
+        // Check server status
+        function checkServerStatus() {
+            const statusElement = document.getElementById('server-status');
+            
+            // Try to connect to WebSocket server
+            const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                statusElement.textContent = 'Server is ONLINE';
+                statusElement.className = 'status online';
+                
+                // Close connection after status check
+                setTimeout(() => ws.close(), 1000);
+            };
+            
+            ws.onerror = () => {
+                statusElement.textContent = 'Server is OFFLINE';
+                statusElement.className = 'status offline';
+            };
+        }
+        
+        // Check status when page loads
+        window.addEventListener('load', checkServerStatus);
+    </script>
+</body>
+</html>
