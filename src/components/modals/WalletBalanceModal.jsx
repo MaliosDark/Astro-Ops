@@ -524,7 +524,7 @@ const WalletBalanceModal = ({ onClose }) => {
                       <span style={{ fontSize: '16px' }}>
                         {getTransactionIcon(tx.tx_type || tx.type)}
                       </span>
-                                           <div>
+                      <div>
                         <div style={{
                           fontSize: '12px',
                           color: '#0cf',
