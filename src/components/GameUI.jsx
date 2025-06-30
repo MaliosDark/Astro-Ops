@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
-import EconomyPanel from './EconomyPanel';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import walletService from '../services/walletService';
@@ -15,7 +14,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [energy, setEnergy] = useState(10);
   const [showEconomyPanel, setShowEconomyPanel] = useState(false);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
-  const [showEconomyPanel, setShowEconomyPanel] = useState(false);
 
   useEffect(() => {
     // Show the game UI - EXACTLY like original
@@ -146,10 +144,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     setShowEconomyPanel(prev => !prev);
   };
 
-  const toggleEconomyPanel = () => {
-    setShowEconomyPanel(prev => !prev);
-  };
-
   const handleDisconnect = async () => {
     if (window.confirm('Are you sure you want to disconnect your wallet?')) {
       try {
@@ -204,13 +198,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
                 </button>
               </span>
               <span className="balance-unit">BR</span>
-              <button 
-                className="economy-btn"
-                onClick={toggleEconomyPanel}
-                title="View Economy Dashboard"
-              >
-                💰
-              </button>
             </div>
           </div>
         </div>
@@ -319,20 +306,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       </div>
 
       <Tooltip tooltip={tooltip} />
-      
-      {showEconomyPanel && (
-        <div className="economy-panel-overlay">
-          <div className="economy-panel-container">
-            <button 
-              className="close-economy-btn"
-              onClick={() => setShowEconomyPanel(false)}
-            >
-              ✖
-            </button>
-            <EconomyPanel walletAddress={walletAddress} />
-          </div>
-        </div>
-      )}
       
       {showEconomyPanel && (
         <div className="economy-panel-overlay">

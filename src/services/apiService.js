@@ -627,22 +627,6 @@ class ApiService {
       body: JSON.stringify({ amount })
     });
   }
-  /**
-   * Get earnings data
-   */
-  async getEarnings() {
-    return await this.request('api.php?action=earnings');
-  }
-
-  /**
-   * Withdraw tokens to wallet
-   */
-  async withdrawTokens(amount) {
-    return await this.request('api.php?action=withdraw_tokens', {
-      method: 'POST',
-      body: JSON.stringify({ amount })
-    });
-  }
 }
 
 // Create singleton instance
