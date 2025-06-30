@@ -2,6 +2,7 @@
 import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnimator';
 import { createBurnTransaction, signAndSerializeTransaction, checkTokenBalance, getTokenBalance } from './solanaTransactions';
 import walletService from '../services/walletService.js';
+import sessionManager from '../services/sessionManager.js';
 import apiService from '../services/apiService.js';
 import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
@@ -214,19 +215,37 @@ export async function buyShip() {
 export async function startMission(type, mode = 'Unshielded') {
   try {
     // Get wallet provider for signing
-    const connectedWallet = walletService.getConnectedWallet();
-    if (!connectedWallet) {
+    const wallet = walletService.getConnectedWallet();
+    if (!wallet) {
       throw new Error('Wallet not connected');
     }
 
-    const userPublicKey = connectedWallet.publicKey;
+    const userPublicKey = wallet.publicKey;
 
     if (window.AstroUI) {
-      window.AstroUI.setStatus('Creating burn transaction...');
+      window.AstroUI.setStatus('Preparing mission...');
     }
 
-    // Create a mock burn transaction (since participation fee is 0)
-    const mockBurnTx = btoa('mock_burn_transaction_' + Date.now());
+    // Check if participation fee is required
+    let signedBurnTx = '';
+    if (ENV.PARTICIPATION_FEE > 0) {
+      if (window.AstroUI) {
+        window.AstroUI.setStatus('Creating burn transaction...');
+      }
+      
+      // Check if user has enough tokens
+      const hasEnoughTokens = await checkTokenBalance(userPublicKey, ENV.PARTICIPATION_FEE);
+      if (!hasEnoughTokens) {
+        throw new Error(`Insufficient tokens. You need ${ENV.PARTICIPATION_FEE} BR to start this mission.`);
+      }
+      
+      // Create and sign burn transaction
+      const burnTx = await createBurnTransaction(userPublicKey, ENV.PARTICIPATION_FEE);
+      signedBurnTx = await signAndSerializeTransaction(burnTx, wallet.provider.signTransaction);
+    } else {
+      // Create a mock burn transaction (since participation fee is 0)
+      signedBurnTx = btoa('mock_burn_transaction_' + Date.now());
+    }
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
@@ -241,7 +260,7 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateRaidTo(type);
 
     // REAL API CALL - This will save to database
-    const { success, reward, br_balance } = await apiService.sendMission(type, mode, mockBurnTx);
+    const { success, reward, br_balance } = await apiService.sendMission(type, mode, signedBurnTx);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${reward} BR` : 'Mission failed - no rewards');
@@ -431,17 +450,21 @@ export async function scanForRaids() {
 export async function performClaim() {
   try {
     // REAL API CALL - This will save to database
-    const { claimable_AT } = await apiService.claimRewards();
+    const result = await apiService.claimRewards();
+    const claimable_AT = result.claimable_AT || 0;
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens`);
       window.AstroUI.setBalance(claimable_AT);
     }
+    
+    return result;
   } catch (error) {
     console.error('Claim failed:', error);
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Claim failed: ${error.message}`);
     }
+    throw error;
   }
 }
 

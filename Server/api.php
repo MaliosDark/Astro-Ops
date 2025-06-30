@@ -1233,7 +1233,151 @@ switch ($action) {
       case 'claim_rewards':
         AntiCheat::validateRequestOrigin();
         $onchain = getOnchainBalance($me['publicKey']);
-        echo json_encode(['claimable_AT' => $onchain]);
+        
+        // Get claimable balance from database
+        $stmt = $pdo->prepare("SELECT SUM(reward) as claimable FROM missions WHERE user_id = ? AND claimed = 0");
+        $stmt->execute([$me['userId']]);
+        $claimable = $stmt->fetch(PDO::FETCH_ASSOC);
+        $claimableAmount = $claimable['claimable'] ?? 0;
+        
+        echo json_encode([
+          'claimable_AT' => $claimableAmount,
+          'onchain_balance' => $onchain
+        ]);
+        exit;
+
+
+      // WITHDRAW TOKENS
+      case 'withdraw_tokens':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $amount = intval($b['amount'] ?? 0);
+        
+        if ($amount <= 0) {
+          jsonErr('Invalid amount', 400);
+        }
+        
+        $pdo->beginTransaction();
+        try {
+          // Get user's ship
+          $stmt = $pdo->prepare("SELECT * FROM ships WHERE user_id = ? FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            $pdo->rollback();
+            jsonErr('No ship found', 400);
+          }
+          
+          // Check if user has enough balance
+          if ($ship['br_balance'] < $amount) {
+            $pdo->rollback();
+            jsonErr('Insufficient balance', 400);
+          }
+          
+          // Deduct from ship balance
+          $newBalance = $ship['br_balance'] - $amount;
+          $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?")
+              ->execute([$newBalance, $ship['id']]);
+          
+          // Record transaction
+          $pdo->prepare("
+            INSERT INTO token_transactions 
+              (user_id, amount, tx_type, status, created_at) 
+            VALUES (?, ?, 'withdraw', 'completed', NOW())
+          ")->execute([$me['userId'], $amount]);
+          
+          $pdo->commit();
+          
+          echo json_encode([
+            'success' => true,
+            'amount' => $amount,
+            'br_balance' => $newBalance,
+            'tx_hash' => 'mock_tx_' . time() // In a real implementation, this would be the actual transaction hash
+          ]);
+        } catch (Exception $e) {
+          $pdo->rollback();
+          jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+
+      // TRANSACTION HISTORY
+      case 'transaction_history':
+        AntiCheat::validateRequestOrigin();
+        
+        // Get transactions from database
+        $stmt = $pdo->prepare("
+          SELECT 
+            t.id, 
+            t.amount, 
+            t.tx_hash, 
+            t.tx_type, 
+            t.status, 
+            t.created_at, 
+            t.completed_at
+          FROM token_transactions t
+          WHERE t.user_id = ?
+          ORDER BY t.created_at DESC
+          LIMIT 20
+        ");
+        $stmt->execute([$me['userId']]);
+        $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Also get mission rewards
+        $stmt = $pdo->prepare("
+          SELECT 
+            m.id,
+            m.mission_type as source,
+            m.reward as amount,
+            m.ts_complete as timestamp,
+            'mission_reward' as tx_type,
+            'completed' as status
+          FROM missions m
+          WHERE m.user_id = ? AND m.success = 1
+          ORDER BY m.ts_complete DESC
+          LIMIT 10
+        ");
+        $stmt->execute([$me['userId']]);
+        $missionRewards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Combine and sort
+        $allTransactions = array_merge($transactions, $missionRewards);
+        usort($allTransactions, function($a, $b) {
+          $timeA = strtotime($a['created_at'] ?? $a['timestamp']);
+          $timeB = strtotime($b['created_at'] ?? $b['timestamp']);
+          return $timeB - $timeA;
+        });
+        
+        echo json_encode(['transactions' => $allTransactions]);
+        exit;
+
+
+      // WALLET BALANCE
+      case 'wallet_balance':
+        AntiCheat::validateRequestOrigin();
+        
+        // Get on-chain balance
+        $onchainBalance = getOnchainBalance($me['publicKey']);
+        
+        // Get in-game balance
+        $stmt = $pdo->prepare("SELECT br_balance FROM ships WHERE user_id = ? AND is_active = 1");
+        $stmt->execute([$me['userId']]);
+        $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+        $inGameBalance = $ship ? $ship['br_balance'] : 0;
+        
+        // Get claimable balance
+        $stmt = $pdo->prepare("SELECT SUM(reward) as claimable FROM missions WHERE user_id = ? AND claimed = 0");
+        $stmt->execute([$me['userId']]);
+        $claimable = $stmt->fetch(PDO::FETCH_ASSOC);
+        $claimableAmount = $claimable['claimable'] ?? 0;
+        
+        echo json_encode([
+          'onchain_balance' => $onchainBalance,
+          'ingame_balance' => $inGameBalance,
+          'claimable_balance' => $claimableAmount
+        ]);
         exit;
 
 

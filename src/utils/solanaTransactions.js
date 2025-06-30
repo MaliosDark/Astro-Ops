@@ -2,6 +2,16 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import ENV from '../config/environment.js';
 
+// Improved error handling for Solana transactions
+class SolanaTransactionError extends Error {
+  constructor(message, code, details = {}) {
+    super(message);
+    this.name = 'SolanaTransactionError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
 // Usar TextEncoder/TextDecoder nativo del navegador
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -169,16 +179,103 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
 export async function getTokenBalance(userPublicKey) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
+
+    // For development/testing, return mock balance if no real connection
+    if (ENV.DEBUG_MODE && ENV.MOCK_API) {
+      return Math.floor(Math.random() * 10000);
+    }
     
     // Get user's associated token account
-    const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
+    try {
+      const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
 
-    // Get token account info
-    const accountInfo = await connection.getTokenAccountBalance(userTokenAccount);
-    
-    return accountInfo.value?.uiAmount || 0;
+      // Get token account info
+      const accountInfo = await connection.getTokenAccountBalance(userTokenAccount);
+      
+      return accountInfo.value?.uiAmount || 0;
+    } catch (error) {
+      // If token account doesn't exist, return 0
+      if (error.message?.includes('account not found')) {
+        return 0;
+      }
+      throw error;
+    }
   } catch (error) {
-    console.error('Error getting token balance:', error);
+    console.error('Error getting token balance:', error.message);
+    
+    // Provide more user-friendly error
+    if (error.message?.includes('account not found')) {
+      return 0; // No token account means 0 balance
+    }
+    
+    if (error.message?.includes('connect')) {
+      throw new SolanaTransactionError(
+        'Unable to connect to Solana network. Please check your internet connection.',
+        'NETWORK_ERROR'
+      );
+    }
+    
+    // Default fallback
     return 0;
+  }
+}
+
+/**
+ * Get transaction history for a wallet
+ * @param {string} userPublicKey - User's wallet public key
+ * @returns {Promise<Array>} - Transaction history
+ */
+export async function getTransactionHistory(userPublicKey) {
+  try {
+    const userPubkey = new PublicKey(userPublicKey);
+    
+    // For development/testing, return mock transactions
+    if (ENV.DEBUG_MODE) {
+      return [
+        { signature: 'mock1', blockTime: Date.now()/1000 - 3600, type: 'CLAIM', amount: 1000 },
+        { signature: 'mock2', blockTime: Date.now()/1000 - 7200, type: 'MISSION', amount: 500 },
+        { signature: 'mock3', blockTime: Date.now()/1000 - 86400, type: 'RAID', amount: 1500 }
+      ];
+    }
+    
+    // Get recent transactions
+    const transactions = await connection.getSignaturesForAddress(
+      userPubkey,
+      { limit: 10 }
+    );
+    
+    // Process and return transaction details
+    return transactions.map(tx => ({
+      signature: tx.signature,
+      blockTime: tx.blockTime,
+      type: 'UNKNOWN', // Would need to parse transaction data to determine type
+      amount: 0 // Would need to parse transaction data to determine amount
+    }));
+  } catch (error) {
+    console.error('Error getting transaction history:', error);
+    return [];
+  }
+}
+
+/**
+ * Withdraw tokens from game to wallet
+ * @param {string} userPublicKey - User's wallet public key
+ * @param {number} amount - Amount to withdraw
+ * @returns {Promise<Object>} - Transaction result
+ */
+export async function withdrawTokens(userPublicKey, amount) {
+  try {
+    // This would be implemented with a real API call to the backend
+    // which would then mint tokens to the user's wallet
+    
+    // For now, we'll just return a mock success response
+    return {
+      success: true,
+      txHash: 'mock_tx_hash_' + Date.now(),
+      amount
+    };
+  } catch (error) {
+    console.error('Error withdrawing tokens:', error);
+    throw new Error(`Failed to withdraw tokens: ${error.message}`);
   }
 }

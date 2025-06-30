@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
+import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import ENV from '../config/environment.js';
 
@@ -12,6 +13,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [mode, setMode] = useState('—');
   const [status, setStatus] = useState('');
   const [energy, setEnergy] = useState(10);
+  const [tokenBalance, setTokenBalance] = useState(0);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
   useEffect(() => {
@@ -27,6 +29,12 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       try {
         // Load REAL user profile from server
         const profile = await apiService.getUserProfile();
+        // Also fetch token balance
+        const wallet = walletService.getConnectedWallet();
+        if (wallet) {
+          const balance = await getTokenBalance(wallet.publicKey);
+          setTokenBalance(balance);
+        }
         
         if (profile) {
           // Update UI with REAL data from database
@@ -117,6 +125,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         const btn = document.getElementById('btn-help');
         if (btn) btn.onclick = fn;
       },
+      onWalletBalance: (fn) => {
+        const btn = document.getElementById('btn-wallet');
+        if (btn) btn.onclick = fn;
+      }
     };
 
     // Initialize global counters - EXACTLY like original
@@ -160,6 +172,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     }
   };
 
+  const handleShowWalletBalance = () => {
+    onShowModal('walletBalance');
+  };
+
   return (
     <div id="gb-ui" className="game-ui-container">
       <div id="top-hud" className="top-hud-container">
@@ -169,6 +185,18 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
             <div className="panel-content">
               <span className="wallet-address" title={walletAddress}>
                 {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                <span 
+                  style={{ 
+                    marginLeft: '8px', 
+                    cursor: 'pointer', 
+                    color: '#0cf',
+                    fontSize: '10px'
+                  }}
+                  onClick={handleShowWalletBalance}
+                  title="View wallet balance"
+                >
+                  🔍
+                </span>
               </span>
               <button 
                 className="disconnect-btn"
@@ -277,6 +305,18 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         >
           <div className="btn-icon">💰</div>
           <div className="btn-text">CLAIM</div>
+        </button>
+        
+        <button 
+          className="action-btn wallet-btn" 
+          id="btn-wallet"
+          data-tip="View wallet balance"
+          onClick={handleShowWalletBalance}
+          onMouseMove={(e) => handleMouseMove(e, 'View wallet balance')}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="btn-icon">💼</div>
+          <div className="btn-text">WALLET</div>
         </button>
         
         <button 

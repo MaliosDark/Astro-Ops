@@ -361,6 +361,12 @@ body, html {
   box-shadow: 0 6px 16px rgba(0, 204, 255, 0.4);
 }
 
+.wallet-btn:hover {
+  border-color: #ff0;
+  color: #ff0;
+  box-shadow: 0 6px 16px rgba(255, 255, 0, 0.4);
+}
+
 /* Tooltip */
 .tooltip {
   position: absolute;

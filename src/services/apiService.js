@@ -525,19 +525,74 @@ class ApiService {
    * Claim rewards
    */
   async claimRewards() {
-    const result = await this.request('api.php?action=claim_rewards', {
-      method: 'POST'
-    });
-    
-    // Update cached balance
-    if (result.claimable_AT !== undefined) {
-      const publicKey = this.getCurrentUserPublicKey();
-      if (publicKey) {
-        userCacheService.updateCachedBalance(publicKey, result.claimable_AT);
+    try {
+      const result = await this.request('api.php?action=claim_rewards', {
+        method: 'POST'
+      });
+      
+      // Update cached balance
+      if (result.claimable_AT !== undefined) {
+        const publicKey = this.getCurrentUserPublicKey();
+        if (publicKey) {
+          userCacheService.updateCachedBalance(publicKey, result.claimable_AT);
+        }
       }
+      
+      return result;
+    } catch (error) {
+      console.error('Claim rewards error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Withdraw tokens to wallet
+   */
+  async withdrawTokens(amount) {
+    try {
+      const result = await this.request('api.php?action=withdraw_tokens', {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+      });
+      
+      // Update cached balance
+      if (result.br_balance !== undefined) {
+        const publicKey = this.getCurrentUserPublicKey();
+        if (publicKey) {
+          userCacheService.updateCachedBalance(publicKey, result.br_balance);
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Withdraw tokens error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get transaction history
+   */
+  async getTransactionHistory() {
+    try {
+      return await this.request('api.php?action=transaction_history');
+    } catch (error) {
+      console.error('Get transaction history error:', error);
+      return { transactions: [] };
+    }
+  }
+  
+  /**
+   * Get wallet balance
+   */
+  async getWalletBalance() {
+    try {
+      return await this.request('api.php?action=wallet_balance');
+    } catch (error) {
+      console.error('Get wallet balance error:', error);
+      throw error;
     }
     
-    return result;
   }
 
   /**
