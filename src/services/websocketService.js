@@ -28,6 +28,11 @@ class WebSocketService {
 
     this.userId = userId;
     
+    // Use real WebSocket client if available
+    if (window.BonkRaidersWebSocketClient) {
+      return this._connectWithClient(userId, token);
+    }
+    
     return new Promise((resolve, reject) => {
       try {
         // Use mock WebSocket for development
@@ -104,6 +109,85 @@ class WebSocketService {
         console.error('❌ Failed to create WebSocket connection:', error);
         reject(error);
       }
+    });
+  }
+
+  /**
+   * Connect using the BonkRaidersWebSocketClient
+   */
+  _connectWithClient(userId, token) {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const apiHost = ENV.API_BASE_URL.replace(/^https?:\/\//, '');
+        const wsUrl = `${protocol}//${apiHost}/ws`;
+        
+        // Create client
+        const client = new window.BonkRaidersWebSocketClient(wsUrl);
+        
+        // Set up event handlers
+        client.on('connected', () => {
+          console.log('WebSocket connected');
+          this.isConnected = true;
+          this._emit('connected');
+        });
+        
+        client.on('authenticated', (data) => {
+          console.log('WebSocket authenticated:', data);
+          this._setupClientEventHandlers(client);
+          resolve();
+        });
+        
+        client.on('auth_failed', (data) => {
+          console.error('WebSocket authentication failed:', data);
+          reject(new Error(data.message || 'Authentication failed'));
+        });
+        
+        client.on('error', (error) => {
+          console.error('WebSocket error:', error);
+          reject(error);
+        });
+        
+        client.on('disconnected', (data) => {
+          console.log('WebSocket disconnected:', data);
+          this.isConnected = false;
+          this._emit('disconnected', data);
+        });
+        
+        // Connect and authenticate
+        client.connect()
+          .then(() => client.authenticate(token))
+          .catch(reject);
+        
+        // Store client
+        this.ws = client;
+      } catch (error) {
+        console.error('Failed to connect with WebSocket client:', error);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Set up event handlers for the WebSocket client
+   */
+  _setupClientEventHandlers(client) {
+    // Forward relevant events
+    const events = [
+      'user_status_update',
+      'chat_message',
+      'raid_incoming',
+      'raid_completed',
+      'battle_action',
+      'leaderboard',
+      'online_users'
+    ];
+    
+    events.forEach(event => {
+      client.on(event, (data) => {
+        this._emit(event, data);
+      });
     });
   }
 

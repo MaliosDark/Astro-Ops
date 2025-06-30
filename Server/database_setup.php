@@ -64,6 +64,21 @@ try {
         }
     }
     
+    // Create token_withdrawals table
+    $pdo->exec("
+        CREATE TABLE token_withdrawals (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            amount BIGINT NOT NULL,
+            tx_hash VARCHAR(100) NULL,
+            status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP NULL,
+            INDEX idx_user_id (user_id),
+            INDEX idx_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    
     echo "\n=== Database Setup Complete ===\n";
     echo "Database: " . DB_NAME . "\n";
     echo "Host: " . DB_HOST . "\n";

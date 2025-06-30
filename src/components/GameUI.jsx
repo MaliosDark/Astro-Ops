@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Tooltip from './Tooltip';
+import EconomyPanel from './EconomyPanel';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import walletService from '../services/walletService';
@@ -12,6 +13,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [mode, setMode] = useState('—');
   const [status, setStatus] = useState('');
   const [energy, setEnergy] = useState(10);
+  const [showEconomyPanel, setShowEconomyPanel] = useState(false);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
   useEffect(() => {
@@ -139,6 +141,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     setTooltip({ visible: false, text: '', x: 0, y: 0 });
   };
 
+  const toggleEconomyPanel = () => {
+    setShowEconomyPanel(prev => !prev);
+  };
+
   const handleDisconnect = async () => {
     if (window.confirm('Are you sure you want to disconnect your wallet?')) {
       try {
@@ -185,6 +191,13 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
             <div className="panel-content">
               <span className="balance-value">{balance.toFixed(1)}</span>
               <span className="balance-unit">BR</span>
+              <button 
+                className="economy-btn"
+                onClick={toggleEconomyPanel}
+                title="View Economy Dashboard"
+              >
+                💰
+              </button>
             </div>
           </div>
         </div>
@@ -293,6 +306,20 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       </div>
 
       <Tooltip tooltip={tooltip} />
+      
+      {showEconomyPanel && (
+        <div className="economy-panel-overlay">
+          <div className="economy-panel-container">
+            <button 
+              className="close-economy-btn"
+              onClick={() => setShowEconomyPanel(false)}
+            >
+              ✖
+            </button>
+            <EconomyPanel walletAddress={walletAddress} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
