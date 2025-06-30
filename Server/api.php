@@ -882,7 +882,7 @@ switch ($action) {
           $pdo->prepare("
             INSERT INTO token_transactions (user_id, amount, tx_type, status)
             VALUES (?, ?, 'withdraw', 'completed')
-          ")->execute([$me['userId'], $amount, 'withdraw']);
+          ")->execute([$me['userId'], $amount]); // <--- CAMBIO AQUÍ: 'withdraw' ya está en la consulta SQL, no debe ir en el execute
 
           // Deduct from ship's in-game balance
           $pdo->prepare("UPDATE ships SET br_balance = ? WHERE user_id = ?")
