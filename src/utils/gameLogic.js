@@ -228,40 +228,37 @@ export async function startMission(type, mode = 'Unshielded') {
 
     // Check if participation fee is required
     let signedBurnTx = '';
-    if (ENV.PARTICIPATION_FEE > 0) {
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Creating burn transaction...');
-      }
-      
-      // Check if user has enough tokens
-      const hasEnoughTokens = await checkTokenBalance(userPublicKey, ENV.PARTICIPATION_FEE);
-      if (!hasEnoughTokens) {
-        throw new Error(`Insufficient tokens. You need ${ENV.PARTICIPATION_FEE} BR to start this mission.`);
-      }
-      
-      // Create and sign burn transaction
-      const burnTx = await createBurnTransaction(userPublicKey, ENV.PARTICIPATION_FEE);
-      signedBurnTx = await signAndSerializeTransaction(burnTx, wallet.provider.signTransaction);
-    } else {
-      // Create a mock burn transaction (since participation fee is 0)
-      signedBurnTx = btoa('mock_burn_transaction_' + Date.now());
+    // The participation fee is 250, so a burn transaction is always required.
+    // The `if (ENV.PARTICIPATION_FEE > 0)` block is always true now.
+    if (window.AstroUI) {
+      window.AstroUI.setStatus('Creating burn transaction...');
     }
+
+    // Check if user has enough tokens
+    const hasEnoughTokens = await checkTokenBalance(userPublicKey, ENV.PARTICIPATION_FEE);
+    if (!hasEnoughTokens) {
+      throw new Error(`Insufficient tokens. You need ${ENV.PARTICIPATION_FEE} BR to start this mission.`);
+    }
+
+    // Create and sign burn transaction
+    const burnTx = await createBurnTransaction(userPublicKey, ENV.PARTICIPATION_FEE);
+    signedBurnTx = await signAndSerializeTransaction(burnTx, wallet.provider.signTransaction);
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
     }
-    
+
     await animateShipLaunch();
-    
+
     if (window.AstroUI) {
       window.AstroUI.setStatus('In transit…');
     }
-    
+
     await animateRaidTo(type);
 
-    // REAL API CALL - This will save to database
-    const { success, reward, br_balance } = await apiService.sendMission(type, mode, signedBurnTx);
-    
+    // REAL API CALL - This will save to database and now also burn tokens on-chain
+    const { success, reward, br_balance, burn_tx_hash } = await apiService.sendMission(type, mode, signedBurnTx); // Pass signedBurnTx
+
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${reward} BR` : 'Mission failed - no rewards');
       window.AstroUI.setBalance(br_balance);
@@ -275,7 +272,7 @@ export async function startMission(type, mode = 'Unshielded') {
     if (window.AstroUI) {
       window.AstroUI.setStatus('Returning home…');
     }
-    
+
     await animateShipReturn();
   } catch (error) {
     console.error('Mission failed:', error);
