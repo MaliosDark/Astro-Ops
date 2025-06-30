@@ -461,13 +461,13 @@ class ApiService {
   /**
    * Send mission
    */
-  async sendMission(type, mode, signedBurnTx) {
+  async sendMission(type, mode, signedBurnTx) { // Add signedBurnTx parameter
     const result = await this.request('api.php?action=send_mission', {
       method: 'POST',
       body: JSON.stringify({
         type,
         mode,
-        signedBurnTx
+        signedBurnTx // Pass signedBurnTx to the backend
       })
     });
     
