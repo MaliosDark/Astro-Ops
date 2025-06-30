@@ -8,13 +8,20 @@ import ENV from '../config/environment';
  */
 const EconomyPanel = ({ walletAddress }) => {
   const [balance, setBalance] = useState(0);
-  const [earnings, setEarnings] = useState(0);
+  const [earnings, setEarnings] = useState({
+    total_earned: 0,
+    mission_earnings: 0,
+    raid_earnings: 0,
+    upgrade_spent: 0,
+    total_withdrawn: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   const [transactionHistory, setTransactionHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (walletAddress) {
@@ -25,30 +32,29 @@ const EconomyPanel = ({ walletAddress }) => {
   const loadEconomyData = async () => {
     try {
       setIsLoading(true);
+      setError('');
       
-      // Get user profile with balance
-      const profile = await apiService.getUserProfile();
+      // Get earnings data from API
+      const earningsData = await apiService.getEarnings();
       
-      if (profile && profile.ship) {
-        setBalance(profile.ship.br_balance || 0);
-      }
-      
-      // Get earnings (total earned minus current balance)
-      try {
-        const earningsData = await apiService.getEarnings();
-        setEarnings(earningsData.total_earned || 0);
+      if (earningsData) {
+        setBalance(earningsData.balance || 0);
+        setEarnings({
+          total_earned: earningsData.total_earned || 0,
+          mission_earnings: earningsData.mission_earnings || 0,
+          raid_earnings: earningsData.raid_earnings || 0,
+          upgrade_spent: earningsData.upgrade_spent || 0,
+          total_withdrawn: earningsData.total_withdrawn || 0
+        });
         
         // Set transaction history if available
         if (earningsData.transactions) {
           setTransactionHistory(earningsData.transactions);
         }
-      } catch (error) {
-        console.error('Failed to load earnings:', error);
-        // Fallback: estimate earnings as 120% of balance
-        setEarnings(Math.round(balance * 1.2));
       }
     } catch (error) {
       console.error('Failed to load economy data:', error);
+      setError('Failed to load economy data. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -63,31 +69,38 @@ const EconomyPanel = ({ walletAddress }) => {
     
     const amount = parseInt(withdrawAmount);
     if (isNaN(amount) || amount <= 0 || amount > balance) {
-      alert('Please enter a valid amount to withdraw');
+      setError('Please enter a valid amount to withdraw');
       return;
     }
     
     try {
       setIsWithdrawing(true);
+      setError('');
       
       // Call API to withdraw tokens
       const result = await apiService.withdrawTokens(amount);
       
       if (result.success) {
         // Update balance
-        setBalance(prev => prev - amount);
+        setBalance(result.new_balance);
         
         // Add to transaction history
         const newTransaction = {
-          id: Date.now(),
+          id: result.withdrawal_id,
           type: 'withdrawal',
           amount: amount,
-          timestamp: Date.now(),
+          timestamp: result.timestamp || Date.now(),
           status: 'completed',
           txHash: result.txHash
         };
         
         setTransactionHistory(prev => [newTransaction, ...prev]);
+        
+        // Update earnings
+        setEarnings(prev => ({
+          ...prev,
+          total_withdrawn: prev.total_withdrawn + amount
+        }));
         
         // Reset form
         setWithdrawAmount('');
@@ -102,7 +115,7 @@ const EconomyPanel = ({ walletAddress }) => {
       }
     } catch (error) {
       console.error('Withdrawal failed:', error);
-      alert(`Withdrawal failed: ${error.message}`);
+      setError(`Withdrawal failed: ${error.message}`);
     } finally {
       setIsWithdrawing(false);
     }
@@ -113,7 +126,7 @@ const EconomyPanel = ({ walletAddress }) => {
   };
 
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
+    const date = new Date(timestamp * 1000);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
@@ -168,6 +181,21 @@ const EconomyPanel = ({ walletAddress }) => {
         </div>
       ) : (
         <>
+          {error && (
+            <div style={{
+              background: 'rgba(60,0,0,0.4)', 
+              border: '1px solid #f00',
+              color: '#f00',
+              padding: '10px',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              fontSize: '12px',
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
+
           <div className="economy-stats">
             <div className="economy-stat-item">
               <div className="stat-label">Current Balance</div>
@@ -177,8 +205,75 @@ const EconomyPanel = ({ walletAddress }) => {
             
             <div className="economy-stat-item">
               <div className="stat-label">Total Earnings</div>
-              <div className="stat-value earnings">{earnings.toLocaleString()} BR</div>
+              <div className="stat-value earnings">{earnings.total_earned.toLocaleString()} BR</div>
               <div className="stat-description">Lifetime earnings from all sources</div>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '12px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              background: 'rgba(0,40,0,0.3)',
+              border: '1px solid #0f0',
+              borderRadius: '8px',
+              padding: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+                Mission Earnings
+              </div>
+              <div style={{ fontSize: '16px', color: '#0f0' }}>
+                {earnings.mission_earnings.toLocaleString()} BR
+              </div>
+            </div>
+            
+            <div style={{
+              background: 'rgba(40,0,0,0.3)',
+              border: '1px solid #f80',
+              borderRadius: '8px',
+              padding: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+                Raid Earnings
+              </div>
+              <div style={{ fontSize: '16px', color: '#f80' }}>
+                {earnings.raid_earnings.toLocaleString()} BR
+              </div>
+            </div>
+            
+            <div style={{
+              background: 'rgba(0,0,40,0.3)',
+              border: '1px solid #0cf',
+              borderRadius: '8px',
+              padding: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+                Upgrade Costs
+              </div>
+              <div style={{ fontSize: '16px', color: '#0cf' }}>
+                {earnings.upgrade_spent.toLocaleString()} BR
+              </div>
+            </div>
+            
+            <div style={{
+              background: 'rgba(40,40,0,0.3)',
+              border: '1px solid #ff0',
+              borderRadius: '8px',
+              padding: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+                Total Withdrawn
+              </div>
+              <div style={{ fontSize: '16px', color: '#ff0' }}>
+                {earnings.total_withdrawn.toLocaleString()} BR
+              </div>
             </div>
           </div>
 
