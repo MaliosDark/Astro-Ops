@@ -90,7 +90,7 @@ const EconomyPanel = ({ walletAddress }) => {
           type: 'withdrawal',
           amount: amount,
           timestamp: result.timestamp || Date.now(),
-          status: 'completed',
+          status: 'pending',
           txHash: result.txHash
         };
         
@@ -343,6 +343,7 @@ const EconomyPanel = ({ walletAddress }) => {
                       <div className="transaction-details">
                         <div className="transaction-type">
                           {tx.type.charAt(0).toUpperCase() + tx.type.slice(1)}
+                          {tx.details && ` (${tx.details})`}
                         </div>
                         <div className="transaction-date">
                           {formatDate(tx.timestamp)}
