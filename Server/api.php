@@ -231,7 +231,7 @@ function runMigrations(PDO $pdo) {
           user_id INT NOT NULL,
           amount BIGINT NOT NULL,
           tx_hash VARCHAR(100) NULL,
-          tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn') NOT NULL,
+          tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn', 'ship_purchase') NOT NULL,
           status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           completed_at TIMESTAMP NULL,
@@ -699,6 +699,12 @@ switch ($action) {
             error_log("Created ship with ID: " . $shipId);
           }
           
+          // Record ship purchase transaction
+          $pdo->prepare("
+            INSERT INTO token_transactions (user_id, amount, tx_type, status, ship_id)
+            VALUES (?, ?, 'ship_purchase', 'completed', ?)
+          ")->execute([$me['userId'], 0, $shipId]); // Assuming 0 BR cost in-game for ship purchase
+
           // Update user stats
           $pdo->prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?")
               ->execute([$me['userId']]);
@@ -856,17 +862,18 @@ switch ($action) {
         }
         exit;
 
-      // NEW: Withdraw Tokens (from in-game to on-chain, simulated)
+      // NEW: Withdraw Tokens (from in-game to on-chain, real transfer)
       case 'withdraw_tokens':
         AntiCheat::validateRequestOrigin();
         AntiCheat::validateJsonPayload();
         $b = getJson();
-        $amount = intval($b['amount'] ?? 0);
+        $amount = intval($b['amount'] ?? 0); // Amount is in UI units, assuming 0 decimals for game token
 
         if ($amount <= 0) jsonErr('Amount must be positive', 400);
 
         $pdo->beginTransaction();
         try {
+          // 1. Lock ship balance and check funds
           $stmt = $pdo->prepare("SELECT br_balance FROM ships WHERE user_id = ? FOR UPDATE");
           $stmt->execute([$me['userId']]);
           $current_ingame_balance = (int)$stmt->fetchColumn();
@@ -878,20 +885,72 @@ switch ($action) {
 
           $new_ingame_balance = $current_ingame_balance - $amount;
 
-          // Record transaction
-          $pdo->prepare("
-            INSERT INTO token_transactions (user_id, amount, tx_type, status)
-            VALUES (?, ?, 'withdraw', 'completed')
-          ")->execute([$me['userId'], $amount]); // <--- CAMBIO AQUÍ: 'withdraw' ya está en la consulta SQL, no debe ir en el execute
+          // 2. Record transaction as pending
+          $stmt = $pdo->prepare("
+            INSERT INTO token_transactions (user_id, amount, tx_type, status, notes)
+            VALUES (?, ?, 'withdraw', 'pending', 'Withdrawal initiated')
+          ");
+          $stmt->execute([$me['userId'], $amount]);
+          $transaction_id = $pdo->lastInsertId(); // Get the ID of the pending transaction
 
-          // Deduct from ship's in-game balance
-          $pdo->prepare("UPDATE ships SET br_balance = ? WHERE user_id = ?")
-              ->execute([$new_ingame_balance, $me['userId']]);
+          // 3. Call Node.js microservice to mint tokens to user's wallet
+          $client = new Client();
+          $mint_tx_hash = null;
+          $mint_success = false;
+          $mint_error_message = null;
 
-          $pdo->commit();
-          echo json_encode(['success' => true, 'br_balance' => $new_ingame_balance]);
+          try {
+            $mint_resp = $client->post(SOLANA_API_URL . '/mint', [
+              'json' => [
+                'recipient' => $me['publicKey'], // User's public key
+                'amount' => $amount // Amount in raw units (assuming 0 decimals)
+              ]
+            ]);
+            $mint_data = json_decode($mint_resp->getBody(), true);
+            $mint_tx_hash = $mint_data['signature'] ?? null;
+            
+            if ($mint_tx_hash) {
+                $mint_success = true;
+            } else {
+                $mint_error_message = 'No signature returned from mint service';
+            }
+          } catch (Exception $e) {
+            $mint_error_message = 'Solana mint transaction failed: ' . $e->getMessage();
+          }
+
+          // 4. Update transaction status based on minting result
+          if ($mint_success) {
+            // Deduct from ship's in-game balance
+            $pdo->prepare("UPDATE ships SET br_balance = ? WHERE user_id = ?")
+                ->execute([$new_ingame_balance, $me['userId']]);
+
+            // Update token_transactions to completed
+            $pdo->prepare("
+              UPDATE token_transactions SET status = 'completed', tx_hash = ?, completed_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            ")->execute([$mint_tx_hash, $transaction_id]);
+            
+            $pdo->commit();
+            echo json_encode(['success' => true, 'br_balance' => $new_ingame_balance, 'mint_tx_hash' => $mint_tx_hash]);
+          } else {
+            // Update token_transactions to failed and rollback in-game balance deduction
+            $pdo->prepare("
+              UPDATE token_transactions SET status = 'failed', notes = ?, completed_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            ")->execute([$mint_error_message, $transaction_id]);
+            
+            $pdo->rollback(); // Revert the in-game balance deduction
+            jsonErr('Withdrawal failed: ' . ($mint_error_message ?: 'Unknown error during minting'), 500);
+          }
         } catch (Exception $e) {
           $pdo->rollback();
+          // If transaction_id exists, update its status to failed
+          if (isset($transaction_id)) {
+            $pdo->prepare("
+              UPDATE token_transactions SET status = 'failed', notes = ?, completed_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            ")->execute(['Internal server error: ' . $e->getMessage(), $transaction_id]);
+          }
           jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
         }
         exit;
@@ -1026,7 +1085,7 @@ switch ($action) {
         $b = getJson();
         $type = $b['type'] ?? '';
         $mode = $b['mode'] ?? '';
-        $signedBurnTx = $b['signedBurnTx'] ?? '';
+        $signedBurnTx = $b['signedBurnTx'] ?? ''; // This is the user-signed burn transaction
         if (!$type || !$mode) jsonErr('type & mode required', 400);
         if (!$signedBurnTx) jsonErr('signedBurnTx required', 400);
 
@@ -1036,11 +1095,6 @@ switch ($action) {
           array_keys($REWARD_CONFIG),
           ['Shielded','Unshielded']
         );
-
-        // Skip on-chain burn for now (participation fee is 0)
-        if (defined('DEBUG_MODE') && DEBUG_MODE) {
-          error_log("Mission started: $type in $mode mode by user {$me['userId']}");
-        }
 
         try {
           $pdo->beginTransaction();
@@ -1057,8 +1111,32 @@ switch ($action) {
           // off‐chain anti‐cheat
           AntiCheat::enforceCooldown($ship);
           AntiCheat::enforceDailyLimit($pdo, $me['userId']);
-          // Skip replay prevention for now since we're using mock transactions
-          // AntiCheat::preventReplay($pdo, $signedBurnTx, $me['userId']);
+          
+          // --- NEW: Send burn transaction to Solana via Node.js microservice ---
+          $client = new Client();
+          try {
+            $burn_resp = $client->post(SOLANA_API_URL . '/burn', [
+              'json' => ['signedTx' => $signedBurnTx]
+            ]);
+            $burn_data = json_decode($burn_resp->getBody(), true);
+            $burn_tx_hash = $burn_data['signature'] ?? null;
+            if (!$burn_tx_hash) {
+                throw new Exception('Solana burn transaction failed: No signature returned');
+            }
+            // Prevent replay using the actual transaction hash
+            AntiCheat::preventReplay($pdo, $burn_tx_hash, $me['userId']);
+
+            // Record burn transaction (cost)
+            $pdo->prepare("
+              INSERT INTO token_transactions (user_id, amount, tx_type, status, tx_hash)
+              VALUES (?, ?, 'burn', 'completed', ?)
+            ")->execute([$me['userId'], -PARTICIPATION_FEE, $burn_tx_hash]); // Negative amount for cost
+
+          } catch (Exception $e) {
+            $pdo->rollback();
+            jsonErr('Failed to process burn transaction: ' . $e->getMessage(), 500);
+          }
+          // --- END NEW ---
 
           list($chance, $minReward, $maxReward) = $REWARD_CONFIG[$type];
           $ok  = (mt_rand()/mt_getrandmax()) < $chance;
@@ -1078,6 +1156,7 @@ switch ($action) {
           $stmt->execute([
             $ship['id'], $me['userId'], $type, $mode, $now, $now + 300, $ok ? 1 : 0, $payout
           ]);
+          $missionId = $pdo->lastInsertId(); // Get the ID of the newly inserted mission
           
           // Update ship balance and mission timestamp
           $newBalance = $ship['br_balance'] + $payout;
@@ -1087,9 +1166,9 @@ switch ($action) {
           // Record mission reward transaction
           if ($ok) {
             $pdo->prepare("
-              INSERT INTO token_transactions (user_id, amount, tx_type, status)
-              VALUES (?, ?, 'mission_reward', 'completed')
-            ")->execute([$me['userId'], $payout]);
+              INSERT INTO token_transactions (user_id, amount, tx_type, status, tx_hash, mission_id, ship_id)
+              VALUES (?, ?, 'mission_reward', 'completed', ?, ?, ?)
+            ")->execute([$me['userId'], $payout, $burn_tx_hash, $missionId, $ship['id']]); // Associate burn tx hash with mission
           }
 
           // Update user stats
@@ -1107,7 +1186,8 @@ switch ($action) {
             'reward' => $payout,
             'br_balance' => $newBalance,
             'mission_type' => $type,
-            'mode' => $mode
+            'mode' => $mode,
+            'burn_tx_hash' => $burn_tx_hash // Return burn tx hash to frontend
           ]);
           
         } catch (Exception $e) {
@@ -1143,9 +1223,9 @@ switch ($action) {
           
           // Record upgrade cost transaction
           $pdo->prepare("
-            INSERT INTO token_transactions (user_id, amount, tx_type, status)
-            VALUES (?, ?, 'upgrade_cost', 'completed')
-          ")->execute([$me['userId'], -$costs[$lvl]]); // Negative amount for cost
+            INSERT INTO token_transactions (user_id, amount, tx_type, status, ship_id)
+            VALUES (?, ?, 'upgrade_cost', 'completed', ?)
+          ")->execute([$me['userId'], -$costs[$lvl], $ship['id']]); // Negative amount for cost
 
         $pdo->commit();
 
