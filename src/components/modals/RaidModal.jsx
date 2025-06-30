@@ -6,7 +6,7 @@ import websocketService from '../../services/websocketService';
 import ENV from '../../config/environment';
 import UserStatusIndicator from '../UserStatusIndicator';
 import RaidNotification from '../RaidNotification';
-import ENV from '../../config/environment';
+
 
 const RaidModal = ({ onClose }) => {
   const [missions, setMissions] = useState([]);
