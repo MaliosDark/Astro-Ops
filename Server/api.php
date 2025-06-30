@@ -1633,6 +1633,240 @@ switch ($action) {
           }
           jsonErr('Failed to get transaction history: ' . $e->getMessage(), 500);
         }
+      // WALLET BALANCE
+      case 'wallet_balance':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Get on-chain balance
+          $onchainBalance = getOnchainBalance($me['publicKey']);
+          
+          // Get in-game balance
+          $stmt = $pdo->prepare("
+            SELECT br_balance 
+            FROM ships 
+            WHERE user_id = ? AND is_active = 1
+          ");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          $ingameBalance = $ship ? (int)$ship['br_balance'] : 0;
+          
+          echo json_encode([
+            'onchain_balance' => $onchainBalance,
+            'ingame_balance' => $ingameBalance,
+            'total_balance' => $onchainBalance + $ingameBalance
+          ]);
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Wallet balance error: " . $e->getMessage());
+          }
+          jsonErr('Failed to get wallet balance: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+      // WITHDRAW TOKENS
+      case 'withdraw_tokens':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        
+        try {
+          $b = getJson();
+          $amount = intval($b['amount'] ?? 0);
+          
+          if ($amount <= 0) {
+            jsonErr('Invalid withdrawal amount', 400);
+          }
+          
+          $pdo->beginTransaction();
+          
+          // Get user's ship and check balance
+          $stmt = $pdo->prepare("
+            SELECT * FROM ships 
+            WHERE user_id = ? AND is_active = 1
+            FOR UPDATE
+          ");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            $pdo->rollback();
+            jsonErr('No active ship found', 404);
+          }
+          
+          if ($ship['br_balance'] < $amount) {
+            $pdo->rollback();
+            jsonErr('Insufficient balance for withdrawal', 400);
+          }
+          
+          // Create withdrawal record
+          $stmt = $pdo->prepare("
+            INSERT INTO token_withdrawals (
+              user_id, amount, status
+            ) VALUES (?, ?, 'pending')
+          ");
+          $stmt->execute([$me['userId'], $amount]);
+          $withdrawalId = $pdo->lastInsertId();
+          
+          // Deduct from ship balance
+          $newBalance = $ship['br_balance'] - $amount;
+          $stmt = $pdo->prepare("
+            UPDATE ships 
+            SET br_balance = ? 
+            WHERE id = ?
+          ");
+          $stmt->execute([$newBalance, $ship['id']]);
+          
+          // Record transaction
+          $stmt = $pdo->prepare("
+            INSERT INTO token_transactions (
+              user_id, amount, tx_type, status
+            ) VALUES (?, ?, 'withdraw', 'completed')
+          ");
+          $stmt->execute([$me['userId'], $amount]);
+          
+          // In a real implementation, we would now initiate the on-chain transfer
+          // For this demo, we'll just mark it as completed immediately
+          $stmt = $pdo->prepare("
+            UPDATE token_withdrawals
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          ");
+          $stmt->execute([$withdrawalId]);
+          
+          $pdo->commit();
+          
+          echo json_encode([
+            'success' => true,
+            'withdrawal_id' => $withdrawalId,
+            'amount' => $amount,
+            'br_balance' => $newBalance,
+            'status' => 'completed'
+          ]);
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Withdraw tokens error: " . $e->getMessage());
+          }
+          jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+      // TRANSACTION HISTORY
+      case 'transaction_history':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Get transactions from database
+          $stmt = $pdo->prepare("
+            SELECT 
+        exit;
+            INSERT INTO token_transactions (
+              user_id, amount, tx_type, status
+            ) VALUES (?, ?, 'withdraw', 'completed')
+          ");
+          $stmt->execute([$me['userId'], $amount]);
+          
+          // In a real implementation, we would now initiate the on-chain transfer
+          // For this demo, we'll just mark it as completed immediately
+          $stmt = $pdo->prepare("
+            UPDATE token_withdrawals
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          ");
+          $stmt->execute([$withdrawalId]);
+          
+          $pdo->commit();
+          
+          echo json_encode([
+            'success' => true,
+            'withdrawal_id' => $withdrawalId,
+            'amount' => $amount,
+            'br_balance' => $newBalance,
+            'status' => 'completed'
+          ]);
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Withdraw tokens error: " . $e->getMessage());
+          }
+          jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+      // TRANSACTION HISTORY
+      case 'transaction_history':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Create transactions table if it doesn't exist
+          $stmt = $pdo->prepare("
+            CREATE TABLE IF NOT EXISTS token_transactions (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              user_id INT NOT NULL,
+              amount BIGINT NOT NULL,
+              tx_hash VARCHAR(100) NULL,
+              tx_type ENUM('mission_reward', 'raid_reward', 'claim', 'withdraw', 'upgrade_cost', 'burn') NOT NULL,
+              status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              completed_at TIMESTAMP NULL,
+              INDEX idx_user_id (user_id),
+              INDEX idx_status (status),
+              INDEX idx_tx_type (tx_type)
+            )
+          ");
+          $stmt->execute();
+          
+          // Get transactions from database
+          $stmt = $pdo->prepare("
+            SELECT 
+              id, amount, tx_type, status, created_at, completed_at, tx_hash
+            FROM token_transactions
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 20
+          ");
+          $stmt->execute([$me['userId']]);
+          $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Add mission and raid transactions
+          $stmt = $pdo->prepare("
+            SELECT 
+              id, 
+              reward as amount, 
+              mission_type,
+              'mission_reward' as tx_type,
+              IF(success = 1, 'completed', 'failed') as status,
+              FROM_UNIXTIME(ts_complete) as created_at
+            FROM missions
+            WHERE user_id = ? AND success = 1
+            ORDER BY ts_complete DESC
+            LIMIT 10
+          ");
+          $stmt->execute([$me['userId']]);
+          $missionTransactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Combine all transactions
+          $allTransactions = array_merge($transactions, $missionTransactions);
+          
+          // Sort by created_at
+          usort($allTransactions, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+          });
+          
+          // Format timestamps for client
+          foreach ($allTransactions as &$tx) {
+            $tx['timestamp'] = strtotime($tx['created_at']) * 1000; // Convert to JS timestamp
+          }
+          
+          echo json_encode([
+            'transactions' => $allTransactions
+          ]);
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Transaction history error: " . $e->getMessage());
+          }
+          jsonErr('Failed to get transaction history: ' . $e->getMessage(), 500);
+        }
         exit;
 
       default:

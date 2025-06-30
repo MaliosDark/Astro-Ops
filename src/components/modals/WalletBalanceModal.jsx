@@ -510,15 +510,15 @@ const WalletBalanceModal = ({ onClose }) => {
                 borderRadius: '8px',
                 background: 'rgba(0,20,40,0.3)'
               }}>
-                {transactions.map((tx) => (
+                {transactions.map((tx, index) => (
                   <div 
-                    key={tx.id}
+                    key={tx.id || index}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 16px',
-                      borderBottom: '1px solid rgba(0, 204, 255, 0.2)',
+                      borderBottom: index < transactions.length - 1 ? '1px solid rgba(0, 204, 255, 0.2)' : 'none',
                       background: tx.status === 'completed' ? 'rgba(0,40,80,0.2)' : 'rgba(60,60,0,0.2)'
                     }}
                   >
@@ -533,13 +533,13 @@ const WalletBalanceModal = ({ onClose }) => {
                           marginBottom: '4px',
                           textTransform: 'capitalize'
                         }}>
-                          {(tx.tx_type || tx.type).replace('_', ' ')}
+                          {(tx.tx_type || tx.type || '').replace('_', ' ')}
                         </div>
                         <div style={{
                           fontSize: '9px',
                           color: '#666'
                         }}>
-                          {formatDate(tx.timestamp)}
+                          {formatDate(tx.timestamp || Date.now())}
                         </div>
                       </div>
                     </div>
