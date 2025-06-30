@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import Tooltip from './Tooltip';
 import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import walletService from '../services/walletService';
 import websocketService from '../services/websocketService';
 import ENV from '../config/environment.js';
+import EconomyPanel from './EconomyPanel';
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);

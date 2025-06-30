@@ -1451,7 +1451,7 @@ switch ($action) {
       case 'pending_missions':
         AntiCheat::validateRequestOrigin();
         $stmt = $pdo->prepare("
-          SELECT id, mission_type AS source, reward AS amount
+          SELECT id, mission_type AS source, reward AS amount, ts_complete AS timestamp
             FROM missions
            WHERE user_id = ?
              AND claimed = 0
@@ -1460,6 +1460,195 @@ switch ($action) {
         echo json_encode(['pending' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;
 
+      // EARNINGS DATA
+      case 'earnings':
+        AntiCheat::validateRequestOrigin();
+        
+        try {
+          // Get user's ship
+          $stmt = $pdo->prepare("SELECT id, br_balance FROM ships WHERE user_id = ? AND is_active = 1");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            jsonErr('No active ship found', 404);
+          }
+          
+          // Get mission earnings
+          $stmt = $pdo->prepare("
+            SELECT SUM(reward) AS total 
+            FROM missions 
+            WHERE user_id = ? AND success = 1 AND mission_type IN ('MiningRun', 'BlackMarket', 'ArtifactHunt')
+          ");
+          $stmt->execute([$me['userId']]);
+          $missionEarnings = (int)$stmt->fetchColumn() ?: 0;
+          
+          // Get raid earnings
+          $stmt = $pdo->prepare("
+            SELECT SUM(reward) AS total 
+            FROM missions 
+            WHERE raided_by = ? AND raided = 1
+          ");
+          $stmt->execute([$me['userId']]);
+          $raidEarnings = (int)$stmt->fetchColumn() ?: 0;
+          
+          // Get upgrade costs
+          $stmt = $pdo->prepare("
+            SELECT SUM(cost) AS total 
+            FROM (
+              SELECT 
+                CASE 
+                  WHEN level = 2 THEN 50
+                  WHEN level = 3 THEN 100
+                  WHEN level = 4 THEN 150
+                  WHEN level = 5 THEN 225
+                  WHEN level = 6 THEN 300
+                  WHEN level = 7 THEN 400
+                  ELSE 0
+                END AS cost
+              FROM ships
+              WHERE user_id = ? AND level > 1
+            ) AS upgrade_costs
+          ");
+          $stmt->execute([$me['userId']]);
+          $upgradeSpent = (int)$stmt->fetchColumn() ?: 0;
+          
+          // Get total withdrawn
+          $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(amount), 0) AS total 
+            FROM token_withdrawals 
+            WHERE user_id = ? AND status IN ('completed', 'pending')
+          ");
+          $stmt->execute([$me['userId']]);
+          $totalWithdrawn = (int)$stmt->fetchColumn() ?: 0;
+          
+          // Get recent transactions
+          $stmt = $pdo->prepare("
+            SELECT id, amount, tx_hash, status, created_at, completed_at, 'withdrawal' AS type
+            FROM token_withdrawals
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 10
+          ");
+          $stmt->execute([$me['userId']]);
+          $withdrawals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Get recent missions (as transactions)
+          $stmt = $pdo->prepare("
+            SELECT id, reward AS amount, mission_type AS details, ts_complete AS created_at, 'mission' AS type
+            FROM missions
+            WHERE user_id = ? AND success = 1
+            ORDER BY ts_complete DESC
+            LIMIT 5
+          ");
+          $stmt->execute([$me['userId']]);
+          $missions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Get recent raids (as transactions)
+          $stmt = $pdo->prepare("
+            SELECT id, reward AS amount, mission_type AS details, ts_raid AS created_at, 'raid' AS type
+            FROM missions
+            WHERE raided_by = ? AND raided = 1
+            ORDER BY ts_raid DESC
+            LIMIT 5
+          ");
+          $stmt->execute([$me['userId']]);
+          $raids = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          
+          // Combine and sort transactions
+          $transactions = array_merge($withdrawals, $missions, $raids);
+          usort($transactions, function($a, $b) {
+            $timeA = strtotime($a['created_at']) ?: 0;
+            $timeB = strtotime($b['created_at']) ?: 0;
+            return $timeB - $timeA; // Sort descending
+          });
+          
+          // Calculate total earned
+          $totalEarned = $missionEarnings + $raidEarnings;
+          
+          // Return earnings data
+          echo json_encode([
+            'balance' => (int)$ship['br_balance'],
+            'total_earned' => $totalEarned,
+            'mission_earnings' => $missionEarnings,
+            'raid_earnings' => $raidEarnings,
+            'upgrade_spent' => $upgradeSpent,
+            'total_withdrawn' => $totalWithdrawn,
+            'transactions' => array_slice($transactions, 0, 10)
+          ]);
+        } catch (Exception $e) {
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Earnings error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+          }
+          jsonErr('Failed to load earnings data: ' . $e->getMessage(), 500);
+        }
+        exit;
+
+      // WITHDRAW TOKENS
+      case 'withdraw_tokens':
+        AntiCheat::validateRequestOrigin();
+        AntiCheat::validateJsonPayload();
+        $b = getJson();
+        $amount = intval($b['amount'] ?? 0);
+        
+        if ($amount <= 0) {
+          jsonErr('Invalid withdrawal amount', 400);
+        }
+        
+        try {
+          $pdo->beginTransaction();
+          
+          // Get user's ship and check balance
+          $stmt = $pdo->prepare("SELECT id, br_balance FROM ships WHERE user_id = ? AND is_active = 1 FOR UPDATE");
+          $stmt->execute([$me['userId']]);
+          $ship = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+          if (!$ship) {
+            $pdo->rollback();
+            jsonErr('No active ship found', 404);
+          }
+          
+          if ($ship['br_balance'] < $amount) {
+            $pdo->rollback();
+            jsonErr('Insufficient balance', 400);
+          }
+          
+          // Create withdrawal record
+          $stmt = $pdo->prepare("
+            INSERT INTO token_withdrawals (user_id, amount, status)
+            VALUES (?, ?, 'pending')
+          ");
+          $stmt->execute([$me['userId'], $amount]);
+          $withdrawalId = $pdo->lastInsertId();
+          
+          // Update ship balance
+          $newBalance = $ship['br_balance'] - $amount;
+          $stmt = $pdo->prepare("UPDATE ships SET br_balance = ? WHERE id = ?");
+          $stmt->execute([$newBalance, $ship['id']]);
+          
+          // Commit transaction
+          $pdo->commit();
+          
+          // Return success response
+          echo json_encode([
+            'success' => true,
+            'withdrawal_id' => $withdrawalId,
+            'amount' => $amount,
+            'new_balance' => $newBalance,
+            'status' => 'pending',
+            'timestamp' => time()
+          ]);
+          
+        } catch (Exception $e) {
+          $pdo->rollback();
+          if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            error_log("Withdrawal error: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+          }
+          jsonErr('Withdrawal failed: ' . $e->getMessage(), 500);
+        }
+        exit;
 
       default:
         http_response_code(404);

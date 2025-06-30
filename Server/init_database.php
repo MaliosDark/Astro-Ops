@@ -167,6 +167,20 @@ if (basename($_SERVER['PHP_SELF']) === 'init_database.php' || !function_exists('
                             INDEX idx_expires (expires_at),
                             INDEX idx_user_id (user_id)
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    ",
+                    'token_withdrawals' => "
+                        CREATE TABLE token_withdrawals (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_id INT NOT NULL,
+                            amount BIGINT NOT NULL,
+                            tx_hash VARCHAR(100) NULL,
+                            status ENUM('pending', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            completed_at TIMESTAMP NULL,
+                            INDEX idx_user_id (user_id),
+                            INDEX idx_status (status),
+                            FOREIGN KEY (user_id) REFERENCES users(id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                     "
                 ];
                 

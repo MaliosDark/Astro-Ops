@@ -448,6 +448,34 @@ class SessionManager {
   async getLeaderboard() {
     return await apiService.getLeaderboard();
   }
+
+  /**
+   * Get earnings data
+   */
+  async getEarnings() {
+    try {
+      return await apiService.getEarnings();
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Failed to get earnings data:', error);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Withdraw tokens
+   */
+  async withdrawTokens(amount) {
+    try {
+      return await apiService.withdrawTokens(amount);
+    } catch (error) {
+      if (ENV.DEBUG_MODE) {
+        console.error('❌ Failed to withdraw tokens:', error);
+      }
+      throw error;
+    }
+  }
 }
 
 // Create singleton instance

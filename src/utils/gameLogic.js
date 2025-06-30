@@ -474,9 +474,35 @@ export async function getPendingRewards() {
   }
 }
 
+/**
+ * Get earnings data - REAL API CALL
+ */
+export async function getEarnings() {
+  try {
+    return await apiService.getEarnings();
+  } catch (error) {
+    console.error('Get earnings error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Withdraw tokens - REAL API CALL
+ */
+export async function withdrawTokens(amount) {
+  try {
+    return await apiService.withdrawTokens(amount);
+  } catch (error) {
+    console.error('Withdraw tokens error:', error);
+    throw error;
+  }
+}
+
 // Expose functions globally for compatibility
 window.startMission = startMission;
 window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;
 window.performClaim = performClaim;
 window.buyShip = buyShip;
+window.getEarnings = getEarnings;
+window.withdrawTokens = withdrawTokens;
