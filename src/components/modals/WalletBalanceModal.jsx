@@ -130,6 +130,7 @@ const WalletBalanceModal = ({ onClose }) => {
             amount: amount,
             created_at: new Date().toISOString(),
             status: 'completed'
+            tx_hash: result.mint_tx_hash
           },
           ...prev
         ]);
@@ -523,7 +524,7 @@ const WalletBalanceModal = ({ onClose }) => {
                       <span style={{ fontSize: '16px' }}>
                         {getTransactionIcon(tx.tx_type || tx.type)}
                       </span>
-                      <div>
+                                           <div>
                         <div style={{
                           fontSize: '12px',
                           color: '#0cf',
@@ -538,7 +539,24 @@ const WalletBalanceModal = ({ onClose }) => {
                         }}>
                           {formatDate(tx.created_at || tx.timestamp)}
                         </div>
+                        {tx.tx_hash && (
+                          <div style={{
+                            fontSize: '8px',
+                            color: '#0f0',
+                            marginTop: '4px'
+                          }}>
+                            TX: <a
+                              href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#0f0', textDecoration: 'underline' }}
+                            >
+                              {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
+                            </a>
+                          </div>
+                        )}
                       </div>
+
                     </div>
                     
                     <div style={{
