@@ -5,7 +5,7 @@
 
 class BonkRaidersWebSocketClient {
   constructor(url) {
-    this.url = url;
+    this.url = url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + ':8082';
     this.socket = null;
     this.connected = false;
     this.authenticated = false;
@@ -15,12 +15,13 @@ class BonkRaidersWebSocketClient {
     this.heartbeatInterval = null;
     this.eventListeners = new Map();
     this.userId = null;
+    this.isConnected = false;
   }
 
   /**
    * Connect to WebSocket server
    */
-  connect() {
+  connect(token) {
     if (this.socket && this.connected) {
       console.log('WebSocket already connected');
       return Promise.resolve();
@@ -29,14 +30,30 @@ class BonkRaidersWebSocketClient {
     return new Promise((resolve, reject) => {
       try {
         console.log(`Connecting to WebSocket server: ${this.url}`);
+        
+        // Create a timeout for connection
+        const connectionTimeout = setTimeout(() => {
+          console.error('WebSocket connection timeout');
+          this.isConnected = false;
+          reject(new Error('Connection timeout'));
+        }, 5000);
+        
         this.socket = new WebSocket(this.url);
 
         this.socket.onopen = () => {
+          clearTimeout(connectionTimeout);
           console.log('WebSocket connection established');
           this.connected = true;
+          this.isConnected = true;
           this.reconnectAttempts = 0;
           this._startHeartbeat();
           this._emit('connected');
+          
+          // Authenticate if token provided
+          if (token) {
+            this.authenticate(token);
+          }
+          
           resolve();
         };
 
@@ -50,7 +67,9 @@ class BonkRaidersWebSocketClient {
         };
 
         this.socket.onclose = (event) => {
+          clearTimeout(connectionTimeout);
           this.connected = false;
+          this.isConnected = false;
           this._stopHeartbeat();
           console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
           this._emit('disconnected', { code: event.code, reason: event.reason });
@@ -62,12 +81,15 @@ class BonkRaidersWebSocketClient {
         };
 
         this.socket.onerror = (error) => {
+          clearTimeout(connectionTimeout);
           console.error('WebSocket error:', error);
+          this.isConnected = false;
           this._emit('error', error);
           reject(error);
         };
       } catch (error) {
         console.error('Failed to create WebSocket connection:', error);
+        this.isConnected = false;
         reject(error);
       }
     });
@@ -79,38 +101,11 @@ class BonkRaidersWebSocketClient {
   authenticate(token) {
     if (!this.connected) {
       console.error('Cannot authenticate: WebSocket not connected');
-      return Promise.reject(new Error('WebSocket not connected'));
+      return false;
     }
 
-    return new Promise((resolve, reject) => {
-      // Set up one-time event listeners for authentication response
-      const authSuccessListener = (data) => {
-        this.off('authenticated', authSuccessListener);
-        this.off('auth_failed', authFailedListener);
-        resolve(data);
-      };
-      
-      const authFailedListener = (data) => {
-        this.off('authenticated', authSuccessListener);
-        this.off('auth_failed', authFailedListener);
-        reject(new Error(data.message || 'Authentication failed'));
-      };
-      
-      this.on('authenticated', authSuccessListener);
-      this.on('auth_failed', authFailedListener);
-      
-      // Send authentication request
-      this.send('auth', { token });
-      
-      // Set timeout for authentication
-      setTimeout(() => {
-        if (!this.authenticated) {
-          this.off('authenticated', authSuccessListener);
-          this.off('auth_failed', authFailedListener);
-          reject(new Error('Authentication timeout'));
-        }
-      }, 5000);
-    });
+    this.send('auth', { token });
+    return true;
   }
 
   /**
@@ -123,6 +118,7 @@ class BonkRaidersWebSocketClient {
     }
     
     this.connected = false;
+    this.isConnected = false;
     this.authenticated = false;
     this._stopHeartbeat();
   }
@@ -174,6 +170,19 @@ class BonkRaidersWebSocketClient {
       }
     }
     return this; // For chaining
+  }
+
+  /**
+   * Get connection status
+   */
+  getStatus() {
+    return {
+      isConnected: this.isConnected,
+      connected: this.connected,
+      authenticated: this.authenticated,
+      userId: this.userId,
+      reconnectAttempts: this.reconnectAttempts
+    };
   }
 
   /**
