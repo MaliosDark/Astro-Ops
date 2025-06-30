@@ -79,13 +79,14 @@ const WalletBalanceModal = ({ onClose }) => {
         }
         
         // Add to transaction history
-        setTransactions(prev => [
+               setTransactions(prev => [
           {
-            id: Date.now(), // Use a unique ID for new transactions
-            tx_type: 'claim', // Use tx_type for consistency with backend
-            amount: result.claimable_AT,
-            created_at: new Date().toISOString(), // Use created_at for consistency
-            status: 'completed'
+            id: result.id || Date.now(), // Usa el ID del backend, o Date.now() como fallback
+            tx_type: 'withdraw',
+            amount: amount,
+            created_at: new Date().toISOString(),
+            status: 'completed',
+            tx_hash: result.mint_tx_hash // Incluye el hash de la transacción
           },
           ...prev
         ]);
