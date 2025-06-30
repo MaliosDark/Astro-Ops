@@ -117,6 +117,37 @@ define('DB_PASS', '*OxlUH49*69i');
                     echo "<div class='error'>❌ Energy table issue: " . $e->getMessage() . "</div>";
                 }
                 
+                // Check token_transactions table
+                echo "<div class='info'>Checking token_transactions table...</div>";
+                try {
+                    $result = $pdo->query("SHOW TABLES LIKE 'token_transactions'")->fetch();
+                    if (!$result) {
+                        $pdo->exec("
+                            CREATE TABLE token_transactions (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT NOT NULL,
+                                tx_type ENUM('mission_reward','raid_reward','claim','withdraw','upgrade_cost','burn','ship_purchase') NOT NULL,
+                                amount BIGINT NOT NULL,
+                                mission_id INT NULL,
+                                ship_id INT NULL,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                status ENUM('pending','completed','failed') NOT NULL DEFAULT 'completed',
+                                tx_hash VARCHAR(128) NULL,
+                                notes TEXT NULL,
+                                INDEX idx_user_id (user_id),
+                                INDEX idx_tx_type (tx_type),
+                                INDEX idx_created_at (created_at),
+                                INDEX idx_status (status)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                        ");
+                        echo "<div class='success'>✅ Created missing token_transactions table</div>";
+                    } else {
+                        echo "<div class='success'>✅ Token_transactions table already exists</div>";
+                    }
+                } catch (Exception $e) {
+                    echo "<div class='error'>❌ Token_transactions table issue: " . $e->getMessage() . "</div>";
+                }
+                
                 echo "<div class='success'>🎉 Database fix completed!</div>";
                 echo "<div class='info'>You can now test the game again.</div>";
                 
@@ -196,6 +227,28 @@ define('DB_PASS', '*OxlUH49*69i');
                 ");
                 
                 echo "<div class='success'>✅ Created essential tables</div>";
+                
+                // Create token_transactions table
+                $pdo->exec("
+                    CREATE TABLE token_transactions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        tx_type ENUM('mission_reward','raid_reward','claim','withdraw','upgrade_cost','burn','ship_purchase') NOT NULL,
+                        amount BIGINT NOT NULL,
+                        mission_id INT NULL,
+                        ship_id INT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        status ENUM('pending','completed','failed') NOT NULL DEFAULT 'completed',
+                        tx_hash VARCHAR(128) NULL,
+                        notes TEXT NULL,
+                        INDEX idx_user_id (user_id),
+                        INDEX idx_tx_type (tx_type),
+                        INDEX idx_created_at (created_at),
+                        INDEX idx_status (status)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ");
+                echo "<div class='success'>✅ Created token_transactions table</div>";
+                
                 echo "<div class='success'>🎉 Database reset completed!</div>";
             }
             

@@ -168,6 +168,25 @@ if (basename($_SERVER['PHP_SELF']) === 'init_database.php' || !function_exists('
                             INDEX idx_user_id (user_id)
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                     "
+                    ,
+                    'token_transactions' => "
+                        CREATE TABLE token_transactions (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_id INT NOT NULL,
+                            tx_type ENUM('mission_reward','raid_reward','claim','withdraw','upgrade_cost','burn','ship_purchase') NOT NULL,
+                            amount BIGINT NOT NULL,
+                            mission_id INT NULL,
+                            ship_id INT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            status ENUM('pending','completed','failed') NOT NULL DEFAULT 'completed',
+                            tx_hash VARCHAR(128) NULL,
+                            notes TEXT NULL,
+                            INDEX idx_user_id (user_id),
+                            INDEX idx_tx_type (tx_type),
+                            INDEX idx_created_at (created_at),
+                            INDEX idx_status (status)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    "
                 ];
                 
                 foreach ($tables as $tableName => $sql) {
