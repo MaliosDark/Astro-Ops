@@ -425,6 +425,88 @@ try {
             echo json_encode($result);
             break;
             
+        case 'transaction_history':
+            $me = requireAuth($pdo, $cache);
+            
+            // Check cache first - only if cache is available
+            if ($cache) {
+                $cacheKey = "transaction_history_" . $me['userId'];
+                $cached = $cache->get($cacheKey, 300); // 5 minutes cache
+                
+                if ($cached) {
+                    echo json_encode($cached);
+                    break;
+                }
+            }
+            
+            // Get transaction history from database
+            $stmt = $pdo->prepare("
+                SELECT id, type, amount, description, created_at, 
+                       transaction_hash, status
+                FROM token_transactions 
+                WHERE user_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 50
+            ");
+            $stmt->execute([$me['userId']]);
+            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $queryCount++;
+            
+            $result = [
+                'transactions' => $transactions,
+                'total_count' => count($transactions),
+                'fetched_at' => time()
+            ];
+            
+            // Cache the result - only if cache is available
+            if ($cache) {
+                $cache->set($cacheKey, $result);
+            }
+            
+            echo json_encode($result);
+            break;
+            
+        case 'wallet_balance':
+            $me = requireAuth($pdo, $cache);
+            
+            // Check cache first - only if cache is available
+            if ($cache) {
+                $cacheKey = "wallet_balance_" . $me['userId'];
+                $cached = $cache->get($cacheKey, 120); // 2 minutes cache
+                
+                if ($cached) {
+                    echo json_encode($cached);
+                    break;
+                }
+            }
+            
+            // Get user's in-game balance from ships table
+            $stmt = $pdo->prepare("
+                SELECT s.br_balance, u.public_key
+                FROM users u
+                LEFT JOIN ships s ON u.id = s.user_id AND s.is_active = 1
+                WHERE u.id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$me['userId']]);
+            $userBalance = $stmt->fetch(PDO::FETCH_ASSOC);
+            $queryCount++;
+            
+            $result = [
+                'in_game_balance' => $userBalance['br_balance'] ?? 0,
+                'on_chain_balance' => 0, // Placeholder - would need Solana RPC integration
+                'public_key' => $userBalance['public_key'] ?? $me['publicKey'],
+                'fetched_at' => time()
+            ];
+            
+            // Cache the result - only if cache is available
+            if ($cache) {
+                $cache->set($cacheKey, $result);
+            }
+            
+            echo json_encode($result);
+            break;
+            
         default:
             // For other endpoints, use the original implementation
             // but with performance monitoring
