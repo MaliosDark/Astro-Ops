@@ -8,12 +8,8 @@ export const ENV = {
   
   // WebSocket Configuration - Derived from API_BASE_URL
   get WEBSOCKET_URL() {
-    const apiUrl = this.API_BASE_URL;
-    // Convert HTTP(S) to WS(S) protocol
-    const wsProtocol = apiUrl.startsWith('https://') ? 'wss://' : 'ws://';
-    // Extract hostname and port from API URL
-    const urlParts = apiUrl.replace(/^https?:\/\//, '');
-    return `${wsProtocol}${urlParts}/ws`;
+    // Use dedicated WebSocket subdomain
+    return 'wss://webrtc.bonkraiders.com/ws';
   },
   
   // Solana Configuration
