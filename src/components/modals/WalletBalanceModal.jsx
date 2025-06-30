@@ -86,7 +86,6 @@ const WalletBalanceModal = ({ onClose }) => {
             amount: result.claimable_AT,
             created_at: new Date().toISOString(),
             status: 'completed',
-            tx_hash: result.tx_hash
           },
           ...prev
         ]);
