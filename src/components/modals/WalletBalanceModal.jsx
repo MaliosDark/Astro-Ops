@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getTokenBalance } from '../../utils/solanaTransactions';
 import walletService from '../../services/walletService';
-import sessionManager from '../../services/sessionManager';
 import apiService from '../../services/apiService';
 import ENV from '../../config/environment';
 
@@ -9,7 +8,7 @@ const WalletBalanceModal = ({ onClose }) => {
   const [tokenBalance, setTokenBalance] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [ingameBalance, setIngameBalance] = useState(0);
+  const [claimableBalance, setClaimableBalance] = useState(0);
   const [isClaiming, setIsClaiming] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -32,12 +31,14 @@ const WalletBalanceModal = ({ onClose }) => {
       if (!wallet) {
         throw new Error('No wallet connected');
       }
-
-      // Get wallet balance from API
-      const walletData = await apiService.getWalletBalance();
-      setTokenBalance(walletData.onchain_balance || 0);
-      setIngameBalance(walletData.ingame_balance || 0);
       
+      // Get on-chain token balance
+      const balance = await getTokenBalance(wallet.publicKey);
+      setTokenBalance(balance);
+      
+      // Get claimable balance from game
+      const { claimable_AT } = await apiService.claimRewards();
+      setClaimableBalance(claimable_AT || 0);
     } catch (error) {
       console.error('Failed to fetch balances:', error);
       setError(error.message || 'Failed to fetch wallet balance');
@@ -48,18 +49,23 @@ const WalletBalanceModal = ({ onClose }) => {
 
   const fetchTransactionHistory = async () => {
     try {
-      // Get transaction history from API
-      const result = await apiService.getTransactionHistory();
-      const transactions = result.transactions || [];
+      // This would be a real API call in production
+      // For now, we'll use mock data
+      const mockTransactions = [
+        { id: 1, type: 'mission_reward', amount: 450, timestamp: Date.now() - 3600000, status: 'completed' },
+        { id: 2, type: 'raid_reward', amount: 1200, timestamp: Date.now() - 7200000, status: 'completed' },
+        { id: 3, type: 'claim', amount: 3000, timestamp: Date.now() - 86400000, status: 'completed' },
+        { id: 4, type: 'upgrade_cost', amount: -150, timestamp: Date.now() - 172800000, status: 'completed' }
+      ];
       
-      setTransactions(transactions);
+      setTransactions(mockTransactions);
     } catch (error) {
       console.error('Failed to fetch transaction history:', error);
     }
   };
 
   const handleClaim = async () => {
-    if (ingameBalance <= 0 || isClaiming) return;
+    if (claimableBalance <= 0 || isClaiming) return;
     
     try {
       setIsClaiming(true);
@@ -69,9 +75,9 @@ const WalletBalanceModal = ({ onClose }) => {
       
       if (result.claimable_AT !== undefined) {
         // Update UI with new balance
-        setIngameBalance(0);
+        setClaimableBalance(0);
         setTokenBalance((prev) => (prev || 0) + result.claimable_AT);
-
+        
         // Update global UI if available
         if (window.AstroUI) {
           window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens!`);
@@ -102,7 +108,7 @@ const WalletBalanceModal = ({ onClose }) => {
     if (isWithdrawing || !withdrawAmount) return;
     
     const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount <= 0 || amount > ingameBalance) {
+    if (isNaN(amount) || amount <= 0 || amount > claimableBalance) {
       setWithdrawError('Invalid withdrawal amount');
       return;
     }
@@ -111,19 +117,12 @@ const WalletBalanceModal = ({ onClose }) => {
       setIsWithdrawing(true);
       setWithdrawError('');
       
-      // Call the withdraw API
-      const result = await apiService.withdrawTokens(amount);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Withdrawal failed');
-      }
+      // This would be a real API call in production
+      // For now, we'll simulate a successful withdrawal
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Update balances
-      setIngameBalance(result.br_balance || 0);
-      
-      // In a real implementation, we would wait for the on-chain transaction
-      // to complete before updating the on-chain balance
-      // For now, we'll just update it immediately
+      setClaimableBalance(prev => prev - amount);
       setTokenBalance((prev) => (prev || 0) + amount);
       
       // Show success message
@@ -133,7 +132,7 @@ const WalletBalanceModal = ({ onClose }) => {
       setTransactions(prev => [
         {
           id: Date.now(),
-          tx_type: 'withdraw',
+          type: 'withdraw',
           amount: amount,
           timestamp: Date.now(),
           status: 'completed'
@@ -162,7 +161,7 @@ const WalletBalanceModal = ({ onClose }) => {
   };
 
   const getTransactionIcon = (type) => {
-    switch (type.toLowerCase()) {
+    switch (type) {
       case 'mission_reward': return '🚀';
       case 'raid_reward': return '⚔️';
       case 'claim': return '💰';
@@ -174,7 +173,7 @@ const WalletBalanceModal = ({ onClose }) => {
 
   const getTransactionColor = (type, amount) => {
     if (amount < 0) return '#f00';
-    switch (type.toLowerCase()) {
+    switch (type) {
       case 'mission_reward': return '#0f0';
       case 'raid_reward': return '#f80';
       case 'claim': return '#ff0';
@@ -321,7 +320,7 @@ const WalletBalanceModal = ({ onClose }) => {
                 color: '#888',
                 marginBottom: '8px'
               }}>
-                IN-GAME BALANCE
+                CLAIMABLE BALANCE
               </div>
               <div style={{
                 fontSize: '24px',
@@ -330,7 +329,7 @@ const WalletBalanceModal = ({ onClose }) => {
                 textShadow: '0 0 12px rgba(0, 255, 0, 0.8)',
                 marginBottom: '8px'
               }}>
-                {ingameBalance.toLocaleString()} BR
+                {claimableBalance.toLocaleString()} BR
               </div>
               <div style={{
                 fontSize: '10px',
@@ -344,40 +343,40 @@ const WalletBalanceModal = ({ onClose }) => {
           {/* Claim Button */}
           <button
             onClick={handleClaim}
-            disabled={ingameBalance <= 0 || isClaiming}
+            disabled={claimableBalance <= 0 || isClaiming}
             style={{
               width: '100%',
               padding: '16px',
-              background: ingameBalance <= 0 || isClaiming ? 
+              background: claimableBalance <= 0 || isClaiming ? 
                 'linear-gradient(135deg, rgba(40,40,40,0.5), rgba(20,20,20,0.5))' :
                 'linear-gradient(135deg, #0f0, #0c0)',
-              color: ingameBalance <= 0 || isClaiming ? '#666' : '#000',
+              color: claimableBalance <= 0 || isClaiming ? '#666' : '#000',
               border: '2px solid #0f0',
               borderRadius: '12px',
               fontFamily: "'Press Start 2P', monospace",
               fontSize: '16px',
-              cursor: ingameBalance <= 0 || isClaiming ? 'not-allowed' : 'pointer',
+              cursor: claimableBalance <= 0 || isClaiming ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              boxShadow: ingameBalance <= 0 || isClaiming ? 'none' : '0 4px 16px rgba(0, 255, 0, 0.4)',
-              textShadow: ingameBalance <= 0 || isClaiming ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)',
+              boxShadow: claimableBalance <= 0 || isClaiming ? 'none' : '0 4px 16px rgba(0, 255, 0, 0.4)',
+              textShadow: claimableBalance <= 0 || isClaiming ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)',
               marginBottom: '24px'
             }}
             onMouseEnter={(e) => {
-              if (ingameBalance > 0 && !isClaiming) {
+              if (claimableBalance > 0 && !isClaiming) {
                 e.target.style.transform = 'translateY(-2px)';
                 e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 0, 0.6)';
               }
             }}
             onMouseLeave={(e) => {
-              if (ingameBalance > 0 && !isClaiming) {
+              if (claimableBalance > 0 && !isClaiming) {
                 e.target.style.transform = 'translateY(0)';
                 e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 0, 0.4)';
               }
             }}
           >
             {isClaiming ? '⏳ PROCESSING CLAIM...' : 
-             ingameBalance <= 0 ? '🚫 NO TOKENS TO CLAIM' :
-             `💰 CLAIM ${ingameBalance.toLocaleString()} BR TOKENS`}
+             claimableBalance <= 0 ? '🚫 NO TOKENS TO CLAIM' :
+             `💰 CLAIM ${claimableBalance.toLocaleString()} BR TOKENS`}
           </button>
 
           {/* Withdraw Section */}
@@ -408,7 +407,7 @@ const WalletBalanceModal = ({ onClose }) => {
                 onChange={(e) => setWithdrawAmount(e.target.value)}
                 placeholder="Amount to withdraw"
                 min="1"
-                max={ingameBalance}
+                max={claimableBalance}
                 style={{
                   flex: '1',
                   background: 'rgba(0,20,40,0.8)',
@@ -423,20 +422,20 @@ const WalletBalanceModal = ({ onClose }) => {
               
               <button
                 onClick={handleWithdraw}
-                disabled={isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > ingameBalance}
+                disabled={isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > claimableBalance}
                 style={{
-                  background: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > ingameBalance ? 
+                  background: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > claimableBalance ? 
                     'rgba(0,20,40,0.5)' :
                     'rgba(0,60,120,0.8)',
                   border: '2px solid #0cf',
                   borderRadius: '8px',
                   padding: '12px',
-                  color: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > ingameBalance ? 
+                  color: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > claimableBalance ? 
                     '#666' : 
                     '#0cf',
                   fontFamily: "'Press Start 2P', monospace",
                   fontSize: '12px',
-                  cursor: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > ingameBalance ? 
+                  cursor: isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0 || parseFloat(withdrawAmount) > claimableBalance ? 
                     'not-allowed' : 
                     'pointer'
                 }}
@@ -471,8 +470,8 @@ const WalletBalanceModal = ({ onClose }) => {
               fontSize: '10px',
               color: '#888',
               textAlign: 'center'
-              }}>
-              Withdraw your in-game tokens to your connected wallet
+            }}>
+              Withdraw your claimable tokens to your connected wallet
             </div>
           </div>
 
@@ -510,21 +509,21 @@ const WalletBalanceModal = ({ onClose }) => {
                 borderRadius: '8px',
                 background: 'rgba(0,20,40,0.3)'
               }}>
-                {transactions.map((tx, index) => (
+                {transactions.map((tx) => (
                   <div 
-                    key={tx.id || index}
+                    key={tx.id}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '12px 16px',
-                      borderBottom: index < transactions.length - 1 ? '1px solid rgba(0, 204, 255, 0.2)' : 'none',
+                      borderBottom: '1px solid rgba(0, 204, 255, 0.2)',
                       background: tx.status === 'completed' ? 'rgba(0,40,80,0.2)' : 'rgba(60,60,0,0.2)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '16px' }}>
-                        {getTransactionIcon(tx.tx_type || tx.type)}
+                        {getTransactionIcon(tx.type)}
                       </span>
                       <div>
                         <div style={{
@@ -533,20 +532,20 @@ const WalletBalanceModal = ({ onClose }) => {
                           marginBottom: '4px',
                           textTransform: 'capitalize'
                         }}>
-                          {(tx.tx_type || tx.type || '').replace('_', ' ')}
+                          {tx.type.replace('_', ' ')}
                         </div>
                         <div style={{
                           fontSize: '9px',
                           color: '#666'
                         }}>
-                          {formatDate(tx.timestamp || Date.now())}
+                          {formatDate(tx.timestamp)}
                         </div>
                       </div>
                     </div>
                     
                     <div style={{
                       fontSize: '14px',
-                      color: getTransactionColor(tx.tx_type || tx.type, tx.amount),
+                      color: getTransactionColor(tx.type, tx.amount),
                       fontWeight: 'bold'
                     }}>
                       {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()} BR
