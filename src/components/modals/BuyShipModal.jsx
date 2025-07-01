@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { getTokenBalance } from '../../utils/solanaTransactions';
+import { buyShip } from '../../utils/gameLogic';
 import sessionManager from '../../services/sessionManager';
 import apiService from '../../services/apiService';
+import walletService from '../../services/walletService';
 import ENV from '../../config/environment.js';
 
 const BuyShipModal = ({ onClose }) => {
@@ -10,7 +12,7 @@ const BuyShipModal = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('sol');
+  const [paymentMethod, setPaymentMethod] = useState('sol'); 
   const shipPriceBR = 1500; // Fixed BR token price for ship
 
   // Check token balance on load
@@ -36,10 +38,13 @@ const BuyShipModal = ({ onClose }) => {
   const handleBuyShip = async () => {
     try {
       setIsLoading(true);
-      setError('');
+      setError(''); 
       
-      // Call the API to buy a ship with the selected payment method
-      const result = await apiService.buyShip(paymentMethod);
+      // Close modal immediately to show animations if needed
+      onClose();
+      
+      // Call the game logic function to buy a ship with the selected payment method
+      const result = await buyShip(paymentMethod);
       
       // Mark that player now has a ship
       window.hasShip = true;
@@ -49,22 +54,16 @@ const BuyShipModal = ({ onClose }) => {
         window.updateHasShip(true);
       }
       
-      // Show success message
-      setSuccess(true);
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Ship purchased successfully!');
-      }
-      
-      // Close after a short delay to show success message
-      setTimeout(() => {
-        onClose();
-      }, 2000);
     } catch (error) {
       console.error('Ship purchase failed:', error);
       setError(error.message || 'Failed to purchase ship');
     } finally {
       setIsLoading(false);
+      
+      // Show success message in HUD
+      if (window.AstroUI) {
+        window.AstroUI.setStatus('Ship purchased successfully!');
+      }
     }
   };
 
@@ -295,6 +294,38 @@ const BuyShipModal = ({ onClose }) => {
             TEST SHIP
           </button>
         )}
+        
+        {/* Get Test Tokens Button (only in development) */}
+        {ENV.IS_DEVELOPMENT && ENV.SOLANA_NETWORK !== 'mainnet-beta' && (
+          <button
+            onClick={() => {
+              onClose();
+              if (window.showModal) {
+                window.showModal('getTestTokens');
+              }
+            }}
+            style={{
+              background: 'rgba(0,40,80,0.7)',
+              border: '2px solid #0cf',
+              borderRadius: '4px',
+              padding: '12px 16px',
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: '12px',
+              color: '#0cf',
+              cursor: 'pointer', 
+              transition: 'background .1s, color .1s',
+              minWidth: '120px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'rgba(0,60,100,0.8)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'rgba(0,40,80,0.7)';
+            }}
+          >
+            GET TEST TOKENS
+          </button>
+        )}
       </div>
 
       <p style={{
@@ -306,6 +337,8 @@ const BuyShipModal = ({ onClose }) => {
         One-time purchase • Secure Solana transaction
         {ENV.DEBUG_MODE && <br />}
         {ENV.DEBUG_MODE && <span style={{ color: '#f0a' }}>DEV MODE: Test ship available</span>}
+        {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <br />}
+        {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <span style={{ color: '#0cf' }}>TEST NETWORK: {ENV.SOLANA_NETWORK}</span>}
       </p>
     </div>
   );
