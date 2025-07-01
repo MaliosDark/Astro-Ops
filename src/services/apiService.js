@@ -552,7 +552,7 @@ class ApiService {
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
-          cooldown_seconds: 10 * 60, // 10 minutes in seconds (for testing)
+          cooldown_seconds: 8 * 3600, // 8 hours in seconds
           br_balance: result.br_balance // Store the updated balance
         };
         
@@ -712,29 +712,20 @@ class ApiService {
   /**
    * Get test tokens for development/testing
    */
-  async getTestTokens(amount = 10000) {
+  async getTestTokens(amount) {
     // This should call the verify API, not the main API
     const wallet = walletService.getConnectedWallet();
     if (!wallet) {
       throw new Error('No wallet connected');
     }
     
-    const result = await this.request('/get_test_tokens', {
+    return await this.verifyRequest('/get_test_tokens', {
       method: 'POST',
       body: JSON.stringify({ 
         recipient: wallet.publicKey,
         amount: amount 
       })
     });
-    
-    // Refresh user profile to get updated balance
-    try {
-      await this.getUserProfile();
-    } catch (error) {
-      console.warn('Failed to refresh profile after getting test tokens:', error);
-    }
-    
-    return result;
   }
   /**
    * Get transaction history
