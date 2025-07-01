@@ -29,23 +29,22 @@ function uint8ArrayToBase64(uint8Array) {
 // Configuration from environment
 const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
 // Create connection with proper devnet endpoint
-const connection = new Connection('https://api.devnet.solana.com', {
+const connection = new Connection(ENV.SOLANA_RPC_URL, {
   commitment: 'confirmed',
   wsEndpoint: undefined // Disable websocket for better compatibility
 });
 
 if (ENV.DEBUG_MODE) {
-  console.log('🔗 Solana connection created for: https://api.devnet.solana.com');
+  console.log(`🔗 Solana connection created for: ${ENV.SOLANA_RPC_URL}`);
 }
 
 /**
  * Derive associated token account address manually
  */
 async function getAssociatedTokenAddress(mint, owner) {
-  const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-  
   const [address] = await PublicKey.findProgramAddress(
     [
       owner.toBuffer(),
@@ -150,6 +149,11 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
  * @returns {Promise<boolean>} - Whether user has enough tokens
  */
 export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
+  // For development/testing, always return true
+  if (ENV.DEBUG_MODE && ENV.MOCK_API) {
+    return true;
+  }
+
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
@@ -265,15 +269,9 @@ export async function getTransactionHistory(userPublicKey) {
  */
 export async function withdrawTokens(userPublicKey, amount) {
   try {
-    // This would be implemented with a real API call to the backend
-    // which would then mint tokens to the user's wallet
-    
-    // For now, we'll just return a mock success response
-    return {
-      success: true,
-      txHash: 'mock_tx_hash_' + Date.now(),
-      amount
-    };
+    // This is now handled by the Node.js server
+    // The server will mint tokens to the user's wallet
+    throw new Error('Use apiService.withdrawTokens() instead');
   } catch (error) {
     console.error('Error withdrawing tokens:', error);
     throw new Error(`Failed to withdraw tokens: ${error.message}`);

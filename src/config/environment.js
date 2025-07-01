@@ -1,10 +1,10 @@
 // src/config/environment.js
 // Centralized environment configuration
 
-export const ENV = {
+const ENV = {
   // API Configuration - Use environment variables with production fallbacks
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com',
-  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://verify.bonkraiders.com',
+  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://api.bonkraiders.com', // Now Node.js server
+  VERIFY_API_URL: import.meta.env.VITE_VERIFY_API_URL || 'https://api.bonkraiders.com', // Same server for verification
   
   // WebSocket Configuration - Derived from API_BASE_URL
   get WEBSOCKET_URL() {
@@ -21,8 +21,8 @@ export const ENV = {
   SOLANA_NETWORK: import.meta.env.VITE_SOLANA_NETWORK || 'devnet',
   
   // Game Token Configuration
-  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo',
-  PARTICIPATION_FEE: parseInt(import.meta.env.VITE_PARTICIPATION_FEE) || 0,
+  GAME_TOKEN_MINT: import.meta.env.VITE_GAME_TOKEN_MINT || 'CCmGDrD9jZarDEz1vrjKcE9rrJjL8VecDYjAWxhwhGPo', 
+  PARTICIPATION_FEE: parseInt(import.meta.env.VITE_PARTICIPATION_FEE) || 250, // Default to 250 as per server
   
   // Ship Purchase (in SOL equivalent to 15 USDC)
   SHIP_PRICE_SOL: parseFloat(import.meta.env.VITE_SHIP_PRICE_SOL) || 0.01,
@@ -45,21 +45,6 @@ export const ENV = {
 // Validation
 if (ENV.DEBUG_MODE) {
   console.log('🔧 Environment Configuration:', ENV);
-}
-
-// Validate required environment variables
-const requiredVars = [
-  'API_BASE_URL',
-  'SOLANA_RPC_URL',
-  'GAME_TOKEN_MINT'
-];
-
-const missingVars = requiredVars.filter(varName => !ENV[varName]);
-if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingVars);
-  if (ENV.IS_PRODUCTION) {
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
-  }
 }
 
 export default ENV;

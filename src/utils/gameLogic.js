@@ -257,11 +257,12 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateRaidTo(type);
 
     // REAL API CALL - This will save to database and now also burn tokens on-chain
-    const { success, reward, br_balance, burn_tx_hash } = await apiService.sendMission(type, mode, signedBurnTx); // Pass signedBurnTx
+    const result = await apiService.sendMission(type, mode, signedBurnTx); // Pass signedBurnTx
+    const { success, reward, br_balance } = result;
 
     if (window.AstroUI) {
-      window.AstroUI.setStatus(success ? `Mission success! +${reward} BR` : 'Mission failed - no rewards');
-      window.AstroUI.setBalance(br_balance);
+      window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward)} BR` : 'Mission failed - no rewards');
+      window.AstroUI.setBalance(parseInt(br_balance));
     }
 
     // Update global stats
@@ -294,9 +295,12 @@ export async function performUpgrade(level) {
     // REAL API CALL - This will save to database
     const { level: newLevel, br_balance } = await apiService.upgradeShip(level);
     
+    const newLevel = result.level || level;
+    const newBalance = parseInt(result.br_balance);
+    
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
-      window.AstroUI.setBalance(br_balance);
+      window.AstroUI.setBalance(newBalance);
     }
   } catch (error) {
     console.error('Upgrade failed:', error);
@@ -323,8 +327,9 @@ export async function performRaid(missionId) {
     
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
-      // REAL API CALL - This will save to database
-      const { stolen, br_balance } = await apiService.raidMission(missionId);
+      // REAL API CALL to Node.js server
+      const result = await apiService.raidMission(missionId);
+      const { stolen, br_balance } = result;
       
       // Iniciar batalla durante el raid
       if (window.startRaidBattle) {
@@ -346,8 +351,8 @@ export async function performRaid(missionId) {
       }
       
       if (window.AstroUI) {
-        window.AstroUI.setStatus(`Raid successful! Stolen ${stolen} BR`);
-        window.AstroUI.setBalance(br_balance);
+        window.AstroUI.setStatus(`Raid successful! Stolen ${parseInt(stolen)} BR`);
+        window.AstroUI.setBalance(parseInt(br_balance));
       }
       
       // Notify completion via WebSocket
@@ -356,7 +361,7 @@ export async function performRaid(missionId) {
         stolen,
         success: stolen > 0,
         timestamp: Date.now()
-      });
+      }); 
       
       return { stolen, br_balance };
     });
@@ -446,9 +451,9 @@ export async function scanForRaids() {
  */
 export async function performClaim() {
   try {
-    // REAL API CALL - This will save to database
+    // REAL API CALL to Node.js server
     const result = await apiService.claimRewards();
-    const claimable_AT = result.claimable_AT || 0;
+    const claimable_AT = parseInt(result.claimable_AT) || 0;
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens`);

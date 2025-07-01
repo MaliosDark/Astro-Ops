@@ -4,6 +4,25 @@
 import ENV from '../config/environment.js';
 import userCacheService from './userCacheService.js';
 
+// API endpoints mapping for Node.js server
+const API_ENDPOINTS = {
+  'auth/nonce': '/auth/nonce',
+  'auth/login': '/auth/login',
+  'user_profile': '/user_profile',
+  'buy_ship': '/buy_ship',
+  'send_mission': '/send_mission',
+  'upgrade_ship': '/upgrade_ship',
+  'raid_mission': '/raid_mission',
+  'claim_rewards': '/claim_rewards',
+  'withdraw_tokens': '/withdraw_tokens',
+  'transaction_history': '/transaction_history',
+  'wallet_balance': '/wallet_balance',
+  'list_missions': '/list_missions',
+  'pending_missions': '/pending_missions',
+  'raid/scan': '/raid/scan',
+  'player_energy': '/player_energy'
+};
+
 /**
  * API Service - Handles all communication with bonkraiders.com APIs
  */
@@ -120,9 +139,20 @@ class ApiService {
    * Make authenticated API request
    */
   async request(endpoint, options = {}) {
-    // Ensure endpoint starts with /
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    let url = `${this.baseURL}${cleanEndpoint}`;
+    // Convert PHP-style endpoint to Node.js endpoint
+    let nodeEndpoint;
+    
+    // Check if it's a PHP-style endpoint (api.php?action=X)
+    const actionMatch = endpoint.match(/api\.php\?action=([^&]+)/);
+    if (actionMatch) {
+      const action = actionMatch[1];
+      nodeEndpoint = API_ENDPOINTS[action] || `/${action}`;
+    } else {
+      // Already a path-style endpoint
+      nodeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    }
+    
+    let url = `${this.baseURL}${nodeEndpoint}`;
     
     // Check if we need to refresh the token before making the request
     let currentToken = this.getToken();
@@ -363,7 +393,7 @@ class ApiService {
    * Get authentication nonce
    */
   async getNonce(publicKey) {
-    return await this.request('api.php?action=auth/nonce', {
+    return await this.request('/auth/nonce', {
       method: 'POST',
       body: JSON.stringify({ publicKey })
     });
@@ -373,7 +403,7 @@ class ApiService {
    * Login with signed nonce
    */
   async login(publicKey, nonce, signature) {
-    const response = await this.request('api.php?action=auth/login', {
+    const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({
         publicKey,
@@ -409,7 +439,7 @@ class ApiService {
    * Buy ship
    */
   async buyShip() {
-    const result = await this.request('api.php?action=buy_ship', {
+    const result = await this.request('/buy_ship', {
       method: 'POST'
     });
     
@@ -430,9 +460,7 @@ class ApiService {
    */
   async getUserProfile() {
     // REAL API CALL - Get actual user data from database
-    const result = await this.request('api.php?action=user_profile', {
-      method: 'POST'
-    });
+    const result = await this.request('/user_profile');
     
     // Cache the real profile data
     const publicKey = this.getCurrentUserPublicKey();
@@ -462,7 +490,7 @@ class ApiService {
    * Send mission
    */
   async sendMission(type, mode, signedBurnTx) { // Add signedBurnTx parameter
-    const result = await this.request('api.php?action=send_mission', {
+    const result = await this.request('/send_mission', {
       method: 'POST',
       body: JSON.stringify({
         type,
@@ -486,7 +514,7 @@ class ApiService {
    * Upgrade ship
    */
   async upgradeShip(level) {
-    const result = await this.request('api.php?action=upgrade_ship', {
+    const result = await this.request('/upgrade_ship', {
       method: 'POST',
       body: JSON.stringify({ level })
     });
@@ -505,7 +533,7 @@ class ApiService {
    * Raid mission
    */
   async raidMission(missionId) {
-    const result = await this.request('api.php?action=raid_mission', {
+    const result = await this.request('/raid_mission', {
       method: 'POST',
       body: JSON.stringify({ mission_id: missionId })
     });
@@ -526,7 +554,7 @@ class ApiService {
    */
   async claimRewards() {
     try {
-      const result = await this.request('api.php?action=claim_rewards', {
+      const result = await this.request('/claim_rewards', {
         method: 'POST'
       });
       
@@ -550,7 +578,7 @@ class ApiService {
    */
   async withdrawTokens(amount) {
     try {
-      const result = await this.request('api.php?action=withdraw_tokens', {
+      const result = await this.request('/withdraw_tokens', {
         method: 'POST',
         body: JSON.stringify({ amount })
       });
@@ -575,7 +603,7 @@ class ApiService {
    */
   async getTransactionHistory() {
     try {
-      return await this.request('api.php?action=transaction_history');
+      return await this.request('/transaction_history');
     } catch (error) {
       console.error('Get transaction history error:', error);
       return { transactions: [] };
@@ -587,7 +615,7 @@ class ApiService {
    */
   async getWalletBalance() {
     try {
-      return await this.request('api.php?action=wallet_balance');
+      return await this.request('/wallet_balance');
     } catch (error) {
       console.error('Get wallet balance error:', error);
       throw error;
@@ -599,14 +627,14 @@ class ApiService {
    * Get missions for raid
    */
   async getMissions() {
-    return await this.request('api.php?action=list_missions');
+    return await this.request('/list_missions');
   }
 
   /**
    * Get pending rewards
    */
   async getPendingRewards() {
-    return await this.request('api.php?action=pending_missions');
+    return await this.request('/pending_missions');
   }
 
   /**
@@ -623,7 +651,7 @@ class ApiService {
       }
     }
     
-    const result = await this.request('api.php?action=player_energy');
+    const result = await this.request('/player_energy');
     
     // Cache the energy
     if (publicKey && result.energy !== undefined) {
@@ -637,9 +665,7 @@ class ApiService {
    * Scan for raidable missions (costs 1 energy)
    */
   async scanForRaids() {
-    const result = await this.request('api.php?action=raid/scan', {
-      method: 'POST'
-    });
+    const result = await this.request('/raid/scan');
     
     // Update cached energy
     if (result.remainingEnergy !== undefined) {
@@ -656,14 +682,14 @@ class ApiService {
    * Get player stats
    */
   async getPlayerStats() {
-    return await this.request('api.php?action=player_stats');
+    return await this.request('/player_stats');
   }
 
   /**
    * Get leaderboard
    */
   async getLeaderboard() {
-    return await this.request('api.php?action=leaderboard');
+    return await this.request('/leaderboard');
   }
 }
 

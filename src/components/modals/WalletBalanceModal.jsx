@@ -34,8 +34,8 @@ const WalletBalanceModal = ({ onClose }) => {
       
       // Get both on-chain and in-game balances from the new API endpoint
       const { onchain_balance, ingame_balance } = await apiService.getWalletBalance();
-      setTokenBalance(onchain_balance);
-      setClaimableBalance(ingame_balance || 0);
+      setTokenBalance(onchain_balance || 0);
+      setClaimableBalance(ingame_balance || 0); 
     } catch (error) {
       console.error('Failed to fetch balances:', error);
       setError(error.message || 'Failed to fetch wallet balance');
@@ -62,8 +62,9 @@ const WalletBalanceModal = ({ onClose }) => {
       
       // Call the claim API (which now actually claims in-game balance)
       const result = await apiService.claimRewards();
-      
-      if (result.claimable_AT !== undefined) {
+
+      // Node.js server returns claimable_AT
+      if (result && (result.claimable_AT !== undefined)) {
         // Update UI: claimable balance becomes 0, on-chain balance increases
         setClaimableBalance(0);
         setTokenBalance((prev) => (prev || 0) + result.claimable_AT);
@@ -112,7 +113,7 @@ const WalletBalanceModal = ({ onClose }) => {
       setWithdrawError('');
       
       // Call the new withdraw API
-      const result = await apiService.withdrawTokens(amount);
+      const result = await apiService.withdrawTokens(parseInt(amount));
       
       if (result.success) {
         // Update balances: claimable balance decreases, on-chain balance increases
@@ -543,16 +544,21 @@ const WalletBalanceModal = ({ onClose }) => {
                           <div style={{
                             fontSize: '8px',
                             color: '#0f0',
-                            marginTop: '4px'
+                            marginTop: '4px',
+                            wordBreak: 'break-all'
                           }}>
-                            TX: <a
-                              href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: '#0f0', textDecoration: 'underline' }}
-                            >
-                              {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
-                            </a>
+                            {tx.tx_hash && (
+                              <>
+                                TX: <a
+                                  href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#0f0', textDecoration: 'underline' }}
+                                >
+                                  {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
+                                </a>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -561,9 +567,10 @@ const WalletBalanceModal = ({ onClose }) => {
                     <div style={{
                       fontSize: '14px',
                       color: getTransactionColor(tx.tx_type || tx.type, tx.amount),
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap'
                     }}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()} BR
+                      {tx.amount > 0 ? '+' : ''}{parseInt(tx.amount).toLocaleString()} BR
                     </div>
                   </div>
                 ))}

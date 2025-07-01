@@ -19,7 +19,7 @@ const ClaimModal = ({ onClose }) => {
       setPendingRewards(pending || []);
       
       const totalAmount = pending?.reduce((sum, item) => sum + item.amount, 0) || 0;
-      setTotal(totalAmount);
+      setTotal(parseInt(totalAmount));
     } catch (error) {
       console.error('Failed to fetch pending rewards:', error);
       // Mock data for development
@@ -226,10 +226,11 @@ const ClaimModal = ({ onClose }) => {
                     <div style={{
                       fontSize: '14px',
                       color: '#ff0',
-                      fontWeight: 'bold',
-                      textShadow: '0 0 8px rgba(255, 255, 0, 0.5)'
+                      fontWeight: 'bold', 
+                      textShadow: '0 0 8px rgba(255, 255, 0, 0.5)',
+                      whiteSpace: 'nowrap'
                     }}>
-                      +{item.amount.toLocaleString()} BR
+                      +{parseInt(item.amount).toLocaleString()} BR
                     </div>
                   </div>
                 ))}
@@ -260,7 +261,7 @@ const ClaimModal = ({ onClose }) => {
               textShadow: '0 0 12px rgba(255, 255, 0, 0.8)',
               marginBottom: '8px'
             }}>
-              {total.toLocaleString()} BR
+              {parseInt(total).toLocaleString()} BR
             </div>
             <div style={{
               fontSize: '10px',

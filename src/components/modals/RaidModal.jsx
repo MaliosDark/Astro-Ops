@@ -496,12 +496,13 @@ const RaidModal = ({ onClose }) => {
                       }}>
                         <div style={{
                           fontSize: '16px',
-                          color: '#ff0',
-                          fontWeight: 'bold',
+                          color: '#ff0', 
+                          fontWeight: 'bold', 
                           marginBottom: '4px',
-                          textShadow: '0 0 8px rgba(255, 255, 0, 0.5)'
+                          textShadow: '0 0 8px rgba(255, 255, 0, 0.5)',
+                          whiteSpace: 'nowrap'
                         }}>
-                          {mission.reward.toLocaleString()} BR
+                          {parseInt(mission.reward).toLocaleString()} BR
                         </div>
                         <div style={{
                           fontSize: '9px',
