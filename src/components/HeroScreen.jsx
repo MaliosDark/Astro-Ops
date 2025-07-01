@@ -4,7 +4,6 @@ import ENV from '../config/environment';
 import DocumentationModal from './DocumentationModal';
 import BuyShipModal from './modals/BuyShipModal';
 import GetTestTokensModal from './modals/GetTestTokensModal';
-import GetTestTokensModal from './modals/GetTestTokensModal';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
@@ -12,7 +11,6 @@ const HeroScreen = ({ onConnect, isLoading }) => {
   const [isScanning, setIsScanning] = useState(true);
   const [showDocs, setShowDocs] = useState(false);
   const [showBuyShip, setShowBuyShip] = useState(false);
-  const [showGetTokens, setShowGetTokens] = useState(false);
   const [showGetTokens, setShowGetTokens] = useState(false);
 
   useEffect(() => {
