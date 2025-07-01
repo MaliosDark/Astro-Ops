@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import walletService from '../services/walletService.js';
+import ENV from '../config/environment.js';
 import DocumentationModal from './DocumentationModal';
 import BuyShipModal from './modals/BuyShipModal';
 
