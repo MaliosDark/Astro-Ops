@@ -2,6 +2,9 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import ENV from '../config/environment.js';
 
+// Import SystemProgram for SOL transfers
+import { SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+
 // Token Program IDs
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
@@ -277,8 +280,27 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
   }
 }
 
-// Import SystemProgram for SOL transfers
-import { SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+/**
+ * Check if user has enough SOL for purchase
+ * @param {string} userPublicKey - User's wallet public key
+ * @param {number} amount - Amount needed in SOL
+ * @returns {Promise<boolean>} - Whether user has enough SOL
+ */
+export async function checkSolBalance(userPublicKey, amount = ENV.SHIP_PRICE_SOL) {
+  try {
+    const userPubkey = new PublicKey(userPublicKey);
+    
+    // Get SOL balance
+    const balance = await connection.getBalance(userPubkey);
+    const solBalance = balance / LAMPORTS_PER_SOL;
+    
+    // Add buffer for transaction fees (0.000005 SOL)
+    return solBalance >= (amount + 0.000005);
+  } catch (error) {
+    console.error('Error checking SOL balance:', error);
+    return false;
+  }
+}
 
 /**
  * Check if user has enough tokens to burn
@@ -314,24 +336,20 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
 }
 
 /**
- * Check if user has enough SOL for purchase
+ * Get user's current SOL balance
  * @param {string} userPublicKey - User's wallet public key
- * @param {number} amount - Amount needed in SOL
- * @returns {Promise<boolean>} - Whether user has enough SOL
+ * @returns {Promise<number>} - Current SOL balance
  */
-export async function checkSolBalance(userPublicKey, amount = ENV.SHIP_PRICE_SOL) {
+export async function getSolBalance(userPublicKey) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
     // Get SOL balance
     const balance = await connection.getBalance(userPubkey);
-    const solBalance = balance / LAMPORTS_PER_SOL;
-    
-    // Add buffer for transaction fees (0.000005 SOL)
-    return solBalance >= (amount + 0.000005);
+    return balance / LAMPORTS_PER_SOL;
   } catch (error) {
-    console.error('Error checking SOL balance:', error);
-    return false;
+    console.error('Error getting SOL balance:', error);
+    return 0;
   }
 }
 
@@ -380,24 +398,6 @@ export async function getTokenBalance(userPublicKey) {
     }
     
     // Default fallback
-    return 0;
-  }
-}
-
-/**
- * Get user's current SOL balance
- * @param {string} userPublicKey - User's wallet public key
- * @returns {Promise<number>} - Current SOL balance
- */
-export async function getSolBalance(userPublicKey) {
-  try {
-    const userPubkey = new PublicKey(userPublicKey);
-    
-    // Get SOL balance
-    const balance = await connection.getBalance(userPubkey);
-    return balance / LAMPORTS_PER_SOL;
-  } catch (error) {
-    console.error('Error getting SOL balance:', error);
     return 0;
   }
 }
