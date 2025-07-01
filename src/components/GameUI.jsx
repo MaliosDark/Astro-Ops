@@ -5,7 +5,7 @@ import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import ENV from '../config/environment';
-import { getTokenBalance } from '../utils/solanaTransactions';
+
 
 const GameUI = ({ walletAddress, activeMission, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);
