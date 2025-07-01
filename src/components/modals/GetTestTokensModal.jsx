@@ -22,7 +22,7 @@ const GetTestTokensModal = ({ onClose }) => {
       // Call the API to get test tokens
       const result = await apiService.getTestTokens(amount);
       
-      if (result.success) {
+      if (result.success || result.signature) {
         setSuccess(true);
         
         if (window.AstroUI) {
