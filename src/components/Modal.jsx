@@ -7,7 +7,7 @@ import WalletBalanceModal from './modals/WalletBalanceModal';
 import HowToModal from './modals/HowToModal';
 import BuyShipModal from './modals/BuyShipModal';
 import GetTestTokensModal from './modals/GetTestTokensModal';
-import GetTestTokensModal from './modals/GetTestTokensModal';
+
 
 const Modal = ({ content, onClose }) => {
   const renderModalContent = () => {
