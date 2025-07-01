@@ -83,8 +83,29 @@ const MissionModal = ({ onClose }) => {
     } catch (error) {
       console.error('Mission failed:', error);
       
+      // Handle specific error types for better UX
+      let statusMessage = 'Mission failed';
+      
+      if (error.message?.includes('Transaction cancelled by user')) {
+        statusMessage = 'Mission cancelled - please approve the transaction to continue';
+      } else if (error.message?.includes('Insufficient tokens')) {
+        statusMessage = error.message;
+      } else if (error.message?.includes('Insufficient SOL')) {
+        statusMessage = 'Insufficient SOL for transaction fees - please add SOL to your wallet';
+      } else if (error.message?.includes('Wallet not connected')) {
+        statusMessage = 'Please connect your wallet first';
+      } else if (error.message) {
+        statusMessage = error.message;
+      }
+      
       if (window.AstroUI) {
-        window.AstroUI.setStatus(`Mission failed: ${error.message}`);
+        window.AstroUI.setStatus(statusMessage);
+      }
+      
+      // Don't close modal if transaction was cancelled - let user try again
+      if (error.message?.includes('Transaction cancelled by user')) {
+        // Modal stays open, user can try again
+        return;
       }
     } finally {
       setIsLoading(false);

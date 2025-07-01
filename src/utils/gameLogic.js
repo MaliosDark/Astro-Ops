@@ -302,14 +302,32 @@ export async function startMission(type, mode = 'Unshielded') {
   } catch (error) {
     console.error('Mission failed:', error);
     
+    // Handle user-friendly error messages
+    let userMessage = error.message;
+    
+    if (error.message?.includes('Transaction cancelled by user')) {
+      userMessage = 'Mission cancelled - transaction not approved';
+    } else if (error.message?.includes('Insufficient tokens')) {
+      userMessage = error.message; // Keep the specific token message
+    } else if (error.message?.includes('Insufficient SOL')) {
+      userMessage = 'Insufficient SOL for transaction fees';
+    } else if (error.message?.includes('Network')) {
+      userMessage = 'Network error - please try again';
+    } else if (error.message?.includes('Authentication') || error.message?.includes('token')) {
+      userMessage = 'Session expired - please refresh the page';
+    }
+    
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`Mission failed: ${error.message}`);
+      window.AstroUI.setStatus(userMessage);
     }
     
     // Only animate return if ship was launched
     if (window.__shipInFlight) {
       await animateShipReturn();
     }
+    
+    // Re-throw error for modal handling if needed
+    throw error;
   }
 }
 
