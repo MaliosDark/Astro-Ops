@@ -35,13 +35,10 @@ const BuyShipModal = ({ onClose }) => {
     checkBalance();
   }, []);
 
-  const handleBuyShip = async () => {
+    const handleBuyShip = async () => {
     try {
       setIsLoading(true);
       setError('');
-      
-      // Close modal immediately to show animations if needed
-      onClose();
       
       // Call the game logic function to buy a ship with the selected payment method 
       // This will now use the verify server's purchase_ship endpoint
@@ -55,18 +52,27 @@ const BuyShipModal = ({ onClose }) => {
         window.updateHasShip(true);
       }
       
-    } catch (error) {
-      console.error('Ship purchase failed:', error);
-      setError(error.message || 'Failed to purchase ship');
-    } finally {
-      setIsLoading(false);
-      
-      // Show success message in HUD
+      // Show success message in HUD only on actual success
       if (window.AstroUI) {
         window.AstroUI.setStatus('Ship purchased successfully!');
       }
+
+      // Close modal after successful purchase
+      onClose();
+      
+    } catch (error) {
+      console.error('Ship purchase failed:', error);
+      setError(error.message || 'Failed to purchase ship');
+      
+      // Show error message in HUD on failure
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(error.message || 'Failed to purchase ship');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
+
 
   const handleTestShip = () => {
     // DEV ONLY: Add test ship without payment
