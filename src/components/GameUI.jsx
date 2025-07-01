@@ -114,13 +114,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         if (btn) btn.onclick = fn;
       },
       onRaid: (fn) => { 
-        const btn = document.getElementById('btn-raid');
-        if (btn) btn.onclick = fn;
-      },
-      onClaim: (fn) => { 
-        const btn = document.getElementById('btn-claim');
-        if (btn) btn.onclick = fn;
-      },
+      },      
       onHelp: (fn) => { 
         const btn = document.getElementById('btn-help');
         if (btn) btn.onclick = fn;
@@ -294,19 +288,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="btn-text">RAID</div>
           <div className="btn-badge">{energy}</div>
         </button>
-        
-        <button 
-          className="action-btn claim-btn" 
-          id="btn-claim"
-          data-tip="Claim accumulated AT"
-          onClick={() => onShowModal('claim')}
-          onMouseMove={(e) => handleMouseMove(e, 'Claim accumulated AT')}
-          onMouseLeave={handleMouseLeave}
-        >
-          <div className="btn-icon">💰</div>
-          <div className="btn-text">CLAIM</div>
-        </button>
-        
+                
         <button 
           className="action-btn wallet-btn" 
           id="btn-wallet"

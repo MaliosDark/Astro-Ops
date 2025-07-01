@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import walletService from '../services/walletService.js';
 import DocumentationModal from './DocumentationModal';
+import BuyShipModal from './modals/BuyShipModal';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
   const [noWallet, setNoWallet] = useState(false);
   const [isScanning, setIsScanning] = useState(true);
   const [showDocs, setShowDocs] = useState(false);
+  const [showBuyShip, setShowBuyShip] = useState(false);
 
   useEffect(() => {
     scanForWallets();
@@ -65,6 +67,10 @@ const HeroScreen = ({ onConnect, isLoading }) => {
   const handleInstallWallet = () => {
     // Open Phantom installation page
     window.open('https://phantom.app/download', '_blank');
+  };
+
+  const handleShowBuyShip = () => {
+    setShowBuyShip(true);
   };
 
   return (
@@ -141,6 +147,24 @@ const HeroScreen = ({ onConnect, isLoading }) => {
           </button>
         </div>
       )}
+      
+      {/* Free Ship Button (for testing) */}
+      {ENV.DEBUG_MODE && (
+        <button
+          className="gb-btn"
+          onClick={handleShowBuyShip}
+          style={{
+            marginTop: '10px',
+            background: 'rgba(60,0,60,0.7)',
+            border: '2px solid #f0f',
+            color: '#f0f',
+            fontSize: '12px',
+            padding: '8px 12px'
+          }}
+        >
+          🚀 Get Test Ship
+        </button>
+      )}
 
       {/* Documentation Button */}
       <button
@@ -185,6 +209,18 @@ const HeroScreen = ({ onConnect, isLoading }) => {
       {/* Documentation Modal */}
       {showDocs && (
         <DocumentationModal onClose={() => setShowDocs(false)} />
+      )}
+      
+      {/* Buy Ship Modal */}
+      {showBuyShip && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button className="modal-close" onClick={() => setShowBuyShip(false)}>
+              CLOSE
+            </button>
+            <BuyShipModal onClose={() => setShowBuyShip(false)} />
+          </div>
+        </div>
       )}
     </div>
   );

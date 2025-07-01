@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
 import sessionManager from '../../services/sessionManager';
+import apiService from '../../services/apiService';
 import ENV from '../../config/environment.js';
 
 const BuyShipModal = ({ onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleBuyShip = async () => {
     try {
       setIsLoading(true);
       setError('');
       
-      await sessionManager.buyShip();
+      // Call the API to buy a ship
+      const result = await apiService.buyShip();
       
       // Mark that player now has a ship
       window.hasShip = true;
+      
+      // Show success message
+      setSuccess(true);
       
       if (window.AstroUI) {
         window.AstroUI.setStatus('Ship purchased successfully!');
       }
       
-      onClose();
+      // Close after a short delay to show success message
+      setTimeout(() => {
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('Ship purchase failed:', error);
       setError(error.message || 'Failed to purchase ship');
@@ -33,6 +42,7 @@ const BuyShipModal = ({ onClose }) => {
     // DEV ONLY: Add test ship without payment
     window.hasShip = true;
     if (window.AstroUI) {
+      window.AstroUI.setBalance(1000); // Give some starting balance for testing
       window.AstroUI.setStatus('Test ship added!');
     }
     onClose();
@@ -40,7 +50,7 @@ const BuyShipModal = ({ onClose }) => {
 
   return (
     <div style={{
-      background: 'rgba(20,0,20,0.8)',
+      background: 'linear-gradient(135deg, rgba(20,0,20,0.9), rgba(40,0,40,0.8))',
       border: '4px solid #f0a',
       borderRadius: '8px',
       padding: '20px',
@@ -48,7 +58,8 @@ const BuyShipModal = ({ onClose }) => {
       maxWidth: '500px',
       boxSizing: 'border-box',
       backdropFilter: 'blur(4px)',
-      fontFamily: "'Press Start 2P', monospace",
+      fontFamily: "'Press Start 2P', monospace", 
+      boxShadow: '0 8px 32px rgba(255, 0, 170, 0.3)',
       color: '#0f0',
       textAlign: 'center'
     }}>
@@ -56,7 +67,8 @@ const BuyShipModal = ({ onClose }) => {
         margin: '0 0 16px',
         fontSize: '20px',
         color: '#f0a'
-      }}>
+      }}
+      >
         BUY YOUR SHIP
       </h1>
       
@@ -64,7 +76,8 @@ const BuyShipModal = ({ onClose }) => {
         src="https://bonkraiders.com/assets/ship.png" 
         alt="Ship" 
         style={{
-          display: 'block',
+          display: 'block', 
+          filter: 'drop-shadow(0 0 10px rgba(255, 0, 170, 0.5))',
           margin: '0 auto 16px',
           width: '64px',
           height: '64px',
@@ -72,7 +85,7 @@ const BuyShipModal = ({ onClose }) => {
         }}
       />
 
-      <p style={{
+      {!success && <p style={{
         fontSize: '14px',
         lineHeight: '1.5',
         margin: '0 0 16px',
@@ -80,7 +93,7 @@ const BuyShipModal = ({ onClose }) => {
       }}>
         You need a ship to start playing Bonk Raiders!
       </p>
-
+      }
       <div style={{
         background: 'rgba(0,40,0,0.3)',
         border: '2px solid #0f0',
@@ -89,7 +102,7 @@ const BuyShipModal = ({ onClose }) => {
         margin: '0 0 16px',
         fontSize: '12px'
       }}>
-        <div style={{ marginBottom: '8px' }}>
+        <div style={{ marginBottom: '8px', color: '#ff0' }}>
           <strong>Ship Price:</strong> {ENV.SHIP_PRICE_SOL} SOL (~15 USDC)
         </div>
         <div style={{ marginBottom: '8px' }}>
@@ -101,7 +114,7 @@ const BuyShipModal = ({ onClose }) => {
           margin: 0,
           fontSize: '10px',
           textAlign: 'left'
-        }}>
+        }}> 
           <li>• Access to all missions</li>
           <li>• Ability to raid other players</li>
           <li>• Ship upgrade system</li>
@@ -109,6 +122,19 @@ const BuyShipModal = ({ onClose }) => {
         </ul>
       </div>
 
+      {success && (
+        <div style={{
+          background: 'rgba(0,60,0,0.5)',
+          border: '2px solid #0f0',
+          borderRadius: '6px',
+          padding: '12px',
+          marginBottom: '16px',
+          color: '#0f0'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div>
+          Ship purchased successfully! You're ready to start playing!
+        </div>
+      )}
       {error && (
         <div style={{
           color: '#f00',
@@ -124,7 +150,7 @@ const BuyShipModal = ({ onClose }) => {
       )}
 
       <div style={{
-        display: 'flex',
+        display: success ? 'none' : 'flex',
         gap: '12px',
         justifyContent: 'center',
         flexWrap: 'wrap'
@@ -132,7 +158,7 @@ const BuyShipModal = ({ onClose }) => {
         <button
           onClick={handleBuyShip}
           disabled={isLoading}
-          style={{
+          style={{ 
             background: isLoading ? 'rgba(0,20,0,0.3)' : 'rgba(0,20,0,0.7)',
             border: '2px solid #0f0',
             borderRadius: '4px',
@@ -142,7 +168,7 @@ const BuyShipModal = ({ onClose }) => {
             color: isLoading ? '#666' : '#0f0',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             transition: 'background .1s, color .1s',
-            minWidth: '120px'
+            minWidth: '120px' 
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
@@ -158,7 +184,7 @@ const BuyShipModal = ({ onClose }) => {
           {isLoading ? 'BUYING...' : 'BUY SHIP'}
         </button>
 
-        {ENV.DEBUG_MODE && (
+        {ENV.IS_DEVELOPMENT && (
           <button
             onClick={handleTestShip}
             style={{
@@ -169,7 +195,7 @@ const BuyShipModal = ({ onClose }) => {
               fontFamily: "'Press Start 2P', monospace",
               fontSize: '12px',
               color: '#f0a',
-              cursor: 'pointer',
+              cursor: 'pointer', 
               transition: 'background .1s, color .1s',
               minWidth: '120px'
             }}
@@ -189,7 +215,7 @@ const BuyShipModal = ({ onClose }) => {
         fontSize: '10px',
         margin: '16px 0 0',
         color: '#888',
-        lineHeight: '1.4'
+        lineHeight: '1.4' 
       }}>
         One-time purchase • Secure Solana transaction
         {ENV.DEBUG_MODE && <br />}
