@@ -80,9 +80,6 @@ const HeroScreen = ({ onConnect, isLoading }) => {
     setShowGetTokens(true);
   };
 
-  const handleShowGetTokens = () => {
-    setShowGetTokens(true);
-  };
 
   return (
     <div id="hero">
