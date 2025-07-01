@@ -83,6 +83,11 @@ const ClaimModal = ({ onClose }) => {
     if (hours > 0) return `${hours}h ago`;
     return `${minutes}m ago`;
   };
+
+  const getSourceIcon = (source) => {
+    switch (source) {
+      case 'Mining Run': return '⛏️';
+      case 'Black Market': return '🏴‍☠️';
       case 'Artifact Hunt': return '🏺';
       default: return '💰';
     }
