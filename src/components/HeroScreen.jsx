@@ -3,6 +3,7 @@ import walletService from '../services/walletService.js';
 import ENV from '../config/environment';
 import DocumentationModal from './DocumentationModal';
 import BuyShipModal from './modals/BuyShipModal';
+import GetTestTokensModal from './modals/GetTestTokensModal';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
@@ -10,6 +11,7 @@ const HeroScreen = ({ onConnect, isLoading }) => {
   const [isScanning, setIsScanning] = useState(true);
   const [showDocs, setShowDocs] = useState(false);
   const [showBuyShip, setShowBuyShip] = useState(false);
+  const [showGetTokens, setShowGetTokens] = useState(false);
 
   useEffect(() => {
     scanForWallets();
@@ -72,6 +74,10 @@ const HeroScreen = ({ onConnect, isLoading }) => {
 
   const handleShowBuyShip = () => {
     setShowBuyShip(true);
+  };
+
+  const handleShowGetTokens = () => {
+    setShowGetTokens(true);
   };
 
   return (
@@ -148,6 +154,39 @@ const HeroScreen = ({ onConnect, isLoading }) => {
           </button>
         </div>
       )}
+
+      {/* Test Environment Buttons */}
+      {ENV.SOLANA_NETWORK !== 'mainnet-beta' && !isLoading && !isScanning && walletProviders.length > 0 && (
+        <div style={{ 
+          marginTop: '20px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          <div style={{ 
+            fontSize: '12px', 
+            color: '#ff0', 
+            background: 'rgba(60,60,0,0.5)', 
+            padding: '8px 12px', 
+            borderRadius: '4px',
+            border: '1px solid #ff0'
+          }}>
+            {ENV.SOLANA_NETWORK.toUpperCase()} TEST ENVIRONMENT
+          </div>
+          <button 
+            className="gb-btn" 
+            onClick={handleShowGetTokens}
+            style={{ 
+              background: 'rgba(0,60,120,0.8)', 
+              border: '2px solid #0cf',
+              fontSize: '12px'
+            }}
+          >
+            Get Free Test Tokens
+          </button>
+        </div>
+      )}
       
       {/* Documentation Button */}
       <button
@@ -204,6 +243,18 @@ const HeroScreen = ({ onConnect, isLoading }) => {
             <BuyShipModal onClose={() => setShowBuyShip(false)} />
           </div>
         </div>
+    )}
+    
+    {/* Get Test Tokens Modal */}
+    {showGetTokens && (
+      <div className="modal-overlay">
+        <div className="modal-content">
+          <button className="modal-close" onClick={() => setShowGetTokens(false)}>
+            CLOSE
+          </button>
+          <GetTestTokensModal onClose={() => setShowGetTokens(false)} />
+        </div>
+      </div>
       )}
     </div>
   );

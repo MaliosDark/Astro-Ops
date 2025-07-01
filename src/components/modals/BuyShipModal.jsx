@@ -1,20 +1,45 @@
 import React, { useState } from 'react';
+import { getTokenBalance } from '../../utils/solanaTransactions';
 import sessionManager from '../../services/sessionManager';
 import apiService from '../../services/apiService';
 import ENV from '../../config/environment.js';
 
 const BuyShipModal = ({ onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingBalance, setIsCheckingBalance] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('sol');
+  const shipPriceBR = 1500; // Fixed BR token price for ship
+
+  // Check token balance on load
+  React.useEffect(() => {
+    const checkBalance = async () => {
+      try {
+        setIsCheckingBalance(true);
+        const wallet = walletService.getConnectedWallet();
+        if (wallet) {
+          const balance = await getTokenBalance(wallet.publicKey);
+          setTokenBalance(balance);
+        }
+      } catch (error) {
+        console.error('Failed to check token balance:', error);
+      } finally {
+        setIsCheckingBalance(false);
+      }
+    };
+    
+    checkBalance();
+  }, []);
 
   const handleBuyShip = async () => {
     try {
       setIsLoading(true);
       setError('');
       
-      // Call the API to buy a ship
-      const result = await apiService.buyShip();
+      // Call the API to buy a ship with the selected payment method
+      const result = await apiService.buyShip(paymentMethod);
       
       // Mark that player now has a ship
       window.hasShip = true;
@@ -58,6 +83,9 @@ const BuyShipModal = ({ onClose }) => {
     }
     onClose();
   };
+
+  // Determine if user has enough BR tokens to buy ship
+  const hasEnoughTokens = tokenBalance >= shipPriceBR;
 
   return (
     <div style={{
@@ -110,14 +138,61 @@ const BuyShipModal = ({ onClose }) => {
         border: '2px solid #0f0',
         borderRadius: '6px',
         padding: '12px',
-        margin: '0 0 16px',
+        margin: '0 0 20px',
         fontSize: '12px'
       }}>
-        <div style={{ marginBottom: '8px', color: '#ff0' }}>
-          <strong>Ship Price:</strong> {ENV.SHIP_PRICE_SOL} SOL (~15 USDC)
-        </div>
-        <div style={{ marginBottom: '8px' }}>
-          <strong>Includes:</strong>
+        {ENV.SOLANA_NETWORK === 'mainnet-beta' ? (
+          <div style={{ marginBottom: '8px', color: '#ff0' }}>
+            <strong>Ship Price:</strong> {ENV.SHIP_PRICE_SOL} SOL (~15 USDC)
+          </div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: '12px', color: '#ff0' }}>
+              <strong>TEST ENVIRONMENT - Choose Payment Method:</strong>
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              marginBottom: '16px',
+              gap: '10px'
+            }}>
+              <div 
+                onClick={() => setPaymentMethod('sol')}
+                style={{ 
+                  flex: 1, 
+                  padding: '8px', 
+                  border: `2px solid ${paymentMethod === 'sol' ? '#0f0' : '#666'}`,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  background: paymentMethod === 'sol' ? 'rgba(0,40,0,0.3)' : 'rgba(0,0,0,0.3)'
+                }}>
+                <div style={{ color: paymentMethod === 'sol' ? '#0f0' : '#ccc' }}>{ENV.SHIP_PRICE_SOL} SOL</div>
+              </div>
+              <div 
+                onClick={() => setPaymentMethod('br')}
+                style={{ 
+                  flex: 1, 
+                  padding: '8px', 
+                  border: `2px solid ${paymentMethod === 'br' ? '#ff0' : '#666'}`,
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  background: paymentMethod === 'br' ? 'rgba(60,60,0,0.3)' : 'rgba(0,0,0,0.3)'
+                }}>
+                <div style={{ color: paymentMethod === 'br' ? '#ff0' : '#ccc' }}>{shipPriceBR} BR</div>
+                {paymentMethod === 'br' && (
+                  <div style={{ fontSize: '9px', marginTop: '4px', color: hasEnoughTokens ? '#0f0' : '#f00' }}>
+                    {isCheckingBalance ? 'Checking balance...' : 
+                     hasEnoughTokens ? `You have ${tokenBalance} BR` : `Insufficient balance (${tokenBalance} BR)`}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div style={{ marginBottom: '8px', marginTop: '16px' }}>
+          <strong>Ship Includes:</strong>
         </div>
         <ul style={{
           listStyle: 'none',
@@ -192,7 +267,7 @@ const BuyShipModal = ({ onClose }) => {
             }
           }}
         >
-          {isLoading ? 'BUYING...' : 'BUY SHIP'}
+          {isLoading ? 'BUYING...' : paymentMethod === 'sol' ? `BUY WITH ${ENV.SHIP_PRICE_SOL} SOL` : `BUY WITH ${shipPriceBR} BR`}
         </button>
 
         {ENV.IS_DEVELOPMENT && (

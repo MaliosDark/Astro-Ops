@@ -438,9 +438,10 @@ class ApiService {
   /**
    * Buy ship
    */
-  async buyShip() {
+  async buyShip(paymentMethod = 'sol') {
     const result = await this.request('/buy_ship', {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ payment_method: paymentMethod })
     });
     
     // Update cache to reflect ship purchase

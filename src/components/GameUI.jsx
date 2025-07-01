@@ -175,6 +175,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     onShowModal('walletBalance');
   };
 
+  const handleGetTestTokens = () => {
+    onShowModal('getTestTokens');
+  };
+
   return (
     <div id="gb-ui" className="game-ui-container">
       <div id="top-hud" className="top-hud-container">
@@ -305,6 +309,21 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="btn-icon">💼</div>
           <div className="btn-text">WALLET</div>
         </button>
+        
+        {/* Test Tokens Button (only in devnet) */}
+        {ENV.SOLANA_NETWORK !== 'mainnet-beta' && (
+          <button 
+            className="action-btn test-tokens-btn" 
+            id="btn-test-tokens"
+            data-tip="Get test tokens"
+            onClick={handleGetTestTokens}
+            onMouseMove={(e) => handleMouseMove(e, 'Get free test tokens')}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="btn-icon">🪙</div>
+            <div className="btn-text">TEST TOKENS</div>
+          </button>
+        )}
         
         <button 
           className="action-btn help-btn" 
