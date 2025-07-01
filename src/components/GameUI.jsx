@@ -129,8 +129,8 @@ const GameUI = ({ walletAddress, activeMission, onShowModal, onDisconnect }) => 
       },
       setRaidsWon: (count) => {
         setRaidsWon(count);
-      },
         window.raidWins = count;
+      },
       setMode: (mode) => {
         const label = {
           unshielded: 'Unshielded',
