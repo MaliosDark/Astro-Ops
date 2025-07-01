@@ -476,7 +476,7 @@ class ApiService {
       
       // Update UI with real balance from server
       if (result.ship && window.AstroUI) {
-        window.AstroUI.setBalance(result.ship.balance || 0);
+        window.AstroUI.setBalance(parseInt(result.ship.balance || 0));
       }
       
       // Update active mission if present
@@ -561,6 +561,11 @@ class ApiService {
         // Update mission timer in UI
         if (window.updateActiveMission) {
           window.updateActiveMission(missionData);
+          
+          // Also update the balance immediately
+          if (window.AstroUI && result.br_balance !== undefined) {
+            window.AstroUI.setBalance(parseInt(result.br_balance));
+          }
         }
         
         // Update balance in UI immediately
@@ -613,7 +618,7 @@ class ApiService {
           
           // Update UI immediately with new balance
           if (window.AstroUI) {
-            window.AstroUI.setBalance(result.br_balance);
+            window.AstroUI.setBalance(parseInt(result.br_balance));
           }
         }
       }

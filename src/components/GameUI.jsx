@@ -112,9 +112,9 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       setWallet: (id) => {
         // Already handled by props
       },
-      setBalance: (at) => {
+      setBalance: (at) => { 
         // Always update the UI with the latest balance
-        const newBalance = typeof at === 'number' ? at : parseFloat(at) || 0;
+        const newBalance = typeof at === 'number' ? at : parseInt(at) || 0;
         setBalance(newBalance);
       },
       setStatus: (msg) => {
@@ -239,8 +239,8 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       if (profile) {
         // Update UI with REAL data from database
         if (profile.ship) {
-          // Ensure UI balance matches server balance
-          setBalance(profile.ship.balance || 0);
+          // Always use the server's balance value for consistency
+          setBalance(parseInt(profile.ship.balance || 0));
         }
         
         if (profile.stats) {
@@ -394,7 +394,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel balance-panel">
             <div className="panel-header">CREDITS</div>
             <div className="panel-content">
-              <span className="balance-value">{parseInt(balance).toLocaleString()}</span>
+              <span className="balance-value">{parseInt(balance || 0).toLocaleString()}</span>
               <span className="balance-unit">BR</span>
             </div>
           </div>

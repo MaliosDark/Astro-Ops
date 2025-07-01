@@ -265,6 +265,11 @@ export async function startMission(type, mode = 'Unshielded') {
     // REAL API CALL - This will save to database and now also burn tokens on-chain
     const result = await apiService.sendMission(type, mode, signedBurnTx);
     const { success, reward, br_balance } = result;
+    
+    // Always update the balance immediately with the server's value
+    if (window.AstroUI && br_balance !== undefined) {
+      window.AstroUI.setBalance(parseInt(br_balance));
+    }
 
     // Store mission data in localStorage for timer
     if (success) {
@@ -285,8 +290,7 @@ export async function startMission(type, mode = 'Unshielded') {
     }
 
     if (window.AstroUI) {
-      window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward)} BR` : 'Mission failed - no rewards');
-      window.AstroUI.setBalance(parseInt(br_balance));
+      window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward).toLocaleString()} BR` : 'Mission failed - no rewards');
     }
 
     // Update global stats

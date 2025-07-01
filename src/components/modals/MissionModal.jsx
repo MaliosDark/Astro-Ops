@@ -13,7 +13,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Mining Run',
       description: 'Extract valuable resources from asteroid fields',
       successRate: 90,
-      baseReward: 10,
+      baseReward: 30000,
       icon: '⛏️',
       difficulty: 'Easy',
       duration: '2-3 hours'
@@ -23,7 +23,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Black Market',
       description: 'Trade in forbidden goods and contraband',
       successRate: 70,
-      baseReward: 30,
+      baseReward: 60000,
       icon: '🏴‍☠️',
       difficulty: 'Medium',
       duration: '3-4 hours'
@@ -33,7 +33,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Artifact Hunt',
       description: 'Search for ancient alien artifacts',
       successRate: 50,
-      baseReward: 60,
+      baseReward: 120000,
       icon: '🏺',
       difficulty: 'Hard',
       duration: '4-6 hours'
@@ -406,7 +406,7 @@ const MissionModal = ({ onClose }) => {
               <div style={{ textAlign: 'center' }}>
                 <div style={{ color: '#888', marginBottom: '4px' }}>Expected Reward</div>
                 <div style={{ color: '#ff0' }}>
-                  {Math.floor(selectedMissionData.baseReward * (selectedModeData.modifier === '100%' ? 1 : 0.8))} BR
+                  {Math.floor(selectedMissionData.baseReward * (selectedModeData.modifier === '100%' ? 1 : 0.8)).toLocaleString()} BR
                 </div>
               </div>
             </div>

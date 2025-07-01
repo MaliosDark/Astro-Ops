@@ -257,7 +257,7 @@ const ClaimModal = ({ onClose }) => {
                       textShadow: '0 0 8px rgba(255, 255, 0, 0.5)',
                       whiteSpace: 'nowrap'
                     }}>
-                      +{parseInt(item.amount).toLocaleString()} BR
+                      +{parseInt(item.amount || 0).toLocaleString()} BR
                     </div>
                   </div>
                 ))}
@@ -289,7 +289,7 @@ const ClaimModal = ({ onClose }) => {
               marginBottom: '8px',
               whiteSpace: 'nowrap'
             }}>
-              {parseInt(total).toLocaleString()} BR
+              {parseInt(total || 0).toLocaleString()} BR
             </div>
             <div style={{
               fontSize: '10px',

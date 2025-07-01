@@ -503,7 +503,7 @@ const RaidModal = ({ onClose }) => {
                           textShadow: '0 0 8px rgba(255, 255, 0, 0.5)',
                           whiteSpace: 'nowrap'
                         }}>
-                          {parseInt(mission.reward).toLocaleString()} BR
+                          {parseInt(mission.reward || 0).toLocaleString()} BR
                         </div>
                         <div style={{
                           fontSize: '9px',
