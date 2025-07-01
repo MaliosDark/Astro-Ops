@@ -446,7 +446,8 @@ class ApiService {
    */
   async buyShip(paymentMethod = 'sol', signedTransaction = null) {
     try {
-      const result = await this.request('/buy_ship', {
+      // Call the verify server's purchase_ship endpoint instead of the main API
+      const result = await this.verifyRequest('/purchase_ship', {
         method: 'POST',
         body: JSON.stringify({ 
           payment_method: paymentMethod,

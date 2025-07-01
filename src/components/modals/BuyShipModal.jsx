@@ -38,12 +38,13 @@ const BuyShipModal = ({ onClose }) => {
   const handleBuyShip = async () => {
     try {
       setIsLoading(true);
-      setError(''); 
+      setError('');
       
       // Close modal immediately to show animations if needed
       onClose();
       
-      // Call the game logic function to buy a ship with the selected payment method
+      // Call the game logic function to buy a ship with the selected payment method 
+      // This will now use the verify server's purchase_ship endpoint
       const result = await buyShip(paymentMethod);
       
       // Mark that player now has a ship
