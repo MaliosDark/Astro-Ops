@@ -492,24 +492,47 @@ class ApiService {
    * Send mission
    */
   async sendMission(type, mode, signedBurnTx) { // Add signedBurnTx parameter
-    const result = await this.request('/send_mission', {
-      method: 'POST',
-      body: JSON.stringify({
-        type,
-        mode,
-        signedBurnTx // Pass signedBurnTx to the backend
-      })
-    });
-    
-    // Update cached balance
-    if (result.br_balance !== undefined) {
-      const publicKey = this.getCurrentUserPublicKey();
-      if (publicKey) {
-        userCacheService.updateCachedBalance(publicKey, result.br_balance);
+    try {
+      const result = await this.request('/send_mission', {
+        method: 'POST',
+        body: JSON.stringify({
+          type,
+          mode,
+          signedBurnTx // Pass signedBurnTx to the backend
+        })
+      });
+      
+      // Update cached balance
+      if (result.br_balance !== undefined) {
+        const publicKey = this.getCurrentUserPublicKey();
+        if (publicKey) {
+          userCacheService.updateCachedBalance(publicKey, result.br_balance);
+        }
       }
+      
+      // Store mission data in localStorage for timer
+      if (result.success) {
+        const missionData = {
+          mission_type: type,
+          mode: mode,
+          ts_start: Math.floor(Date.now() / 1000),
+          reward: result.reward,
+          cooldown_seconds: 8 * 3600 // 8 hours in seconds
+        };
+        
+        localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
+        
+        // Update mission timer in UI
+        if (window.updateActiveMission) {
+          window.updateActiveMission(missionData);
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Send mission error:', error);
+      throw error;
     }
-    
-    return result;
   }
 
   /**
@@ -535,20 +558,32 @@ class ApiService {
    * Raid mission
    */
   async raidMission(missionId) {
-    const result = await this.request('/raid_mission', {
-      method: 'POST',
-      body: JSON.stringify({ mission_id: missionId })
-    });
-    
-    // Update cached balance
-    if (result.br_balance !== undefined) {
-      const publicKey = this.getCurrentUserPublicKey();
-      if (publicKey) {
-        userCacheService.updateCachedBalance(publicKey, result.br_balance);
+    try {
+      const result = await this.request('/raid_mission', {
+        method: 'POST',
+        body: JSON.stringify({ mission_id: missionId })
+      });
+      
+      // Update cached balance
+      if (result.br_balance !== undefined) {
+        const publicKey = this.getCurrentUserPublicKey();
+        if (publicKey) {
+          userCacheService.updateCachedBalance(publicKey, result.br_balance);
+        }
       }
+      
+      // Refresh user profile to get updated stats
+      try {
+        await this.getUserProfile();
+      } catch (profileError) {
+        console.warn('Failed to refresh profile after raid:', profileError);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Raid mission error:', error);
+      throw error;
     }
-    
-    return result;
   }
 
   /**
@@ -586,6 +621,13 @@ class ApiService {
       
       if (ENV.DEBUG_MODE) {
         console.log(`📤 ${txType === 'claim' ? 'Claim' : 'Withdraw'} result:`, result);
+      }
+      
+      // Refresh user profile to get updated data
+      try {
+        await this.getUserProfile();
+      } catch (profileError) {
+        console.warn('Failed to refresh profile after withdraw:', profileError);
       }
       
       // Update cached balance

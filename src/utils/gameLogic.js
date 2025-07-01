@@ -229,7 +229,7 @@ export async function startMission(type, mode = 'Unshielded') {
     const userPublicKey = wallet.publicKey;
 
     if (window.AstroUI) {
-      window.AstroUI.setStatus('Preparing mission...');
+      window.AstroUI.setStatus(`Preparing ${type} mission...`);
     }
 
     // Check if participation fee is required
@@ -263,8 +263,26 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateRaidTo(type);
 
     // REAL API CALL - This will save to database and now also burn tokens on-chain
-    const result = await apiService.sendMission(type, mode, signedBurnTx); // Pass signedBurnTx
+    const result = await apiService.sendMission(type, mode, signedBurnTx);
     const { success, reward, br_balance } = result;
+
+    // Store mission data in localStorage for timer
+    if (success) {
+      const missionData = {
+        mission_type: type,
+        mode: mode,
+        ts_start: Math.floor(Date.now() / 1000),
+        reward: reward,
+        cooldown_seconds: 8 * 3600 // 8 hours in seconds
+      };
+      
+      localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
+      
+      // Update mission timer in UI
+      if (window.updateActiveMission) {
+        window.updateActiveMission(missionData);
+      }
+    }
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward)} BR` : 'Mission failed - no rewards');
@@ -283,9 +301,11 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateShipReturn();
   } catch (error) {
     console.error('Mission failed:', error);
+    
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Mission failed: ${error.message}`);
     }
+    
     // Only animate return if ship was launched
     if (window.__shipInFlight) {
       await animateShipReturn();
@@ -301,11 +321,18 @@ export async function performUpgrade(level) {
     // REAL API CALL - This will save to database
     const upgradeResult = await apiService.upgradeShip(level);
     const newLevel = upgradeResult.level || level;
-    const newBalance = parseInt(upgradeResult.br_balance);
+    const newBalance = parseInt(upgradeResult.br_balance || 0);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
       window.AstroUI.setBalance(newBalance);
+    }
+    
+    // Refresh user profile to get updated data
+    try {
+      await apiService.getUserProfile();
+    } catch (profileError) {
+      console.warn('Failed to refresh profile after upgrade:', profileError);
     }
   } catch (error) {
     console.error('Upgrade failed:', error);
@@ -333,42 +360,53 @@ export async function performRaid(missionId) {
     // Crear transición de raid con animaciones completas Y batalla
     await createRaidTransition(async () => {
       // REAL API CALL to Node.js server
-      const result = await apiService.raidMission(missionId);
-      const { stolen, br_balance } = result;
-      
-      // Iniciar batalla durante el raid
-      if (window.startRaidBattle) {
-        await window.startRaidBattle();
-      }
-      
-      // Update global stats
-      if (stolen > 0) {
-        // Stats are now updated on server side automatically
-        // Refresh profile to get updated stats
-        try {
-          const profile = await apiService.getUserProfile();
-          if (profile?.stats && window.AstroUI) {
-            window.AstroUI.setRaidsWon(profile.stats.total_raids_won);
-          }
-        } catch (error) {
-          // Ignore profile refresh errors
+      let result;
+      try {
+        result = await apiService.raidMission(missionId);
+        const { stolen, br_balance } = result;
+        
+        // Iniciar batalla durante el raid
+        if (window.startRaidBattle) {
+          await window.startRaidBattle();
         }
+        
+        // Update global stats
+        if (stolen > 0) {
+          // Stats are now updated on server side automatically
+          // Refresh profile to get updated stats
+          try {
+            const profile = await apiService.getUserProfile();
+            if (profile?.stats && window.AstroUI) {
+              window.AstroUI.setRaidsWon(profile.stats.total_raids_won);
+            }
+          } catch (error) {
+            // Ignore profile refresh errors
+          }
+        }
+        
+        if (window.AstroUI) {
+          window.AstroUI.setStatus(`Raid successful! Stolen ${parseInt(stolen)} BR`);
+          window.AstroUI.setBalance(parseInt(br_balance));
+        }
+        
+        // Notify completion via WebSocket
+        websocketService.send('raid_completed', {
+          missionId,
+          stolen,
+          success: stolen > 0,
+          timestamp: Date.now()
+        }); 
+        
+        return { stolen, br_balance };
+      } catch (error) {
+        // Handle raid failure but still show battle
+        if (window.startRaidBattle) {
+          await window.startRaidBattle();
+        }
+        
+        // Re-throw the error to be caught by the outer try/catch
+        throw error;
       }
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Raid successful! Stolen ${parseInt(stolen)} BR`);
-        window.AstroUI.setBalance(parseInt(br_balance));
-      }
-      
-      // Notify completion via WebSocket
-      websocketService.send('raid_completed', {
-        missionId,
-        stolen,
-        success: stolen > 0,
-        timestamp: Date.now()
-      }); 
-      
-      return { stolen, br_balance };
     });
   } catch (error) {
     if (ENV.DEBUG_MODE) {
@@ -460,7 +498,7 @@ export async function performClaim() {
   try {
     // Get pending rewards first to know how much we're claiming
     const { pending } = await apiService.getPendingRewards();
-    const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount), 0) || 0;
+    const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount || 0), 0) || 0;
     
     if (ENV.DEBUG_MODE) {
       console.log('🎮 Claiming rewards, total amount:', totalAmount);
@@ -472,6 +510,14 @@ export async function performClaim() {
 
     // Now we just withdraw the total amount directly
     const result = await apiService.withdrawTokens(totalAmount, 'claim'); // Explicitly set tx_type to 'claim'
+    
+    // Refresh user profile to get updated balance
+    try {
+      const profile = await apiService.getUserProfile();
+      if (profile?.ship && window.AstroUI) {
+        window.AstroUI.setBalance(profile.ship.balance || 0);
+      }
+    } catch (error) {}
     
     if (ENV.DEBUG_MODE) {
       console.log('🎮 Claim result:', result);

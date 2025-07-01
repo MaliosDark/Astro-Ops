@@ -3,6 +3,7 @@ import { performUpgrade } from '../../utils/gameLogic';
 
 const UpgradeModal = ({ onClose }) => {
   const [selectedLevel, setSelectedLevel] = useState(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const upgrades = [
     { level: 1, bonus: '1.0×', cooldown: '8 h', cost: 0, total: 0, description: 'Basic ship configuration', unlocked: true },
@@ -14,9 +15,24 @@ const UpgradeModal = ({ onClose }) => {
     { level: 7, bonus: '1.8×', cooldown: '5 h', cost: 400, total: 1225, description: 'Experimental technology', unlocked: true }
   ];
 
-  const handleUpgrade = (level) => {
-    performUpgrade(level);
-    onClose();
+  const handleUpgrade = async (level) => {
+    setIsUpgrading(true);
+    
+    try {
+      // Close modal immediately to show animations if needed
+      onClose();
+      
+      // Perform the upgrade
+      await performUpgrade(level);
+    } catch (error) {
+      console.error('Upgrade failed:', error);
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Upgrade failed: ${error.message}`);
+      }
+    } finally {
+      setIsUpgrading(false);
+    }
   };
 
   const getBenefitColor = (level) => {
@@ -312,30 +328,37 @@ const UpgradeModal = ({ onClose }) => {
       {selectedLevel && (
         <button
           onClick={() => handleUpgrade(selectedLevel)}
+          disabled={isUpgrading}
           style={{
             width: '100%',
             padding: '16px',
-            background: 'linear-gradient(135deg, #f0f, #c0c)',
-            color: '#fff',
+            background: isUpgrading ? 
+              'linear-gradient(135deg, rgba(150,0,150,0.5), rgba(120,0,120,0.5))' : 
+              'linear-gradient(135deg, #f0f, #c0c)',
+            color: isUpgrading ? '#aaa' : '#fff',
             border: '2px solid #ff0',
             borderRadius: '12px',
             fontFamily: "'Press Start 2P', monospace",
             fontSize: '16px',
-            cursor: 'pointer',
+            cursor: isUpgrading ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s ease',
-            boxShadow: '0 4px 16px rgba(255, 0, 255, 0.4)',
-            textShadow: '0 0 8px rgba(0, 0, 0, 0.8)'
+            boxShadow: isUpgrading ? 'none' : '0 4px 16px rgba(255, 0, 255, 0.4)',
+            textShadow: isUpgrading ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
+            if (!isUpgrading) {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
+            if (!isUpgrading) {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
+            }
           }}
         >
-          ⚙️ INSTALL LEVEL {selectedLevel} UPGRADE
+          {isUpgrading ? '⏳ INSTALLING UPGRADE...' : `⚙️ INSTALL LEVEL ${selectedLevel} UPGRADE`}
         </button>
       )}
 

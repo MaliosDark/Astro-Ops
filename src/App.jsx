@@ -17,6 +17,7 @@ function App() {
   const [modalContent, setModalContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasShip, setHasShip] = useState(false);
+  const [activeMission, setActiveMission] = useState(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -110,9 +111,8 @@ function App() {
       
       // Step 5: Set up disconnect handler
       walletService.on('disconnect', () => {
-        if (ENV.DEBUG_MODE) {
-          console.log('🔌 Wallet disconnected, reloading…');
-        }
+        if (ENV.DEBUG_MODE) console.log('🔌 Wallet disconnected, reloading…');
+        
         // Disconnect WebSocket when wallet disconnects
         websocketService.disconnect();
         // Stop health monitoring when wallet disconnects
@@ -127,6 +127,7 @@ function App() {
         
         // Set up WebSocket event handlers
         websocketService.on('raid_incoming', (data) => {
+          // Show notification of incoming raid
           if (window.AstroUI) {
             window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
           }
@@ -140,10 +141,22 @@ function App() {
         });
         
         websocketService.on('raid_completed', (data) => {
+          // Handle raid completion notification
           if (data.defenderId === userId) {
             if (data.success) {
               if (window.AstroUI) {
                 window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
+              }
+              
+              // Refresh user profile to get updated balance after being raided
+              try {
+                apiService.getUserProfile().then(profile => {
+                  if (profile?.ship && window.AstroUI) {
+                    window.AstroUI.setBalance(profile.ship.balance || 0);
+                  }
+                });
+              } catch (error) {
+                console.warn('Failed to refresh profile after raid:', error);
               }
             } else {
               if (window.AstroUI) {
@@ -236,6 +249,23 @@ function App() {
     window.showModal = showModal;
     window.closeModal = closeModal;
     window.updateHasShip = setHasShip;
+    window.updateActiveMission = setActiveMission;
+    
+    // Set up a periodic profile refresh to keep data in sync
+    const profileRefreshInterval = setInterval(() => {
+      if (isWalletConnected && walletAddress) {
+        apiService.getUserProfile().catch(err => {
+          // Silently ignore errors during background refresh
+          if (ENV.DEBUG_MODE) {
+            console.warn('Background profile refresh failed:', err);
+          }
+        });
+      }
+    }, 60000); // Refresh every minute
+    
+    return () => {
+      clearInterval(profileRefreshInterval);
+    };
   }, []);
 
   return (
@@ -249,6 +279,7 @@ function App() {
       {isWalletConnected && hasShip && (
         <GameUI 
           walletAddress={walletAddress}
+          activeMission={activeMission}
           onShowModal={showModal}
           onDisconnect={() => {
             setIsWalletConnected(false);

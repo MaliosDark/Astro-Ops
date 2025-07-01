@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { startMission } from '../../utils/gameLogic';
+import { startMission } from '../../utils/gameLogic'; 
+import apiService from '../../services/apiService';
 
 const MissionModal = ({ onClose }) => {
   const [selectedMission, setSelectedMission] = useState('MiningRun');
   const [selectedMode, setSelectedMode] = useState('Unshielded');
+  const [isLoading, setIsLoading] = useState(false);
 
   const missions = [
     {
@@ -57,15 +59,36 @@ const MissionModal = ({ onClose }) => {
     }
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    if (window.AstroUI) {
-      window.AstroUI.setMode(selectedMode);
+    try {
+      if (window.AstroUI) {
+        window.AstroUI.setMode(selectedMode);
+      }
+      
+      // Close modal immediately to show animations
+      onClose();
+      
+      // Start mission
+      await startMission(selectedMission, selectedMode);
+      
+      // Refresh user profile to get updated data
+      try {
+        await apiService.getUserProfile();
+      } catch (error) {
+        console.warn('Failed to refresh profile after mission:', error);
+      }
+    } catch (error) {
+      console.error('Mission failed:', error);
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Mission failed: ${error.message}`);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    
-    startMission(selectedMission, selectedMode);
-    onClose();
   };
 
   const selectedMissionData = missions.find(m => m.id === selectedMission);
@@ -372,30 +395,37 @@ const MissionModal = ({ onClose }) => {
         {/* Launch Button */}
         <button
           type="submit"
+          disabled={isLoading}
           style={{
             width: '100%',
             padding: '16px',
-            background: 'linear-gradient(135deg, #0cf, #0af)',
-            color: '#000',
+            background: isLoading ? 
+              'linear-gradient(135deg, rgba(0,100,150,0.5), rgba(0,80,120,0.5))' : 
+              'linear-gradient(135deg, #0cf, #0af)',
+            color: isLoading ? '#666' : '#000',
             border: '2px solid #0ff',
             borderRadius: '12px',
             fontFamily: "'Press Start 2P', monospace",
             fontSize: '16px',
-            cursor: 'pointer',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s ease',
-            boxShadow: '0 4px 16px rgba(0, 255, 255, 0.4)',
-            textShadow: '0 0 8px rgba(0, 0, 0, 0.8)'
+            boxShadow: isLoading ? 'none' : '0 4px 16px rgba(0, 255, 255, 0.4)',
+            textShadow: isLoading ? 'none' : '0 0 8px rgba(0, 0, 0, 0.8)'
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
+            if (!isLoading) {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
+            if (!isLoading) {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
+            }
           }}
         >
-          🚀 LAUNCH MISSION
+          {isLoading ? '⏳ PREPARING MISSION...' : '🚀 LAUNCH MISSION'}
         </button>
       </form>
     </div>
