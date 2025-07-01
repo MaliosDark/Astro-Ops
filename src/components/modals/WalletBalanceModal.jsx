@@ -129,7 +129,7 @@ const WalletBalanceModal = ({ onClose }) => {
             tx_type: 'withdraw',
             amount: amount,
             created_at: new Date().toISOString(),
-            status: 'completed'
+            status: 'completed',
             tx_hash: result.mint_tx_hash
           },
           ...prev
