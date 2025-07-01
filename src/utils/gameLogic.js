@@ -273,7 +273,7 @@ export async function startMission(type, mode = 'Unshielded') {
         mode: mode,
         ts_start: Math.floor(Date.now() / 1000),
         reward: reward,
-        cooldown_seconds: 8 * 3600 // 8 hours in seconds
+        cooldown_seconds: 10 * 60 // 10 minutes in seconds (for testing)
       };
       
       localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
@@ -317,7 +317,7 @@ export async function startMission(type, mode = 'Unshielded') {
           const missionData = JSON.parse(storedMission);
           const now = Math.floor(Date.now() / 1000);
           const missionStart = missionData.ts_start;
-          const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours default
+          const cooldownSeconds = missionData.cooldown_seconds || 10 * 60; // 10 minutes default (for testing)
           const endTime = missionStart + cooldownSeconds;
           const timeLeft = endTime - now;
           

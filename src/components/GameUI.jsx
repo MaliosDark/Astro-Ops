@@ -18,6 +18,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [activeMission, setActiveMission] = useState(null);
   const [missionTimeLeft, setMissionTimeLeft] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+  const [lastBalanceUpdate, setLastBalanceUpdate] = useState(Date.now());
 
   useEffect(() => {
     // Show the game UI - EXACTLY like original
@@ -32,6 +33,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       try {
         // Load REAL user profile from server
         const profile = await apiService.getUserProfile();
+        const now = Date.now();
         
         // Also fetch token balance
         const wallet = walletService.getConnectedWallet();
@@ -45,6 +47,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           if (profile.ship) {
             // Always use the server's balance value for consistency
             setBalance(profile.ship.balance || 0);
+            setLastBalanceUpdate(now);
           }
           
           if (profile.stats) {
@@ -89,6 +92,33 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     
     if (walletAddress) {
       loadInitialData();
+
+      // Check for active mission in localStorage on initial load
+      const storedMission = localStorage.getItem('bonkraiders_active_mission');
+      if (storedMission) {
+        try {
+          const missionData = JSON.parse(storedMission);
+          const now = Math.floor(Date.now() / 1000);
+          const missionStart = missionData.ts_start;
+          const cooldownSeconds = missionData.cooldown_seconds || 10 * 60; // 10 minutes default
+          
+          // Check if mission is still active
+          if (now < missionStart + cooldownSeconds) {
+            setActiveMission(missionData);
+            
+            // Update global state
+            if (window.updateActiveMission) {
+              window.updateActiveMission(missionData);
+            }
+          } else {
+            // Mission has expired, remove from localStorage
+            localStorage.removeItem('bonkraiders_active_mission');
+          }
+        } catch (e) {
+          // Invalid stored mission data
+          localStorage.removeItem('bonkraiders_active_mission');
+        }
+      }
       
       // Set up periodic refresh to keep balance in sync with server
       const refreshInterval = setInterval(() => {
@@ -115,6 +145,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       setBalance: (at) => {
         // Always update the UI with the latest balance
         const newBalance = typeof at === 'number' ? at : parseFloat(at) || 0;
+        setLastBalanceUpdate(Date.now());
         setBalance(newBalance);
       },
       setStatus: (msg) => {
@@ -183,7 +214,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     const calculateTimeLeft = () => {
       const now = Math.floor(Date.now() / 1000);
       const missionStart = activeMission.ts_start;
-      const cooldownSeconds = 8 * 3600; // 8 hours in seconds
+      const cooldownSeconds = 10 * 60; // 10 minutes in seconds (for testing)
 
       // If mission has a custom cooldown, use that instead
       const missionCooldown = activeMission.cooldown_seconds || cooldownSeconds;
@@ -195,6 +226,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         // Mission has completed
         setMissionTimeLeft(null);
         setActiveMission(null);
+        setLastBalanceUpdate(Date.now());
         
         // Refresh user profile to get updated balance
         loadInitialData();
@@ -202,6 +234,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         // Remove mission data from localStorage
         localStorage.removeItem('bonkraiders_active_mission');
 
+        // Notify user of mission completion
         if (window.AstroUI) {
           window.AstroUI.setStatus('Mission completed!');
         }
@@ -218,7 +251,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     // Set up interval to update timer
     const timerInterval = setInterval(() => {
       const timeLeft = calculateTimeLeft();
-      setMissionTimeLeft(timeLeft);
+      if (timeLeft !== null) setMissionTimeLeft(timeLeft);
     }, 1000);
     
     return () => clearInterval(timerInterval);
@@ -238,7 +271,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       
       if (profile) {
         // Update UI with REAL data from database
-        if (profile.ship) {
+        if (profile.ship && Date.now() - lastBalanceUpdate > 1000) { // Only update if it's been at least 1 second since last update
           // Ensure UI balance matches server balance
           setBalance(profile.ship.balance || 0);
         }
@@ -267,7 +300,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
               const missionData = JSON.parse(storedMission);
               const now = Math.floor(Date.now() / 1000);
               const missionStart = missionData.ts_start;
-              const cooldownSeconds = 8 * 3600; // 8 hours in seconds
+              const cooldownSeconds = 10 * 60; // 10 minutes in seconds (for testing)
               
               // If mission has a custom cooldown, use that instead
               const missionCooldown = missionData.cooldown_seconds || cooldownSeconds;
@@ -276,6 +309,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
               if (now < missionStart + missionCooldown) {
                 setActiveMission(missionData);
               } else {
+                setLastBalanceUpdate(Date.now()); // Update timestamp to trigger balance refresh
                 // Mission has expired, remove from localStorage
                 localStorage.removeItem('bonkraiders_active_mission');
               }
@@ -409,7 +443,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
                 <span className="stat-value">{kills}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">RAIDS</span>
+                <span className="balance-value">{Math.floor(balance).toLocaleString()}</span>
                 <span className="stat-value">{raidsWon}</span>
               </div>
             </div>
