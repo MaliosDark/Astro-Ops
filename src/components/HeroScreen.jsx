@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import walletService from '../services/walletService.js';
-import ENV from '../config/environment.js';
+import ENV from '../config/environment';
 import DocumentationModal from './DocumentationModal';
 import BuyShipModal from './modals/BuyShipModal';
 
@@ -149,24 +149,6 @@ const HeroScreen = ({ onConnect, isLoading }) => {
         </div>
       )}
       
-      {/* Free Ship Button (for testing) */}
-      {ENV.DEBUG_MODE && (
-        <button
-          className="gb-btn"
-          onClick={handleShowBuyShip}
-          style={{
-            marginTop: '10px',
-            background: 'rgba(60,0,60,0.7)',
-            border: '2px solid #f0f',
-            color: '#f0f',
-            fontSize: '12px',
-            padding: '8px 12px'
-          }}
-        >
-          🚀 Get Test Ship
-        </button>
-      )}
-
       {/* Documentation Button */}
       <button
         className="documentation-btn"
