@@ -293,10 +293,9 @@ export async function startMission(type, mode = 'Unshielded') {
 export async function performUpgrade(level) {
   try {
     // REAL API CALL - This will save to database
-    const { level: newLevel, br_balance } = await apiService.upgradeShip(level);
-    
-    const newLevel = result.level || level;
-    const newBalance = parseInt(result.br_balance);
+    const upgradeResult = await apiService.upgradeShip(level);
+    const newLevel = upgradeResult.level || level;
+    const newBalance = parseInt(upgradeResult.br_balance);
     
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Upgraded to L${newLevel}`);
