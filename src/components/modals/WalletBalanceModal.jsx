@@ -57,6 +57,9 @@ const WalletBalanceModal = ({ onClose }) => {
   const handleClaim = async () => {
     if (claimableBalance <= 0 || isClaiming) return;
     
+    // Close modal immediately to show animations if needed
+    onClose();
+    
     try {
       setIsClaiming(true);
       
@@ -117,6 +120,9 @@ const WalletBalanceModal = ({ onClose }) => {
   const handleWithdraw = async () => {
     if (isWithdrawing || !withdrawAmount) return;
     
+    // Close modal immediately
+    onClose();
+    
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0 || amount > claimableBalance) {
       setWithdrawError('Invalid withdrawal amount');
@@ -154,10 +160,7 @@ const WalletBalanceModal = ({ onClose }) => {
         // Reset form
         setWithdrawAmount('');
         
-        // Hide success message after 3 seconds
-        setTimeout(() => {
-          setWithdrawSuccess(false);
-        }, 3000);
+        // Modal already closed
       } else {
         throw new Error(result.error || 'Withdrawal failed');
       }

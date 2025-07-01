@@ -265,13 +265,27 @@ class WebSocketService {
    * Handle raid completion notification
    */
   handleRaidCompleted(data) {
-    const { success, stolenAmount, defenderId, attackerId } = data;
+    const { success, stolenAmount, defenderId, attackerId, targetId } = data;
     
     if (defenderId === this.userId) {
       // We were raided
       if (success) {
         if (window.AstroUI) {
           window.AstroUI.setStatus(`💔 Raid successful! Lost ${stolenAmount} BR`);
+        }
+        
+        // Refresh user profile to get updated balance
+        try {
+          const apiService = window.apiService || (typeof require === 'function' ? require('../services/apiService').default : null);
+          if (apiService && typeof apiService.getUserProfile === 'function') {
+            apiService.getUserProfile().then(profile => {
+              if (profile?.ship && window.AstroUI) {
+                window.AstroUI.setBalance(profile.ship.balance || 0);
+              }
+            });
+          }
+        } catch (error) {
+          console.warn('Failed to refresh profile after being raided:', error);
         }
       } else {
         if (window.AstroUI) {
