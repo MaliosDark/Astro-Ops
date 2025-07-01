@@ -86,6 +86,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
     // Expose AstroUI API globally for compatibility - EXACTLY like original
     window.AstroUI = {
+      ...window.AstroUI,
       setWallet: (id) => {
         // Already handled by props
       },

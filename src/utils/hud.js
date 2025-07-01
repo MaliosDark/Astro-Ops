@@ -98,6 +98,24 @@ export function setupHUD() {
       el.textContent = label;
     },
 
+    /**
+     * Update the energy display in the top HUD.
+     * @param {number} energyValue - Current energy value to display.
+     */
+    setEnergy(energyValue) {
+      // Placeholder function - will be overridden by GameUI component
+      console.log('setEnergy called with:', energyValue);
+    },
+
+    /**
+     * Hook wallet balance button
+     * @param {Function} fn - Function to call when wallet button is clicked.
+     */
+    onWalletBalance(fn) {
+      const btn = document.getElementById('btn-wallet');
+      if (btn) btn.onclick = fn;
+    },
+
     // 4️⃣ Hook mission button
     onMission(fn) { 
       const btn = document.getElementById('btn-mission');
