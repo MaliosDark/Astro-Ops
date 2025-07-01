@@ -5,17 +5,18 @@ import GameUI from './components/GameUI';
 import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
-import walletService from './services/walletService.js';
-import apiService from './services/apiService.js';
-import websocketService from './services/websocketService.js';
-import healthMonitorService from './services/healthMonitor.js';
-import ENV from './config/environment.js';
+import walletService from './services/walletService';
+import apiService from './services/apiService';
+import websocketService from './services/websocketService';
+import healthMonitorService from './services/healthMonitor';
+import ENV from './config/environment';
 
 function App() {
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [modalContent, setModalContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasShip, setHasShip] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -72,19 +73,23 @@ function App() {
       
       // Step 4: Initialize game state
       // Try to buy ship (will return existing ship if already owned)
+      let shipOwned = false;
       try {
-        const shipResult = await apiService.buyShip();
-        window.hasShip = true;
+        // Get user profile to check if they have a ship
+        const profile = await apiService.getUserProfile();
+        shipOwned = !!profile?.ship;
+        window.hasShip = shipOwned;
+        setHasShip(shipOwned);
         
         if (ENV.DEBUG_MODE) {
-          console.log('🚢 Ship status:', shipResult);
+          console.log('🚢 Ship status:', shipOwned ? 'Owned' : 'Not owned');
         }
       } catch (error) {
         if (ENV.DEBUG_MODE) {
-          console.log('🚢 Ship purchase/check failed:', error);
+          console.log('🚢 Ship check failed:', error);
         }
         // Don't fail connection if ship check fails
-        window.hasShip = false;
+        setHasShip(false);
       }
       
       // Step 5: Set up disconnect handler
@@ -147,7 +152,11 @@ function App() {
       }
       
       // Step 7: Start health monitoring
-      healthMonitorService.start();
+      try {
+        healthMonitorService.start();
+      } catch (error) {
+        console.warn('Health monitor failed to start:', error);
+      }
       
       // Set up health monitoring event handlers
       healthMonitorService.on('health_degraded', (health) => {
@@ -206,10 +215,10 @@ function App() {
       {!isWalletConnected && (
         <HeroScreen onConnect={connectWallet} isLoading={isLoading} />
       )}
-      
+
       <GameCanvas ref={canvasRef} />
       
-      {isWalletConnected && (
+      {isWalletConnected && hasShip && (
         <GameUI 
           walletAddress={walletAddress}
           onShowModal={showModal}
@@ -218,6 +227,12 @@ function App() {
             setWalletAddress('');
           }}
         />
+      )}
+      
+      {isWalletConnected && !hasShip && !modalContent && (
+        <div style={{ display: 'none' }}>
+          {setTimeout(() => showModal('buyship'), 500)}
+        </div>
       )}
 
       {modalContent && (

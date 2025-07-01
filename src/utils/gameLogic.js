@@ -189,7 +189,7 @@ export async function authenticateWallet(publicKey, signMessage) {
 export async function buyShip() {
   try {
     if (ENV.DEBUG_MODE) {
-      console.log('🚢 Attempting to buy ship...');
+      console.log('🚢 Attempting to buy ship for', ENV.SHIP_PRICE_SOL, 'SOL');
     }
     
     const result = await apiService.buyShip();
@@ -200,6 +200,12 @@ export async function buyShip() {
     
     // Mark that player now has a ship
     window.hasShip = true;
+    
+    // Update App state if possible
+    if (window.updateHasShip) {
+      window.updateHasShip(true);
+    }
+    
     return result;
   } catch (error) {
     if (ENV.DEBUG_MODE) {
@@ -500,3 +506,6 @@ window.performUpgrade = performUpgrade;
 window.performRaid = performRaid;
 window.performClaim = performClaim;
 window.buyShip = buyShip;
+
+// Add a function to update the App state
+window.updateHasShip = null;

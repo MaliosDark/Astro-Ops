@@ -202,7 +202,7 @@ const WalletBalanceModal = ({ onClose }) => {
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <h1 style={{
           margin: '0 0 8px',
-          fontSize: '24px',
+          fontSize: '24px', 
           background: 'linear-gradient(45deg, #0cf, #0ff)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
@@ -286,7 +286,7 @@ const WalletBalanceModal = ({ onClose }) => {
               <div style={{
                 fontSize: '12px',
                 color: '#888',
-                marginBottom: '8px'
+                marginBottom: '8px' 
               }}>
                 ON-CHAIN BALANCE
               </div>
@@ -318,9 +318,9 @@ const WalletBalanceModal = ({ onClose }) => {
               <div style={{
                 fontSize: '12px',
                 color: '#888',
-                marginBottom: '8px'
+                marginBottom: '8px' 
               }}>
-                CLAIMABLE BALANCE
+                IN-GAME BALANCE
               </div>
               <div style={{
                 fontSize: '24px',
@@ -471,7 +471,7 @@ const WalletBalanceModal = ({ onClose }) => {
               color: '#888',
               textAlign: 'center'
             }}>
-              Withdraw your claimable tokens to your connected wallet
+              Withdraw your in-game tokens to your connected wallet
             </div>
           </div>
 
@@ -531,7 +531,7 @@ const WalletBalanceModal = ({ onClose }) => {
                           color: '#0cf',
                           marginBottom: '4px',
                           textTransform: 'capitalize'
-                        }}>
+                        }}> 
                           {(tx.tx_type || tx.type || '').replace('_', ' ')}
                         </div>
                         <div style={{
@@ -569,7 +569,7 @@ const WalletBalanceModal = ({ onClose }) => {
                       color: getTransactionColor(tx.tx_type || tx.type, tx.amount),
                       fontWeight: 'bold',
                       whiteSpace: 'nowrap'
-                    }}>
+                    }}> 
                       {tx.amount > 0 ? '+' : ''}{parseInt(tx.amount).toLocaleString()} BR
                     </div>
                   </div>
@@ -590,7 +590,9 @@ const WalletBalanceModal = ({ onClose }) => {
             textAlign: 'center'
           }}>
             <div style={{ marginBottom: '8px' }}>
-              Connected Wallet: <span style={{ color: '#0cf' }}>{walletService.getConnectedWallet()?.publicKey.slice(0, 8)}...{walletService.getConnectedWallet()?.publicKey.slice(-8)}</span>
+              Connected Wallet: <span style={{ color: '#0cf' }}>
+                {walletService.getConnectedWallet()?.publicKey.slice(0, 8)}...{walletService.getConnectedWallet()?.publicKey.slice(-8)}
+              </span>
             </div>
             <div>
               Network: <span style={{ color: '#0cf' }}>{ENV.SOLANA_NETWORK}</span>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { performClaim } from '../../utils/gameLogic';
+import apiService from '../../services/apiService';
 import { getPendingRewards } from '../../utils/gameLogic';
 
 const ClaimModal = ({ onClose }) => {
@@ -38,7 +38,15 @@ const ClaimModal = ({ onClose }) => {
   const handleClaim = async () => {
     try {
       setIsClaiming(true);
-      await performClaim();
+      
+      // Use the API service directly to claim rewards
+      const result = await apiService.claimRewards();
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens!`);
+        window.AstroUI.setBalance(0); // Reset in-game balance to 0
+      }
+      
       onClose();
     } catch (error) {
       console.error('Claim failed:', error);
@@ -170,7 +178,7 @@ const ClaimModal = ({ onClose }) => {
                 <div style={{ marginBottom: '12px', fontSize: '32px' }}>🚫</div>
                 No pending rewards found
                 <div style={{ fontSize: '10px', marginTop: '8px' }}>
-                  Complete missions to earn BR tokens
+                  Complete missions to earn more BR tokens
                 </div>
               </div>
             ) : (
@@ -255,7 +263,7 @@ const ClaimModal = ({ onClose }) => {
               TOTAL CLAIMABLE REWARDS
             </div>
             <div style={{
-              fontSize: '24px',
+              fontSize: '24px', 
               color: '#ff0',
               fontWeight: 'bold',
               textShadow: '0 0 12px rgba(255, 255, 0, 0.8)',
@@ -267,7 +275,7 @@ const ClaimModal = ({ onClose }) => {
               fontSize: '10px',
               color: '#0cf'
             }}>
-              Ready for immediate transfer to your wallet
+              Ready to be claimed to your in-game balance
             </div>
           </div>
 
@@ -314,12 +322,12 @@ const ClaimModal = ({ onClose }) => {
             marginTop: '16px',
             fontSize: '10px',
             color: '#666',
-            textAlign: 'center',
+            textAlign: 'center', 
             lineHeight: '1.4'
           }}>
-            Claimed tokens will be transferred directly to your connected wallet.
+            Claimed tokens will be added to your in-game balance.
             <br />
-            Transaction fees may apply based on network conditions.
+            Use the Wallet button to withdraw tokens to your connected wallet.
           </div>
         </>
       )}
