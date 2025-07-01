@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiService from '../../services/apiService';
-import { getPendingRewards, performClaim } from '../../utils/gameLogic';
+import { getPendingRewards } from '../../utils/gameLogic';
+import walletService from '../../services/walletService';
 
 const ClaimModal = ({ onClose }) => {
   const [pendingRewards, setPendingRewards] = useState([]);
@@ -38,12 +39,21 @@ const ClaimModal = ({ onClose }) => {
   const handleClaim = async () => {
     try {
       setIsClaiming(true);
+      const wallet = walletService.getConnectedWallet();
+      if (!wallet) {
+        throw new Error('No wallet connected');
+      }
       
-      // Use performClaim which handles the full claim process including transaction creation
-      const result = await performClaim();
+      // Get the total amount to claim
+      if (total <= 0) {
+        throw new Error('No rewards to claim');
+      }
+      
+      // Call the withdraw API with the total amount to claim everything at once
+      const result = await apiService.withdrawTokens(total);
       
       if (window.AstroUI) {
-        window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens to your wallet!`);
+        window.AstroUI.setStatus(`Claimed ${total} BR tokens to your wallet!`);
         window.AstroUI.setBalance(0);
       }
       
@@ -267,7 +277,8 @@ const ClaimModal = ({ onClose }) => {
               color: '#ff0',
               fontWeight: 'bold',
               textShadow: '0 0 12px rgba(255, 255, 0, 0.8)',
-              marginBottom: '8px'
+              marginBottom: '8px',
+              whiteSpace: 'nowrap'
             }}>
               {parseInt(total).toLocaleString()} BR
             </div>
@@ -275,7 +286,7 @@ const ClaimModal = ({ onClose }) => {
               fontSize: '10px',
               color: '#0cf'
             }}>
-              Ready to be claimed to your in-game balance
+              Ready to be claimed directly to your wallet
             </div>
           </div>
 
@@ -323,11 +334,12 @@ const ClaimModal = ({ onClose }) => {
             fontSize: '10px',
             color: '#666',
             textAlign: 'center', 
-            lineHeight: '1.4'
+            lineHeight: '1.4',
+            padding: '0 10px'
           }}>
-            Claimed tokens will be added to your in-game balance.
+            Claimed tokens will be transferred directly to your connected wallet.
             <br />
-            Use the Wallet button to withdraw tokens to your connected wallet.
+            Transaction will be visible in your transaction history.
           </div>
         </>
       )}
