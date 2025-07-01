@@ -468,11 +468,41 @@ class ApiService {
   async getUserProfile() {
     // REAL API CALL - Get actual user data from database
     const result = await this.request('/user_profile');
-    
+
     // Cache the real profile data
     const publicKey = this.getCurrentUserPublicKey();
     if (publicKey && result) {
       userCacheService.cacheUserProfile(publicKey, result);
+      
+      // Update UI with real balance from server
+      if (result.ship && window.AstroUI) {
+        window.AstroUI.setBalance(result.ship.balance || 0);
+      }
+      
+      // Update active mission if present
+      if (result.active_mission && window.updateActiveMission) {
+        window.updateActiveMission(result.active_mission);
+        
+        // Store in localStorage for persistence
+        localStorage.setItem('bonkraiders_active_mission', JSON.stringify(result.active_mission));
+      } else if (!result.active_mission) {
+        // Clear active mission if none on server
+        if (window.updateActiveMission) {
+          window.updateActiveMission(null);
+        }
+        localStorage.removeItem('bonkraiders_active_mission');
+      }
+      
+      // Update global stats counters
+      if (result.stats && window.AstroUI) {
+        window.AstroUI.setKills(result.stats.total_kills || 0);
+        window.AstroUI.setRaidsWon(result.stats.total_raids_won || 0);
+      }
+      
+      // Update energy
+      if (result.energy && window.AstroUI) {
+        window.AstroUI.setEnergy(result.energy.current || 10);
+      }
     }
     
     return result;
@@ -517,12 +547,13 @@ class ApiService {
       
       // Store mission data in localStorage for timer
       if (result.success) {
-        const missionData = {
+        const missionData = { 
           mission_type: type,
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
-          cooldown_seconds: 8 * 3600 // 8 hours in seconds
+          cooldown_seconds: 8 * 3600, // 8 hours in seconds
+          br_balance: result.br_balance // Store the updated balance
         };
         
         localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
@@ -530,6 +561,11 @@ class ApiService {
         // Update mission timer in UI
         if (window.updateActiveMission) {
           window.updateActiveMission(missionData);
+        }
+        
+        // Update balance in UI immediately
+        if (window.AstroUI && result.br_balance !== undefined) {
+          window.AstroUI.setBalance(result.br_balance);
         }
       }
       
@@ -572,8 +608,13 @@ class ApiService {
       // Update cached balance
       if (result.br_balance !== undefined) {
         const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) {
+        if (publicKey) { 
           userCacheService.updateCachedBalance(publicKey, result.br_balance);
+          
+          // Update UI immediately with new balance
+          if (window.AstroUI) {
+            window.AstroUI.setBalance(result.br_balance);
+          }
         }
       }
       
@@ -638,7 +679,12 @@ class ApiService {
       // Update cached balance
       if (result.br_balance !== undefined) {
         const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) { 
+        if (publicKey) {
+          // Update UI immediately with new balance
+          if (window.AstroUI) {
+            window.AstroUI.setBalance(result.br_balance);
+          }
+          
           userCacheService.updateCachedBalance(publicKey, result.br_balance);
         }
       }
