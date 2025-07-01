@@ -894,30 +894,63 @@ switch ($action) {
           $transaction_id = $pdo->lastInsertId(); // Get the ID of the pending transaction
 
           // 3. Call Node.js microservice to mint tokens to user's wallet
-          $client = new Client();
           $mint_tx_hash = null;
           $mint_success = false;
           $mint_error_message = null;
 
           try {
+            // Initialize Guzzle client with timeouts and error handling options
+            $client = new Client([
+                'timeout' => 45.0, // 10 seconds timeout for the request
+                'connect_timeout' => 15.0, // 5 seconds for connection
+                'http_errors' => false // Do not throw exceptions for 4xx/5xx responses, allow checking status code
+            ]);
+
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                error_log("DEBUG: Attempting to call Solana mint service at: " . SOLANA_API_URL . '/mint');
+                error_log("DEBUG: Recipient: " . $me['publicKey'] . ", Amount: " . $amount);
+            }
+
             $mint_resp = $client->post(SOLANA_API_URL . '/mint', [
               'json' => [
                 'recipient' => $me['publicKey'], // User's public key
                 'amount' => $amount // Amount in raw units (assuming 0 decimals)
               ]
             ]);
+
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                error_log("DEBUG: Mint service response status: " . $mint_resp->getStatusCode());
+                error_log("DEBUG: Mint service response body: " . $mint_resp->getBody());
+            }
+
             $mint_data = json_decode($mint_resp->getBody(), true);
-            $mint_tx_hash = $mint_data['signature'] ?? null;
             
-            if ($mint_tx_hash) {
+            // Check for successful HTTP status code and presence of signature
+            if ($mint_resp->getStatusCode() === 200 && isset($mint_data['signature'])) {
+                $mint_tx_hash = $mint_data['signature'];
                 $mint_success = true;
             } else {
-                $mint_error_message = 'No signature returned from mint service';
+                $mint_error_message = 'Mint service returned non-200 status or missing signature. Status: ' . $mint_resp->getStatusCode() . ', Body: ' . $mint_resp->getBody();
             }
-          } catch (Exception $e) {
+          } catch (\GuzzleHttp\Exception\ConnectException $e) {
+            $mint_error_message = 'Solana mint service connection failed: ' . $e->getMessage();
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                error_log("DEBUG: Guzzle ConnectException (network/connection error): " . $e->getMessage());
+            }
+          } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $mint_error_message = 'Solana mint service request failed: ' . $e->getMessage();
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                error_log("DEBUG: Guzzle RequestException (HTTP error): " . $e->getMessage());
+                if ($e->hasResponse()) {
+                    error_log("DEBUG: Guzzle Response Body (on error): " . $e->getResponse()->getBody());
+                }
+            }
+          } catch (Exception $e) { // Catch any other general exceptions
             $mint_error_message = 'Solana mint transaction failed: ' . $e->getMessage();
+            if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                error_log("DEBUG: General Exception during mint call: " . $e->getMessage());
+            }
           }
-
           // 4. Update transaction status based on minting result
           if ($mint_success) {
             // Deduct from ship's in-game balance
@@ -959,11 +992,12 @@ switch ($action) {
       case 'transaction_history':
         AntiCheat::validateRequestOrigin();
         $stmt = $pdo->prepare("
-          SELECT id, amount, tx_type, status, created_at
+          SELECT id, amount, tx_type, status, created_at, tx_hash
           FROM token_transactions
           WHERE user_id = ?
           ORDER BY created_at DESC
           LIMIT 50
+
         ");
         $stmt->execute([$me['userId']]);
         $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
