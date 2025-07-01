@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { startMission } from '../../utils/gameLogic'; 
 import apiService from '../../services/apiService';
+import apiService from '../../services/apiService';
 
 const MissionModal = ({ onClose }) => {
   const [selectedMission, setSelectedMission] = useState('MiningRun');
   const [selectedMode, setSelectedMode] = useState('Unshielded');
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const missions = [
@@ -62,6 +64,7 @@ const MissionModal = ({ onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setIsLoading(true);
     
     try {
       if (window.AstroUI) {
@@ -109,7 +112,48 @@ const MissionModal = ({ onClose }) => {
       }
     } finally {
       setIsLoading(false);
-    }
+        window.AstroUI.setMode(selectedMode);
+      }
+      
+      // Close modal immediately to show animations
+      onClose();
+      
+      // Start mission
+      await startMission(selectedMission, selectedMode);
+      
+      // Refresh user profile to get updated data
+      try {
+        await apiService.getUserProfile();
+      } catch (error) {
+        console.warn('Failed to refresh profile after mission:', error);
+      }
+    } catch (error) {
+      console.error('Mission failed:', error);
+      
+      // Handle specific error types for better UX
+      let statusMessage = 'Mission failed';
+      
+      if (error.message?.includes('Transaction cancelled by user')) {
+        statusMessage = 'Mission cancelled - please approve the transaction to continue';
+      } else if (error.message?.includes('Insufficient tokens')) {
+        statusMessage = error.message;
+      } else if (error.message?.includes('Insufficient SOL')) {
+        statusMessage = 'Insufficient SOL for transaction fees - please add SOL to your wallet';
+      } else if (error.message?.includes('Wallet not connected')) {
+        statusMessage = 'Please connect your wallet first';
+      } else if (error.message) {
+        statusMessage = error.message;
+      }
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(statusMessage);
+      }
+      
+      // Don't close modal if transaction was cancelled - let user try again
+      if (error.message?.includes('Transaction cancelled by user')) {
+        // Modal stays open, user can try again
+        return;
+      }
   };
 
   const selectedMissionData = missions.find(m => m.id === selectedMission);
@@ -417,11 +461,14 @@ const MissionModal = ({ onClose }) => {
         <button
           type="submit"
           disabled={isLoading}
+          disabled={isLoading}
           style={{
             width: '100%',
             padding: '16px',
             background: isLoading ? 
               'linear-gradient(135deg, rgba(0,100,150,0.5), rgba(0,80,120,0.5))' : 
+              'linear-gradient(135deg, #0cf, #0af)',
+            color: isLoading ? '#666' : '#000',
               'linear-gradient(135deg, #0cf, #0af)',
             color: isLoading ? '#666' : '#000',
             border: '2px solid #0ff',
@@ -438,10 +485,14 @@ const MissionModal = ({ onClose }) => {
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
             }
+              e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
+            }
           }}
           onMouseLeave={(e) => {
             if (!isLoading) {
               e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
+            }
               e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
             }
           }}

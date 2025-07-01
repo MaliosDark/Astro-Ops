@@ -4,6 +4,7 @@ import { performUpgrade } from '../../utils/gameLogic';
 const UpgradeModal = ({ onClose }) => {
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
 
   const upgrades = [
     { level: 1, bonus: '1.0×', cooldown: '8 h', cost: 0, total: 0, description: 'Basic ship configuration', unlocked: true },
@@ -18,6 +19,21 @@ const UpgradeModal = ({ onClose }) => {
   const handleUpgrade = async (level) => {
     setIsUpgrading(true);
     
+    try {
+      // Close modal immediately to show animations if needed
+      onClose();
+      
+      // Perform the upgrade
+      await performUpgrade(level);
+    } catch (error) {
+      console.error('Upgrade failed:', error);
+      
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Upgrade failed: ${error.message}`);
+      }
+    } finally {
+      setIsUpgrading(false);
+    }
     try {
       // Close modal immediately to show animations if needed
       onClose();
@@ -329,11 +345,14 @@ const UpgradeModal = ({ onClose }) => {
         <button
           onClick={() => handleUpgrade(selectedLevel)}
           disabled={isUpgrading}
+          disabled={isUpgrading}
           style={{
             width: '100%',
             padding: '16px',
             background: isUpgrading ? 
               'linear-gradient(135deg, rgba(150,0,150,0.5), rgba(120,0,120,0.5))' : 
+              'linear-gradient(135deg, #f0f, #c0c)',
+            color: isUpgrading ? '#aaa' : '#fff',
               'linear-gradient(135deg, #f0f, #c0c)',
             color: isUpgrading ? '#aaa' : '#fff',
             border: '2px solid #ff0',
@@ -350,10 +369,14 @@ const UpgradeModal = ({ onClose }) => {
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
             }
+              e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
+            }
           }}
           onMouseLeave={(e) => {
             if (!isUpgrading) {
               e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
+            }
               e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
             }
           }}

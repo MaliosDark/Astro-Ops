@@ -60,6 +60,9 @@ const WalletBalanceModal = ({ onClose }) => {
     // Close modal immediately to show animations if needed
     onClose();
     
+    // Close modal immediately to show animations if needed
+    onClose();
+    
     try {
       setIsClaiming(true);
       
@@ -104,10 +107,7 @@ const WalletBalanceModal = ({ onClose }) => {
         ]);
         
         // Show success message
-        setWithdrawSuccess(true);
-        setTimeout(() => {
-          setWithdrawSuccess(false);
-        }, 3000);
+        // Modal already closed
       }
     } catch (error) {
       console.error('Claim failed:', error);
@@ -119,6 +119,9 @@ const WalletBalanceModal = ({ onClose }) => {
 
   const handleWithdraw = async () => {
     if (isWithdrawing || !withdrawAmount) return;
+    
+    // Close modal immediately
+    onClose();
     
     // Close modal immediately
     onClose();
