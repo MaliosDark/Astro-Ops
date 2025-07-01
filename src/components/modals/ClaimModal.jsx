@@ -68,47 +68,7 @@ const ClaimModal = ({ onClose }) => {
       setIsClaiming(false);
     }
   };
-      const wallet = walletService.getConnectedWallet();
-      if (!wallet) {
-        throw new Error('No wallet connected');
-      }
-      
-      // Get the total amount to claim
-      if (total <= 0) {
-        throw new Error('No rewards to claim');
-      }
-      
-      // Call the withdraw API with the total amount to claim everything at once
-      const result = await apiService.withdrawTokens(total, 'claim');
-      
-      // Add to transaction history
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Claimed ${total} BR tokens to your wallet!`);
-        window.AstroUI.setBalance(0);
-      }
-      
-      // Show success message before closing
-      setIsClaiming(false);
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-    } catch (error) {
-      console.error('Claim failed:', error);
-      setIsClaiming(false);
-    }
-  };
 
-  // Format timestamp to relative time
-  const formatTimeAgo = (timestamp) => {
-    if (!timestamp) return '';
-    
-    const now = Date.now();
-    const date = new Date(timestamp);
-    const diff = now - date.getTime();
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
   // Format timestamp to relative time
   const formatTimeAgo = (timestamp) => {
     if (!timestamp) return '';
