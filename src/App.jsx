@@ -6,6 +6,7 @@ import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
 import CooldownNotification from './components/CooldownNotification';
+import CooldownNotification from './components/CooldownNotification';
 import walletService from './services/walletService';
 import apiService from './services/apiService';
 import websocketService from './services/websocketService';
@@ -19,7 +20,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasShip, setHasShip] = useState(false);
   const [activeMission, setActiveMission] = useState(null);
+  const [activeMission, setActiveMission] = useState(null);
   const canvasRef = useRef(null);
+  const [cooldownNotification, setCooldownNotification] = useState(null);
   const [cooldownNotification, setCooldownNotification] = useState(null);
 
   useEffect(() => {
@@ -115,7 +118,6 @@ function App() {
       walletService.on('disconnect', () => {
         if (ENV.DEBUG_MODE) console.log('🔌 Wallet disconnected, reloading…');
         
-        // Disconnect WebSocket when wallet disconnects
         websocketService.disconnect();
         // Stop health monitoring when wallet disconnects
         healthMonitorService.stop();
@@ -129,6 +131,7 @@ function App() {
         
         // Set up WebSocket event handlers
         websocketService.on('raid_incoming', (data) => {
+          // Show notification of incoming raid
           // Show notification of incoming raid
           if (window.AstroUI) {
             window.AstroUI.setStatus(`🚨 Incoming raid from ${data.attackerName}!`);
@@ -144,10 +147,22 @@ function App() {
         
         websocketService.on('raid_completed', (data) => {
           // Handle raid completion notification
+          // Handle raid completion notification
           if (data.defenderId === userId) {
             if (data.success) {
               if (window.AstroUI) {
                 window.AstroUI.setStatus(`💔 Base raided! Lost ${data.stolenAmount} BR`);
+              }
+              
+              // Refresh user profile to get updated balance after being raided
+              try {
+                apiService.getUserProfile().then(profile => {
+                  if (profile?.ship && window.AstroUI) {
+                    window.AstroUI.setBalance(profile.ship.balance || 0);
+                  }
+                });
+              } catch (error) {
+                console.warn('Failed to refresh profile after raid:', error);
               }
               
               // Refresh user profile to get updated balance after being raided
@@ -272,6 +287,27 @@ function App() {
       clearInterval(profileRefreshInterval);
       window.showCooldownNotification = null;
     };
+    window.updateActiveMission = setActiveMission;
+    window.showCooldownNotification = (message) => {
+      setCooldownNotification(message);
+    };
+    
+    // Set up a periodic profile refresh to keep data in sync
+    const profileRefreshInterval = setInterval(() => {
+      if (isWalletConnected && walletAddress) {
+        apiService.getUserProfile().catch(err => {
+          // Silently ignore errors during background refresh
+          if (ENV.DEBUG_MODE) {
+            console.warn('Background profile refresh failed:', err);
+          }
+        });
+      }
+    }, 60000); // Refresh every minute
+    
+    return () => {
+      clearInterval(profileRefreshInterval);
+      window.showCooldownNotification = null;
+    };
   }, []);
 
   return (
@@ -285,6 +321,7 @@ function App() {
       {isWalletConnected && hasShip && (
         <GameUI 
           walletAddress={walletAddress}
+          activeMission={activeMission}
           activeMission={activeMission}
           onShowModal={showModal}
           onDisconnect={() => {
@@ -301,6 +338,14 @@ function App() {
 
       {modalContent && (
         <Modal content={modalContent} onClose={closeModal} />
+      )}
+      
+      {cooldownNotification && (
+        <CooldownNotification 
+          message={cooldownNotification}
+          onClose={() => setCooldownNotification(null)}
+          duration={5000}
+        />
       )}
       
       {cooldownNotification && (

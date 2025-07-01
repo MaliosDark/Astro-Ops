@@ -153,6 +153,21 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
       throw new Error('Insufficient SOL for transaction fees');
     }
     
+    
+    // Handle user rejection specifically
+    if (error.message?.includes('User rejected') || 
+        error.message?.includes('rejected') ||
+        error.message?.includes('cancelled') ||
+        error.message?.includes('denied') ||
+        error.code === 4001) {
+      throw new Error('Transaction cancelled by user');
+    }
+    
+    // Handle other wallet errors
+    if (error.message?.includes('Insufficient funds')) {
+      throw new Error('Insufficient SOL for transaction fees');
+    }
+    
     throw new Error(`Failed to sign transaction: ${error.message}`);
   }
 }
