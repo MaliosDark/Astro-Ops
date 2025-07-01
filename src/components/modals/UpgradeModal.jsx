@@ -4,7 +4,7 @@ import { performUpgrade } from '../../utils/gameLogic';
 const UpgradeModal = ({ onClose }) => {
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
+
 
   const upgrades = [
     { level: 1, bonus: '1.0×', cooldown: '8 h', cost: 0, total: 0, description: 'Basic ship configuration', unlocked: true },
