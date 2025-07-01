@@ -23,9 +23,6 @@ const API_ENDPOINTS = {
   'player_energy': '/player_energy'
 };
 
-// Add new endpoint for test tokens
-API_ENDPOINTS['get_test_tokens'] = '/get_test_tokens';
-
 /**
  * API Service - Handles all communication with bonkraiders.com APIs
  */
@@ -445,7 +442,6 @@ class ApiService {
     const result = await this.request('/buy_ship', {
       method: 'POST',
       body: JSON.stringify({ payment_method: paymentMethod })
-      body: JSON.stringify({ payment_method: paymentMethod })
     });
     
     // Update cache to reflect ship purchase
@@ -642,25 +638,6 @@ class ApiService {
       throw error;
     }
     
-  }
-  
-  /**
-   * Get test tokens (devnet only)
-   */
-  async getTestTokens(amount = 10000) {
-    try {
-      if (ENV.SOLANA_NETWORK === 'mainnet-beta') {
-        throw new Error('Test tokens are only available in test environments');
-      }
-      
-      return await this.request('/get_test_tokens', {
-        method: 'POST',
-        body: JSON.stringify({ amount })
-      });
-    } catch (error) {
-      console.error('Get test tokens error:', error);
-      throw error;
-    }
   }
 
   /**

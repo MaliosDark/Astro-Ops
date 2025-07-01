@@ -66,12 +66,12 @@ const WalletBalanceModal = ({ onClose }) => {
       // Add to transaction history immediately
       setTransactions(prev => [
         {
-          id: Date.now().toString(),
+          id: Date.now(),
           tx_type: 'claim',
           amount: claimableBalance,
           created_at: new Date().toISOString(),
           status: 'completed',
-          tx_hash: result.tx_hash || `claim-${Date.now().toString()}`
+          tx_hash: result.tx_hash || `claim-${Date.now()}`
         },
         ...prev
       ]);
@@ -90,12 +90,12 @@ const WalletBalanceModal = ({ onClose }) => {
         // Add to transaction history
         setTransactions(prev => [
           {
-            id: Date.now().toString(),
+            id: Date.now(),
             tx_type: 'claim',
             amount: claimableBalance,
             created_at: new Date().toISOString(),
             status: 'completed',
-            tx_hash: result.tx_hash || `claim-${Date.now().toString()}`
+            tx_hash: result.tx_hash
           },
           ...prev
         ]);
