@@ -554,16 +554,22 @@ class ApiService {
    */
   async claimRewards() {
     try {
-      const result = await this.request('/claim_rewards', {
+      // This now creates an on-chain transaction to mint tokens to the user's wallet
+      const result = await this.request('/claim_rewards', { 
         method: 'POST'
       });
       
-      // Update cached balance
-      if (result.claimable_AT !== undefined) {
+      // Update cached balance - after claiming, in-game balance is 0
+      if (result.claimable_AT !== undefined || result.br_balance !== undefined) {
         const publicKey = this.getCurrentUserPublicKey();
         if (publicKey) {
-          userCacheService.updateCachedBalance(publicKey, result.claimable_AT);
+          // After claiming, in-game balance should be 0
+          userCacheService.updateCachedBalance(publicKey, 0);
         }
+      }
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('💰 Claim result:', result);
       }
       
       return result;
@@ -634,7 +640,12 @@ class ApiService {
    * Get pending rewards
    */
   async getPendingRewards() {
-    return await this.request('/pending_missions');
+    try {
+      return await this.request('/pending_missions');
+    } catch (error) {
+      console.error('Get pending rewards error:', error);
+      return { pending: [] };
+    }
   }
 
   /**

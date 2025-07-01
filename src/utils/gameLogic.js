@@ -456,12 +456,37 @@ export async function scanForRaids() {
  */
 export async function performClaim() {
   try {
-    // REAL API CALL to Node.js server
+    // Get wallet provider for signing
+    const wallet = walletService.getConnectedWallet();
+    if (!wallet) {
+      throw new Error('Wallet not connected');
+    }
+
+    const userPublicKey = wallet.publicKey;
+
+    if (window.AstroUI) {
+      window.AstroUI.setStatus('Preparing claim transaction...');
+    }
+
+    // Get pending rewards first to know how much we're claiming
+    const { pending } = await apiService.getPendingRewards();
+    const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount), 0) || 0;
+
+    if (totalAmount <= 0) {
+      throw new Error('No rewards to claim');
+    }
+
+    // Create a transaction to mint tokens to the user's wallet
+    if (window.AstroUI) {
+      window.AstroUI.setStatus('Creating claim transaction...');
+    }
+
+    // Call the API to claim rewards - this now creates an on-chain transaction
     const result = await apiService.claimRewards();
     const claimable_AT = parseInt(result.claimable_AT) || 0;
     
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens`);
+      window.AstroUI.setStatus(`Claimed ${claimable_AT} BR tokens to your wallet!`);
       window.AstroUI.setBalance(claimable_AT);
     }
     
@@ -469,7 +494,7 @@ export async function performClaim() {
   } catch (error) {
     console.error('Claim failed:', error);
     if (window.AstroUI) {
-      window.AstroUI.setStatus(`Claim failed: ${error.message}`);
+      window.AstroUI.setStatus(`Claim failed: ${error.message || 'Unknown error'}`);
     }
     throw error;
   }

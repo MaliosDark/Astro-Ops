@@ -57,6 +57,14 @@ const WalletBalanceModal = ({ onClose }) => {
   const handleClaim = async () => {
     if (claimableBalance <= 0 || isClaiming) return;
     
+    // Redirect to the dedicated claim modal which has the full claim functionality
+    onClose();
+    if (window.showModal) {
+      window.showModal('claim');
+    }
+    return;
+    
+    /* This code is no longer needed as we're redirecting to the claim modal
     try {
       setIsClaiming(true);
       
@@ -97,6 +105,7 @@ const WalletBalanceModal = ({ onClose }) => {
     } finally {
       setIsClaiming(false);
     }
+    */
   };
 
   const handleWithdraw = async () => {
@@ -376,7 +385,7 @@ const WalletBalanceModal = ({ onClose }) => {
           >
             {isClaiming ? '⏳ PROCESSING CLAIM...' : 
              claimableBalance <= 0 ? '🚫 NO TOKENS TO CLAIM' :
-             `💰 CLAIM ${claimableBalance.toLocaleString()} BR TOKENS`}
+               `💰 CLAIM ${claimableBalance.toLocaleString()} BR TOKENS TO WALLET`}
           </button>
 
           {/* Withdraw Section */}
@@ -531,7 +540,7 @@ const WalletBalanceModal = ({ onClose }) => {
                           color: '#0cf',
                           marginBottom: '4px',
                           textTransform: 'capitalize'
-                        }}> 
+                        }}>
                           {(tx.tx_type || tx.type || '').replace('_', ' ')}
                         </div>
                         <div style={{
@@ -543,17 +552,17 @@ const WalletBalanceModal = ({ onClose }) => {
                         {tx.tx_hash && (
                           <div style={{
                             fontSize: '8px',
-                            color: '#0f0',
+                            color: '#0cf',
                             marginTop: '4px',
                             wordBreak: 'break-all'
                           }}>
                             {tx.tx_hash && (
                               <>
-                                TX: <a
+                                TX: <a 
                                   href={`https://solscan.io/tx/${tx.tx_hash}?cluster=${ENV.SOLANA_NETWORK}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  style={{ color: '#0f0', textDecoration: 'underline' }}
+                                  style={{ color: '#0cf', textDecoration: 'underline' }}
                                 >
                                   {tx.tx_hash.slice(0, 6)}...{tx.tx_hash.slice(-6)}
                                 </a>

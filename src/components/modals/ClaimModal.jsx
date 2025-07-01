@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import apiService from '../../services/apiService';
-import { getPendingRewards } from '../../utils/gameLogic';
+import { getPendingRewards, performClaim } from '../../utils/gameLogic';
 
 const ClaimModal = ({ onClose }) => {
   const [pendingRewards, setPendingRewards] = useState([]);
@@ -39,12 +39,12 @@ const ClaimModal = ({ onClose }) => {
     try {
       setIsClaiming(true);
       
-      // Use the API service directly to claim rewards
-      const result = await apiService.claimRewards();
+      // Use performClaim which handles the full claim process including transaction creation
+      const result = await performClaim();
       
       if (window.AstroUI) {
-        window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens!`);
-        window.AstroUI.setBalance(0); // Reset in-game balance to 0
+        window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens to your wallet!`);
+        window.AstroUI.setBalance(0);
       }
       
       onClose();
@@ -115,7 +115,7 @@ const ClaimModal = ({ onClose }) => {
           color: '#888',
           lineHeight: '1.4'
         }}>
-          Claim your accumulated mission rewards
+          Claimed tokens will be transferred directly to your connected wallet.
         </p>
       </div>
 
@@ -144,8 +144,8 @@ const ClaimModal = ({ onClose }) => {
           fontSize: '12px',
           color: '#888'
         }}>
-          <div style={{ marginBottom: '16px', fontSize: '24px' }}>⏳</div>
-          Scanning reward vault...
+            Ready to be claimed directly to your wallet
+          Transaction will be visible in your transaction history.
         </div>
       )}
 

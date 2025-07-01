@@ -114,6 +114,8 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         if (btn) btn.onclick = fn;
       },
       onRaid: (fn) => { 
+        const btn = document.getElementById('btn-raid');
+        if (btn) btn.onclick = fn;
       },      
       onHelp: (fn) => { 
         const btn = document.getElementById('btn-help');
@@ -122,6 +124,9 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       onWalletBalance: (fn) => {
         const btn = document.getElementById('btn-wallet');
         if (btn) btn.onclick = fn;
+      },
+      onClaim: (fn) => {
+        // Claim button is now removed from UI, but keep for compatibility
       }
     };
 
