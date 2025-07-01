@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { startMission } from '../../utils/gameLogic'; 
 import apiService from '../../services/apiService';
-import apiService from '../../services/apiService';
 
 const MissionModal = ({ onClose }) => {
   const [selectedMission, setSelectedMission] = useState('MiningRun');
