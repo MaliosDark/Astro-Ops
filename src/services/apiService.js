@@ -331,6 +331,11 @@ class ApiService {
       
       return data;
     } catch (error) {
+      // Special handling for cooldown violation
+      if (error.message?.includes('AntiCheat: cooldown violation')) {
+        throw new Error('cooldown violation');
+      }
+      
       if (ENV.DEBUG_MODE) {
         console.error('❌ API Request failed:', error);
       }

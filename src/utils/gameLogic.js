@@ -305,6 +305,48 @@ export async function startMission(type, mode = 'Unshielded') {
     // Handle user-friendly error messages
     let userMessage = error.message;
     
+    // Special handling for cooldown violation
+    if (error.message?.includes('cooldown violation')) {
+      // Calculate remaining cooldown time if possible
+      let cooldownMessage = 'Mission cooldown active - please wait';
+      
+      // Try to get the active mission from localStorage
+      try {
+        const storedMission = localStorage.getItem('bonkraiders_active_mission');
+        if (storedMission) {
+          const missionData = JSON.parse(storedMission);
+          const now = Math.floor(Date.now() / 1000);
+          const missionStart = missionData.ts_start;
+          const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours default
+          const endTime = missionStart + cooldownSeconds;
+          const timeLeft = endTime - now;
+          
+          if (timeLeft > 0) {
+            // Format time left as HH:MM:SS
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+            const formattedTime = [
+              hours.toString().padStart(2, '0'),
+              minutes.toString().padStart(2, '0'),
+              seconds.toString().padStart(2, '0')
+            ].join(':');
+            
+            cooldownMessage = `Cooldown active: ${formattedTime} remaining`;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing stored mission:', e);
+      }
+      
+      // Show cooldown notification
+      if (window.showCooldownNotification) {
+        window.showCooldownNotification(cooldownMessage);
+      }
+      
+      userMessage = cooldownMessage;
+    }
+    
     if (error.message?.includes('Transaction cancelled by user')) {
       userMessage = 'Mission cancelled - transaction not approved';
     } else if (error.message?.includes('Insufficient tokens')) {

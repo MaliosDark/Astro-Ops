@@ -5,6 +5,7 @@ import GameUI from './components/GameUI';
 import Modal from './components/Modal';
 import { initCanvas } from './utils/canvasController';
 import { setupHUD } from './utils/hud';
+import CooldownNotification from './components/CooldownNotification';
 import walletService from './services/walletService';
 import apiService from './services/apiService';
 import websocketService from './services/websocketService';
@@ -19,6 +20,7 @@ function App() {
   const [hasShip, setHasShip] = useState(false);
   const [activeMission, setActiveMission] = useState(null);
   const canvasRef = useRef(null);
+  const [cooldownNotification, setCooldownNotification] = useState(null);
 
   useEffect(() => {
     // Initialize canvas when component mounts
@@ -250,6 +252,9 @@ function App() {
     window.closeModal = closeModal;
     window.updateHasShip = setHasShip;
     window.updateActiveMission = setActiveMission;
+    window.showCooldownNotification = (message) => {
+      setCooldownNotification(message);
+    };
     
     // Set up a periodic profile refresh to keep data in sync
     const profileRefreshInterval = setInterval(() => {
@@ -265,6 +270,7 @@ function App() {
     
     return () => {
       clearInterval(profileRefreshInterval);
+      window.showCooldownNotification = null;
     };
   }, []);
 
@@ -295,6 +301,14 @@ function App() {
 
       {modalContent && (
         <Modal content={modalContent} onClose={closeModal} />
+      )}
+      
+      {cooldownNotification && (
+        <CooldownNotification 
+          message={cooldownNotification}
+          onClose={() => setCooldownNotification(null)}
+          duration={5000}
+        />
       )}
     </div>
   );
