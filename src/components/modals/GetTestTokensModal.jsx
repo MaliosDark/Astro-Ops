@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import apiService from '../../services/apiService';
 import walletService from '../../services/walletService';
+import walletService from '../../services/walletService';
 import ENV from '../../config/environment';
 
 const GetTestTokensModal = ({ onClose }) => {
