@@ -243,8 +243,10 @@ export async function initCanvas(canvas) {
   };
   // — Center camera on our ship initially —
   (c => {
-    offsetX = canvas.width / 2 - c.x * scale;
-    offsetY = canvas.height / 2 - c.y * scale + canvas.height * 0.3;
+    // Center camera on ship position regardless of whether ship is visible
+    // This way the camera is in the right place when ship becomes visible
+    offsetX = canvas.width / 2 - c.x * scale; 
+    offsetY = canvas.height / 2 - c.y * scale + canvas.height * 0.3; 
   })(raw(baseShipPos.ix, baseShipPos.iy));
 
   let lastTime = performance.now() / 1000;
@@ -426,7 +428,7 @@ export async function initCanvas(canvas) {
     });
 
     // our ship
-    if (!window.__shipInFlight && window.hasShip) {
+    if (!window.__shipInFlight && window.hasShip) { // Only draw ship if player has purchased one
       const p = raw(window.shipPos.ix, window.shipPos.iy), s = 0.25;
       ctx.drawImage(
         shipImg,
