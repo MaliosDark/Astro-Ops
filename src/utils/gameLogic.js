@@ -363,7 +363,7 @@ export async function startMission(type, mode = 'Unshielded') {
       window.AstroUI.setBalance(parseInt(br_balance));
     }
 
-    // Store mission data in localStorage for timer
+        // Store mission data in localStorage for timer
     if (success) {
       const missionData = {
         mission_type: type,
@@ -379,7 +379,22 @@ export async function startMission(type, mode = 'Unshielded') {
       if (window.updateActiveMission) {
         window.updateActiveMission(missionData);
       }
+
+      // Add a small delay and re-verify the mission state in UI
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for 500ms
+      const storedMissionAfterDelay = localStorage.getItem('bonkraiders_active_mission');
+      if (storedMissionAfterDelay) {
+        try {
+          const reVerifiedMissionData = JSON.parse(storedMissionAfterDelay);
+          if (window.updateActiveMission) {
+            window.updateActiveMission(reVerifiedMissionData);
+          }
+        } catch (e) {
+          console.warn('Error re-verifying mission data from localStorage:', e);
+        }
+      }
     }
+
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward).toLocaleString()} BR` : 'Mission failed - no rewards');
