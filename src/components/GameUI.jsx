@@ -5,8 +5,9 @@ import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import ENV from '../config/environment';
+import { getTokenBalance } from '../utils/solanaTransactions';
 
-const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
+const GameUI = ({ walletAddress, activeMission, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);
   const [kills, setKills] = useState(0);
   const [raidsWon, setRaidsWon] = useState(0);
@@ -22,7 +23,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     // Show the game UI - EXACTLY like original
     const gameCanvas = document.getElementById('game-canvas');
     const gbUI = document.getElementById('gb-ui');
-    
+
     if (gameCanvas) gameCanvas.style.display = 'block';
     if (gbUI) gbUI.style.display = 'flex';
 
@@ -31,6 +32,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       try {
         // Load REAL user profile from server
         const profile = await apiService.getUserProfile();
+        
         // Also fetch token balance
         const wallet = walletService.getConnectedWallet();
         if (wallet) {
@@ -41,6 +43,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         if (profile) {
           // Update UI with REAL data from database
           if (profile.ship) {
+            // Always use the server's balance value for consistency
             setBalance(profile.ship.balance || 0);
           }
           
@@ -55,6 +58,19 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           
           if (profile.energy) {
             setEnergy(profile.energy.current || 10);
+          }
+          
+          // Check for active mission from server
+          if (profile.active_mission) {
+            setActiveMission(profile.active_mission);
+            
+            // Update localStorage to match server data
+            localStorage.setItem('bonkraiders_active_mission', JSON.stringify(profile.active_mission));
+            
+            // Update global state
+            if (window.updateActiveMission) {
+              window.updateActiveMission(profile.active_mission);
+            }
           }
         }
         
@@ -73,6 +89,12 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     
     if (walletAddress) {
       loadInitialData();
+      
+      // Set up periodic refresh to keep balance in sync with server
+      const refreshInterval = setInterval(() => {
+        loadInitialData();
+      }, 30000); // Refresh every 30 seconds
+      return () => clearInterval(refreshInterval);
     }
     
     // Set up global function to update active mission
@@ -91,7 +113,9 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         // Already handled by props
       },
       setBalance: (at) => {
-        setBalance(at);
+        // Always update the UI with the latest balance
+        const newBalance = typeof at === 'number' ? at : parseFloat(at) || 0;
+        setBalance(newBalance);
       },
       setStatus: (msg) => {
         setStatus(msg);
@@ -99,12 +123,14 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           setTimeout(() => setStatus(''), 3000);
         }
       },
+      // Update kill count in both UI and global state
       setKills: (count) => {
         setKills(count);
       },
       setRaidsWon: (count) => {
         setRaidsWon(count);
       },
+        window.raidWins = count;
       setMode: (mode) => {
         const label = {
           unshielded: 'Unshielded',
@@ -114,6 +140,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         setMode(label);
       },
       setEnergy: (energyValue) => {
+        setEnergy(energyValue);
         setEnergy(energyValue);
       },
       // Hook functions - EXACTLY like original
@@ -144,7 +171,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
     // Initialize global counters - EXACTLY like original
     window.killCount = 0;
-    window.raidWins = 0;
+    window.raidWins = 0; 
   }, [walletAddress]);
 
   // Mission timer effect
@@ -158,7 +185,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       const now = Math.floor(Date.now() / 1000);
       const missionStart = activeMission.ts_start;
       const cooldownSeconds = 8 * 3600; // 8 hours in seconds
-      
+
       // If mission has a custom cooldown, use that instead
       const missionCooldown = activeMission.cooldown_seconds || cooldownSeconds;
       
@@ -172,7 +199,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         
         // Refresh user profile to get updated balance
         loadInitialData();
-        
+
+        // Remove mission data from localStorage
+        localStorage.removeItem('bonkraiders_active_mission');
+
         if (window.AstroUI) {
           window.AstroUI.setStatus('Mission completed!');
         }
@@ -194,7 +224,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     
     return () => clearInterval(timerInterval);
   }, [activeMission]);
-
+  
   const loadInitialData = async () => {
     try {
       // Load REAL user profile from server
@@ -210,6 +240,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       if (profile) {
         // Update UI with REAL data from database
         if (profile.ship) {
+          // Ensure UI balance matches server balance
           setBalance(profile.ship.balance || 0);
         }
         
@@ -217,7 +248,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           setKills(profile.stats.total_kills || 0);
           setRaidsWon(profile.stats.total_raids_won || 0);
           
-          // Update global counters with REAL data
+          // Update global counters with REAL data from database
           window.killCount = profile.stats.total_kills || 0;
           window.raidWins = profile.stats.total_raids_won || 0;
         }
@@ -226,7 +257,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           setEnergy(profile.energy.current || 10);
         }
         
-        // Check for active mission
+        // Check for active mission from server
         if (profile.active_mission) {
           setActiveMission(profile.active_mission);
         } else {
@@ -251,7 +282,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
               }
             } catch (e) {
               // Invalid stored mission data
-              localStorage.removeItem('bonkraiders_active_mission');
+              localStorage.removeItem('bonkraiders_active_mission'); 
             }
           }
         }
@@ -259,7 +290,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       
       if (ENV.DEBUG_MODE) {
         console.log('💰 Loaded REAL user profile from database:', profile);
-      }
+      } 
     } catch (error) {
       console.error('Failed to load REAL user profile:', error);
       // Use zeros if loading fails (real starting values)
@@ -267,7 +298,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       setKills(0);
       setRaidsWon(0);
       setEnergy(10);
-    }
+    } 
   };
 
   const handleMouseMove = (e, tip) => {
@@ -294,7 +325,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     const secs = seconds % 60;
     
     return [
-      hours.toString().padStart(2, '0'),
+      hours.toString().padStart(2, '0'), 
       minutes.toString().padStart(2, '0'),
       secs.toString().padStart(2, '0')
     ].join(':');
@@ -303,7 +334,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const handleDisconnect = async () => {
     if (window.confirm('Are you sure you want to disconnect your wallet?')) {
       try {
-        await walletService.disconnect();
+        await walletService.disconnect(); 
         if (onDisconnect) {
           onDisconnect();
         }
@@ -311,7 +342,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         sessionStorage.clear();
         localStorage.removeItem('bonkraiders_jwt');
         localStorage.removeItem('bonkraiders_session');
-        // Reload the page to reset state
+        localStorage.removeItem('bonkraiders_active_mission');
         window.location.reload();
       } catch (error) {
         console.error('Disconnect error:', error);
@@ -321,7 +352,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     }
   };
 
-  const handleShowWalletBalance = () => {
+  const handleShowWalletBalance = () => { 
     onShowModal('walletBalance');
   };
 
@@ -329,7 +360,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     onShowModal('getTestTokens');
   };
 
-  return (
+  return ( 
     <div id="gb-ui" className="game-ui-container">
       <div id="top-hud" className="top-hud-container">
         <div className="info-panel-group">
@@ -364,7 +395,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel balance-panel">
             <div className="panel-header">CREDITS</div>
             <div className="panel-content">
-              <span className="balance-value">{balance.toFixed(1)}</span>
+              <span className="balance-value">{parseInt(balance).toLocaleString()}</span>
               <span className="balance-unit">BR</span>
             </div>
           </div>
@@ -388,7 +419,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel status-panel">
             <div className="panel-header">STATUS</div>
             <div className="panel-content status-grid">
-              {activeMission ? (
+              {activeMission ? ( 
                 <div className="status-item mission-timer">
                   <span className="status-label">MISSION</span>
                   <span className="status-value mission-type">
@@ -397,7 +428,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
                   <span className="status-timer">
                     {formatTimeLeft(missionTimeLeft)}
                   </span>
-                </div>
+                </div> 
               ) : (
                 <>
                   <div className="status-item">
@@ -405,7 +436,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
                     <span className="status-value">{mode}</span>
                   </div>
                   <div className="status-item">
-                    <span className="status-label">ENERGY</span>
+                    <span className="status-label">ENERGY</span> 
                     <span className="status-value">{energy}/10</span>
                   </div>
                 </>
@@ -415,7 +446,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         </div>
       </div>
 
-      {status && (
+      {status && ( 
         <div id="status-panel" className="status-message-panel" style={{ visibility: 'visible' }}>
           <div className="status-content">
             <span className="status-icon">⚡</span>
@@ -424,7 +455,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         </div>
       )}
 
-      <div id="bottom-hud" className="action-panel-container">
+      <div id="bottom-hud" className="action-panel-container"> 
         <button 
           className="action-btn mission-btn" 
           id="btn-mission"
@@ -432,7 +463,9 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           onClick={() => onShowModal('mission')}
           onMouseMove={(e) => handleMouseMove(e, 'Send your ship on a mission')}
           onMouseLeave={handleMouseLeave}
-        >
+          disabled={!!activeMission}
+          style={{ opacity: activeMission ? 0.5 : 1, cursor: activeMission ? 'not-allowed' : 'pointer' }}
+        > 
           <div className="btn-icon">🚀</div>
           <div className="btn-text">MISSION</div>
         </button>
@@ -444,7 +477,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           onClick={() => onShowModal('upgrade')}
           onMouseMove={(e) => handleMouseMove(e, 'Upgrade your ship')}
           onMouseLeave={handleMouseLeave}
-        >
+        > 
           <div className="btn-icon">⚙️</div>
           <div className="btn-text">UPGRADE</div>
         </button>
@@ -456,7 +489,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           onClick={() => onShowModal('raid')}
           onMouseMove={(e) => handleMouseMove(e, 'Raid another player')}
           onMouseLeave={handleMouseLeave}
-        >
+        > 
           <div className="btn-icon">⚔️</div>
           <div className="btn-text">RAID</div>
           <div className="btn-badge">{energy}</div>
@@ -469,7 +502,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           onClick={handleShowWalletBalance}
           onMouseMove={(e) => handleMouseMove(e, 'View wallet balance')}
           onMouseLeave={handleMouseLeave}
-        >
+        > 
           <div className="btn-icon">💼</div>
           <div className="btn-text">WALLET</div>
         </button>
@@ -496,7 +529,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           onClick={() => onShowModal('howto')}
           onMouseMove={(e) => handleMouseMove(e, 'How to Play')}
           onMouseLeave={handleMouseLeave}
-        >
+        > 
           <div className="btn-icon">❓</div>
           <div className="btn-text">HELP</div>
         </button>
@@ -504,7 +537,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
       <Tooltip tooltip={tooltip} />
     </div>
-  );
+  ); 
 };
 
 export default GameUI;
