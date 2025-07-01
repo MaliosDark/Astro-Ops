@@ -130,7 +130,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       setRaidsWon: (count) => {
         setRaidsWon(count);
         window.raidWins = count;
-        window.raidWins = count;
+      },
       setMode: (mode) => {
         const label = {
           unshielded: 'Unshielded',
@@ -140,7 +140,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         setMode(label);
       },
       setEnergy: (energyValue) => {
-        setEnergy(energyValue);
         setEnergy(energyValue);
       },
       // Hook functions - EXACTLY like original
