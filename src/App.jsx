@@ -208,6 +208,7 @@ function App() {
   useEffect(() => {
     window.showModal = showModal;
     window.closeModal = closeModal;
+    window.updateHasShip = setHasShip;
   }, []);
 
   return (

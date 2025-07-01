@@ -19,6 +19,11 @@ const BuyShipModal = ({ onClose }) => {
       // Mark that player now has a ship
       window.hasShip = true;
       
+      // Update App state if possible
+      if (window.updateHasShip) {
+        window.updateHasShip(true);
+      }
+      
       // Show success message
       setSuccess(true);
       
@@ -41,6 +46,12 @@ const BuyShipModal = ({ onClose }) => {
   const handleTestShip = () => {
     // DEV ONLY: Add test ship without payment
     window.hasShip = true;
+    
+    // Update App state if possible
+    if (window.updateHasShip) {
+      window.updateHasShip(true);
+    }
+    
     if (window.AstroUI) {
       window.AstroUI.setBalance(1000); // Give some starting balance for testing
       window.AstroUI.setStatus('Test ship added!');
