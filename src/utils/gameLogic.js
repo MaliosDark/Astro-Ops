@@ -467,7 +467,7 @@ export async function performClaim() {
     }
 
     // Now we just withdraw the total amount directly
-    const result = await apiService.withdrawTokens(totalAmount);
+    const result = await apiService.withdrawTokens(totalAmount, 'claim');
     
     // Return the result for backward compatibility
     return { claimable_AT: totalAmount, ...result };

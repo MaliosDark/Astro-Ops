@@ -565,19 +565,19 @@ class ApiService {
   /**
    * Withdraw tokens to wallet
    */
-  async withdrawTokens(amount) {
+  async withdrawTokens(amount, txType = 'withdraw') {
     try {
       if (ENV.DEBUG_MODE) {
-        console.log('📤 Withdrawing tokens:', amount);
+        console.log(`📤 ${txType === 'claim' ? 'Claiming' : 'Withdrawing'} tokens:`, amount);
       }
       
       const result = await this.request('/withdraw_tokens', {
         method: 'POST',
-        body: JSON.stringify({ amount })
+        body: JSON.stringify({ amount, tx_type: txType })
       });
       
       if (ENV.DEBUG_MODE) {
-        console.log('📤 Withdraw result:', result);
+        console.log(`📤 ${txType === 'claim' ? 'Claim' : 'Withdraw'} result:`, result);
       }
       
       // Update cached balance

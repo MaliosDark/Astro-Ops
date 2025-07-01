@@ -61,7 +61,7 @@ const WalletBalanceModal = ({ onClose }) => {
       setIsClaiming(true);
       
       // Call the withdraw API with the total claimable amount
-      const result = await apiService.withdrawTokens(claimableBalance);
+      const result = await apiService.withdrawTokens(claimableBalance, 'claim');
 
       if (result && result.success) {
         // Update UI: claimable balance becomes 0, on-chain balance increases
@@ -78,7 +78,7 @@ const WalletBalanceModal = ({ onClose }) => {
         setTransactions(prev => [
           {
             id: Date.now(),
-            tx_type: 'withdraw',
+            tx_type: 'claim',
             amount: claimableBalance,
             created_at: new Date().toISOString(),
             status: 'completed',
@@ -378,7 +378,7 @@ const WalletBalanceModal = ({ onClose }) => {
           >
             {isClaiming ? '⏳ PROCESSING CLAIM...' : 
              claimableBalance <= 0 ? '🚫 NO TOKENS TO CLAIM' :
-               `💰 WITHDRAW ALL ${claimableBalance.toLocaleString()} BR TOKENS`}
+               `💰 CLAIM ALL ${claimableBalance.toLocaleString()} BR TOKENS`}
           </button>
 
           {/* Withdraw Section */}
