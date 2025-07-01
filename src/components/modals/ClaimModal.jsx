@@ -52,28 +52,42 @@ const ClaimModal = ({ onClose }) => {
       // Call the withdraw API with the total amount to claim everything at once
       const result = await apiService.withdrawTokens(total, 'claim');
       
+      // Add to transaction history
       if (window.AstroUI) {
         window.AstroUI.setStatus(`Claimed ${total} BR tokens to your wallet!`);
         window.AstroUI.setBalance(0);
       }
       
-      onClose();
+      // Show success message before closing
+      setIsClaiming(false);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (error) {
       console.error('Claim failed:', error);
-    } finally {
       setIsClaiming(false);
     }
   };
 
+  // Format timestamp to relative time
   const formatTimeAgo = (timestamp) => {
+    if (!timestamp) return '';
+    
     const now = Date.now();
-    const diff = now - timestamp;
+    const date = new Date(timestamp);
+    const diff = now - date.getTime();
+    
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     
-    if (hours > 0) return `${hours}h ago`;
-    return `${minutes}m ago`;
-  };
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Claimed ${total} BR tokens!`);
+      }
+      
+      onClose();
+      if (hours > 0) return `${hours}h ago`;
+      return `${minutes}m ago`;
+    }
 
   const getSourceIcon = (source) => {
     switch (source) {
