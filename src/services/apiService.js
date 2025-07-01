@@ -1,6 +1,7 @@
 // src/services/apiService.js
 // Dedicated API service for all server communications
 
+import walletService from './walletService.js';
 import ENV from '../config/environment.js';
 import userCacheService from './userCacheService.js';
 
