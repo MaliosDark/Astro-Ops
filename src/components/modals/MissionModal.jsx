@@ -112,6 +112,7 @@ const MissionModal = ({ onClose }) => {
       }
     } finally {
       setIsLoading(false);
+      if (window.AstroUI) {
         window.AstroUI.setMode(selectedMode);
       }
       
@@ -154,6 +155,7 @@ const MissionModal = ({ onClose }) => {
         // Modal stays open, user can try again
         return;
       }
+    }
   };
 
   const selectedMissionData = missions.find(m => m.id === selectedMission);
@@ -469,8 +471,6 @@ const MissionModal = ({ onClose }) => {
               'linear-gradient(135deg, rgba(0,100,150,0.5), rgba(0,80,120,0.5))' : 
               'linear-gradient(135deg, #0cf, #0af)',
             color: isLoading ? '#666' : '#000',
-              'linear-gradient(135deg, #0cf, #0af)',
-            color: isLoading ? '#666' : '#000',
             border: '2px solid #0ff',
             borderRadius: '12px',
             fontFamily: "'Press Start 2P', monospace",
@@ -485,14 +485,10 @@ const MissionModal = ({ onClose }) => {
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
             }
-              e.target.style.boxShadow = '0 6px 20px rgba(0, 255, 255, 0.6)';
-            }
           }}
           onMouseLeave={(e) => {
             if (!isLoading) {
               e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
-            }
               e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 255, 0.4)';
             }
           }}
