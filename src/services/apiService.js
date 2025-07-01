@@ -619,15 +619,19 @@ class ApiService {
    * Get test tokens for development/testing
    */
   async getTestTokens(amount) {
-    try {
-      return await this.request('/get_test_tokens', {
-        method: 'POST',
-        body: JSON.stringify({ amount })
-      });
-    } catch (error) {
-      console.error('Get test tokens error:', error);
-      throw error;
+    // This should call the verify API, not the main API
+    const wallet = walletService.getConnectedWallet();
+    if (!wallet) {
+      throw new Error('No wallet connected');
     }
+    
+    return await this.verifyRequest('/get_test_tokens', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        recipient: wallet.publicKey,
+        amount: amount 
+      })
+    });
   }
   /**
    * Get transaction history
