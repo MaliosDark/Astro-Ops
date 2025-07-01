@@ -75,12 +75,28 @@ function App() {
       // Try to buy ship (will return existing ship if already owned)
       let shipOwned = false;
       try {
-        // Get user profile to check if they have a ship
-        const profile = await apiService.getUserProfile();
-        shipOwned = !!profile?.ship; // Check if user has a ship in their profile
+        // First check if they have a ship in their profile
+        try {
+          const profile = await apiService.getUserProfile();
+          shipOwned = !!profile?.ship; // Check if user has a ship in their profile
+        } catch (profileError) {
+          console.warn('Failed to get user profile:', profileError);
+        }
+        
+        // If no ship found in profile, try to get ship status directly
+        if (!shipOwned) {
+          try {
+            const shipStatus = await apiService.request('/ship_status');
+            shipOwned = shipStatus?.has_ship || false;
+          } catch (shipError) {
+            console.warn('Failed to get ship status:', shipError);
+          }
+        }
+        
+        // Update state and global variables
         window.hasShip = shipOwned;
         setHasShip(shipOwned);
-        
+
         if (ENV.DEBUG_MODE) {
           console.log('🚢 Ship status:', shipOwned ? 'Owned' : 'Not owned');
         }
@@ -185,6 +201,12 @@ function App() {
       // If user doesn't have a ship, show the buy ship modal automatically
       if (!shipOwned) {
         setTimeout(() => showModal('buyship'), 500);
+      } else {
+        // Show the game canvas if they have a ship
+        const gameCanvas = document.getElementById('game-canvas');
+        if (gameCanvas) {
+          gameCanvas.style.display = 'block';
+        }
       }
     } catch (err) {
       console.error('❌ Connection failed:', err);

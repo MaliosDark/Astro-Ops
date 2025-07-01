@@ -553,30 +553,13 @@ class ApiService {
    * Claim rewards
    */
   async claimRewards() {
-    try {
-      // This now creates an on-chain transaction to mint tokens to the user's wallet
-      const result = await this.request('/claim_rewards', { 
-        method: 'POST'
-      });
-      
-      // Update cached balance - after claiming, in-game balance is 0
-      if (result.claimable_AT !== undefined || result.br_balance !== undefined) {
-        const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) {
-          // After claiming, in-game balance should be 0
-          userCacheService.updateCachedBalance(publicKey, 0);
-        }
-      }
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('💰 Claim result:', result);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Claim rewards error:', error);
-      throw error;
-    }
+    // This method is now deprecated - we use withdrawTokens instead
+    // Get pending rewards first
+    const { pending } = await this.getPendingRewards();
+    const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount), 0) || 0;
+    
+    // Then withdraw the total amount
+    return this.withdrawTokens(totalAmount);
   }
   
   /**
@@ -584,10 +567,18 @@ class ApiService {
    */
   async withdrawTokens(amount) {
     try {
+      if (ENV.DEBUG_MODE) {
+        console.log('📤 Withdrawing tokens:', amount);
+      }
+      
       const result = await this.request('/withdraw_tokens', {
         method: 'POST',
         body: JSON.stringify({ amount })
       });
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('📤 Withdraw result:', result);
+      }
       
       // Update cached balance
       if (result.br_balance !== undefined) {

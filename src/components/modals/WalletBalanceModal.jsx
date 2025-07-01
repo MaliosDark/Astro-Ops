@@ -57,47 +57,41 @@ const WalletBalanceModal = ({ onClose }) => {
   const handleClaim = async () => {
     if (claimableBalance <= 0 || isClaiming) return;
     
-    // Redirect to the dedicated claim modal which has the full claim functionality
-    onClose();
-    if (window.showModal) {
-      window.showModal('claim');
-    }
-    return;
-    
-    /* This code is no longer needed as we're redirecting to the claim modal
     try {
       setIsClaiming(true);
       
-      // Call the claim API (which now actually claims in-game balance)
-      const result = await apiService.claimRewards();
+      // Call the withdraw API with the total claimable amount
+      const result = await apiService.withdrawTokens(claimableBalance);
 
-      // Node.js server returns claimable_AT
-      if (result && (result.claimable_AT !== undefined)) {
+      if (result && result.success) {
         // Update UI: claimable balance becomes 0, on-chain balance increases
         setClaimableBalance(0);
-        setTokenBalance((prev) => (prev || 0) + result.claimable_AT);
+        setTokenBalance((prev) => (prev || 0) + claimableBalance);
         
         // Update global UI if available
         if (window.AstroUI) {
-          window.AstroUI.setStatus(`Claimed ${result.claimable_AT} BR tokens!`);
-          // Note: AstroUI.setBalance usually updates the in-game balance,
-          // but after claiming, the in-game balance is 0.
-          // You might want to update the on-chain display in the HUD if available.
-          // For now, we'll just set the in-game balance to 0 in HUD.
+          window.AstroUI.setStatus(`Claimed ${claimableBalance} BR tokens to your wallet!`);
           window.AstroUI.setBalance(0); 
         }
         
         // Add to transaction history
-               setTransactions(prev => [
+        setTransactions(prev => [
           {
-            id: result.id || Date.now(),
-            tx_type: 'claim',
-            amount: result.claimable_AT,
+            id: Date.now(),
+            tx_type: 'withdraw',
+            amount: claimableBalance,
             created_at: new Date().toISOString(),
             status: 'completed',
+            tx_hash: result.tx_hash
           },
           ...prev
         ]);
+        
+        // Show success message
+        setWithdrawSuccess(true);
+        setTimeout(() => {
+          setWithdrawSuccess(false);
+        }, 3000);
       }
     } catch (error) {
       console.error('Claim failed:', error);
@@ -105,7 +99,6 @@ const WalletBalanceModal = ({ onClose }) => {
     } finally {
       setIsClaiming(false);
     }
-    */
   };
 
   const handleWithdraw = async () => {
@@ -379,13 +372,13 @@ const WalletBalanceModal = ({ onClose }) => {
             onMouseLeave={(e) => {
               if (claimableBalance > 0 && !isClaiming) {
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 0, 0.4)';
+                e.target.style.boxShadow = '0 4px 16px rgba(0, 255, 0, 0.4)'; 
               }
             }}
           >
             {isClaiming ? '⏳ PROCESSING CLAIM...' : 
              claimableBalance <= 0 ? '🚫 NO TOKENS TO CLAIM' :
-               `💰 CLAIM ${claimableBalance.toLocaleString()} BR TOKENS TO WALLET`}
+               `💰 WITHDRAW ALL ${claimableBalance.toLocaleString()} BR TOKENS`}
           </button>
 
           {/* Withdraw Section */}
