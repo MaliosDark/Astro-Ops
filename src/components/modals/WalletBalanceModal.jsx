@@ -318,7 +318,7 @@ const WalletBalanceModal = ({ onClose }) => {
                 textShadow: '0 0 12px rgba(0, 255, 255, 0.8)',
                 marginBottom: '8px'
               }}>
-                {tokenBalance !== null ? tokenBalance.toLocaleString() : '---'} BR
+                {tokenBalance !== null ? parseInt(tokenBalance || 0).toLocaleString() : '---'} BR
               </div>
               <div style={{
                 fontSize: '10px',
@@ -350,7 +350,7 @@ const WalletBalanceModal = ({ onClose }) => {
                 textShadow: '0 0 12px rgba(0, 255, 0, 0.8)',
                 marginBottom: '8px'
               }}>
-                {claimableBalance.toLocaleString()} BR
+                {parseInt(claimableBalance || 0).toLocaleString()} BR
               </div>
               <div style={{
                 fontSize: '10px',

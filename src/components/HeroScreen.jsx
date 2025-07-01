@@ -158,7 +158,7 @@ const HeroScreen = ({ onConnect, isLoading }) => {
 
       {/* Test Environment Buttons */}
       {ENV.SOLANA_NETWORK !== 'mainnet-beta' && !isLoading && !isScanning && walletProviders.length > 0 && (
-        <></>
+        <div style={{ display: 'none' }}></div>
       )}
       
       {/* Documentation Button */}
