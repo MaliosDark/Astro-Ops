@@ -13,7 +13,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Mining Run',
       description: 'Extract valuable resources from asteroid fields',
       successRate: 90,
-      baseReward: 45000,
+      baseReward: 30000,
       icon: '⛏️',
       difficulty: 'Easy',
       duration: '2-3 hours'
@@ -23,7 +23,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Black Market',
       description: 'Trade in forbidden goods and contraband',
       successRate: 70,
-      baseReward: 80000,
+      baseReward: 60000,
       icon: '🏴‍☠️',
       difficulty: 'Medium',
       duration: '3-4 hours'
@@ -33,7 +33,7 @@ const MissionModal = ({ onClose }) => {
       name: 'Artifact Hunt',
       description: 'Search for ancient alien artifacts',
       successRate: 50,
-      baseReward: 150000,
+      baseReward: 120000,
       icon: '🏺',
       difficulty: 'Hard',
       duration: '4-6 hours'
