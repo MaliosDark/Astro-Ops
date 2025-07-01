@@ -163,25 +163,30 @@ export async function createSolTransferTransaction(userPublicKey, recipientPubli
 /**
  * Create a token transfer transaction for ship purchase with BR tokens
  * @param {string} userPublicKey - User's wallet public key
- * @param {string} recipientPublicKey - Recipient's wallet public key (game treasury)
+ * @param {string} recipientTokenAccount - Recipient's token account address
  * @param {number} amount - Amount of tokens to transfer
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
-export async function createTokenTransferTransaction(userPublicKey, recipientPublicKey, amount) {
+export async function createTokenTransferTransaction(userPublicKey, recipientTokenAccount, amount) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
-    const recipientPubkey = new PublicKey(recipientPublicKey || "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf");
+    const recipientAta = new PublicKey(recipientTokenAccount);
     
     // Get user's associated token account for the game token
     const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
     
-    // Get recipient's associated token account
-    const recipientTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, recipientPubkey);
+    if (ENV.DEBUG_MODE) {
+      console.log('🔍 Token transfer details:', {
+        from: userTokenAccount.toString(),
+        to: recipientAta.toString(),
+        amount: amount
+      });
+    }
     
     // Create transfer instruction
     const transferInstruction = createTransferInstruction(
       userTokenAccount,       // source
-      recipientTokenAccount,  // destination
+      recipientAta,           // destination (already an ATA)
       userPubkey,             // owner
       amount                  // amount
     );

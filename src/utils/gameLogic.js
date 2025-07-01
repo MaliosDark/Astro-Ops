@@ -260,9 +260,20 @@ export async function buyShip(paymentMethod = 'sol') {
         window.AstroUI.setStatus('Creating token transfer transaction...');
       }
       
+      // Fetch the community ATA from the server
+      const communityAta = await apiService.getCommunityAta();
+      
+      if (!communityAta) {
+        throw new Error('Failed to get community token account');
+      }
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🔍 Using community ATA for token transfer:', communityAta);
+      }
+      
       const tokenTx = await createTokenTransferTransaction(
         userPublicKey,
-        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
+        communityAta, // Use the fetched ATA instead of deriving it
         shipPriceBR
       );
       
@@ -654,96 +665,16 @@ export async function performClaim() {
     }
 
     // Now we just withdraw the total amount directly
-      console.log(`🚢 Attempting to buy ship with ${paymentMethod}`, 
-        paymentMethod === 'sol' ? `${ENV.SHIP_PRICE_SOL} SOL` : '1500 BR tokens');
+    const result = await withdrawTokens(totalAmount);
     
     // Refresh user profile to get updated balance
-    // Get wallet provider for signing
-    const wallet = walletService.getConnectedWallet();
-    if (!wallet) {
-      throw new Error('Wallet not connected');
-    }
-
-    const userPublicKey = wallet.publicKey;
-    
-    // Check if user has enough balance based on payment method
-    if (paymentMethod === 'sol') {
-      // Check SOL balance
-      const hasEnoughSol = await checkSolBalance(userPublicKey, ENV.SHIP_PRICE_SOL);
-      if (!hasEnoughSol) {
-        throw new Error(`Insufficient SOL. You need ${ENV.SHIP_PRICE_SOL} SOL to buy a ship.`);
-      }
-      
-      // Create and sign SOL transfer transaction
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Creating SOL transfer transaction...');
-      }
-      
-      const solTx = await createSolTransferTransaction(
-        userPublicKey, 
-        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
-        ENV.SHIP_PRICE_SOL
-      );
-      
-      const signedSolTx = await signAndSerializeTransaction(solTx, wallet.provider.signTransaction);
-      
-      // Call API with the signed transaction
-      const result = await apiService.buyShip('sol', signedSolTx);
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🚢 Buy ship with SOL result:', result);
-      }
-      
-      // Mark that player now has a ship
-      window.hasShip = true;
-
-      // Update App state to show the ship in the game
-      if (window.updateHasShip) {
-        window.updateHasShip(true);
-      }
-      
-      return result;
-    } else if (paymentMethod === 'br') {
-      // Check BR token balance
-      const shipPriceBR = 1500; // Fixed BR token price
-      const hasEnoughTokens = await checkTokenBalance(userPublicKey, shipPriceBR);
-      if (!hasEnoughTokens) {
-        throw new Error(`Insufficient BR tokens. You need ${shipPriceBR} BR to buy a ship.`);
-      }
-      
-      // Create and sign token transfer transaction
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Creating token transfer transaction...');
-      }
-      
-      const tokenTx = await createTokenTransferTransaction(
-        userPublicKey,
-        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
-        shipPriceBR
-      );
-      
-      const signedTokenTx = await signAndSerializeTransaction(tokenTx, wallet.provider.signTransaction);
-      
-      // Call API with the signed transaction
-      const result = await apiService.buyShip('br', signedTokenTx);
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🚢 Buy ship with BR tokens result:', result);
-      }
-      
-      // Mark that player now has a ship
-      window.hasShip = true;
-
-      // Update App state to show the ship in the game
-      if (window.updateHasShip) {
-        window.updateHasShip(true);
-      }
-      
-      return result;
-    } else {
-      throw new Error('Invalid payment method');
-    }
+    try {
       const profile = await apiService.getUserProfile();
+    } catch (error) {
+      // Ignore profile refresh errors
+    }
+    
+    return result;
   } catch (error) {
     console.error('Claim failed:', error);
     if (window.AstroUI) {
