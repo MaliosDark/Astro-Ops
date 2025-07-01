@@ -50,7 +50,7 @@ const ClaimModal = ({ onClose }) => {
       }
       
       // Call the withdraw API with the total amount to claim everything at once
-      const result = await apiService.withdrawTokens(total);
+      const result = await apiService.withdrawTokens(total, 'claim');
       
       if (window.AstroUI) {
         window.AstroUI.setStatus(`Claimed ${total} BR tokens to your wallet!`);
