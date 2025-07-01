@@ -353,8 +353,6 @@ const UpgradeModal = ({ onClose }) => {
               'linear-gradient(135deg, rgba(150,0,150,0.5), rgba(120,0,120,0.5))' : 
               'linear-gradient(135deg, #f0f, #c0c)',
             color: isUpgrading ? '#aaa' : '#fff',
-              'linear-gradient(135deg, #f0f, #c0c)',
-            color: isUpgrading ? '#aaa' : '#fff',
             border: '2px solid #ff0',
             borderRadius: '12px',
             fontFamily: "'Press Start 2P', monospace",
@@ -369,14 +367,10 @@ const UpgradeModal = ({ onClose }) => {
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
             }
-              e.target.style.boxShadow = '0 6px 20px rgba(255, 0, 255, 0.6)';
-            }
           }}
           onMouseLeave={(e) => {
             if (!isUpgrading) {
               e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
-            }
               e.target.style.boxShadow = '0 4px 16px rgba(255, 0, 255, 0.4)';
             }
           }}
