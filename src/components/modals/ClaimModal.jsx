@@ -80,14 +80,9 @@ const ClaimModal = ({ onClose }) => {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Claimed ${total} BR tokens!`);
-      }
-      
-      onClose();
-      if (hours > 0) return `${hours}h ago`;
-      return `${minutes}m ago`;
-    }
+    if (hours > 0) return `${hours}h ago`;
+    return `${minutes}m ago`;
+  };
 
   const getSourceIcon = (source) => {
     switch (source) {

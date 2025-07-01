@@ -134,6 +134,9 @@ const RaidModal = ({ onClose }) => {
         console.log('🎯 Initiating raid on target:', selectedTarget.id);
       }
       
+      // Close the modal immediately when raid starts
+      onClose();
+      
       // Execute raid with full animation sequence
       await performRaid(selectedTarget.id);
       
@@ -141,8 +144,6 @@ const RaidModal = ({ onClose }) => {
       setMissions(prev => prev.filter(m => m.id !== selectedTarget.id));
       setSelectedTarget(null);
       
-      // Close modal after successful raid
-      onClose();
     } catch (error) {
       if (ENV.DEBUG_MODE) {
         console.error('❌ Raid execution failed:', error);

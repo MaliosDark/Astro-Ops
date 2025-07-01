@@ -616,6 +616,19 @@ class ApiService {
   }
   
   /**
+  async getTestTokens(amount) {
+    try {
+      return await this.request('/get_test_tokens', {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+      });
+    } catch (error) {
+      console.error('Get test tokens error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get transaction history
    */
   async getTransactionHistory() {
