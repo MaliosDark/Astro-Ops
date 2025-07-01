@@ -6,7 +6,6 @@ const MissionModal = ({ onClose }) => {
   const [selectedMission, setSelectedMission] = useState('MiningRun');
   const [selectedMode, setSelectedMode] = useState('Unshielded');
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const missions = [
     {
