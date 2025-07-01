@@ -140,7 +140,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         setMode(label);
       },
       setEnergy: (energyValue) => {
-        setEnergy(energyValue);
       },
       // Hook functions - EXACTLY like original
       onMission: (fn) => { 
