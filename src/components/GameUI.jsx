@@ -7,7 +7,7 @@ import walletService from '../services/walletService';
 import ENV from '../config/environment';
 
 
-const GameUI = ({ walletAddress, activeMission, onShowModal, onDisconnect }) => {
+const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [balance, setBalance] = useState(0);
   const [kills, setKills] = useState(0);
   const [raidsWon, setRaidsWon] = useState(0);
