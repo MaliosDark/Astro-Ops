@@ -19,7 +19,7 @@ const BuyShipModal = ({ onClose }) => {
       // Mark that player now has a ship
       window.hasShip = true;
       
-      // Update App state if possible
+      // Update App state to show the ship
       if (window.updateHasShip) {
         window.updateHasShip(true);
       }
@@ -46,8 +46,8 @@ const BuyShipModal = ({ onClose }) => {
   const handleTestShip = () => {
     // DEV ONLY: Add test ship without payment
     window.hasShip = true;
-    
-    // Update App state if possible
+
+    // Update App state to show the ship
     if (window.updateHasShip) {
       window.updateHasShip(true);
     }

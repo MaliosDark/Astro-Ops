@@ -200,8 +200,8 @@ export async function buyShip() {
     
     // Mark that player now has a ship
     window.hasShip = true;
-    
-    // Update App state if possible
+
+    // Update App state to show the ship in the game
     if (window.updateHasShip) {
       window.updateHasShip(true);
     }

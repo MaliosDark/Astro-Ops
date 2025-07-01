@@ -77,7 +77,7 @@ function App() {
       try {
         // Get user profile to check if they have a ship
         const profile = await apiService.getUserProfile();
-        shipOwned = !!profile?.ship;
+        shipOwned = !!profile?.ship; // Check if user has a ship in their profile
         window.hasShip = shipOwned;
         setHasShip(shipOwned);
         
@@ -181,6 +181,11 @@ function App() {
       });
       
       setIsLoading(false);
+      
+      // If user doesn't have a ship, show the buy ship modal automatically
+      if (!shipOwned) {
+        setTimeout(() => showModal('buyship'), 500);
+      }
     } catch (err) {
       console.error('❌ Connection failed:', err);
       
@@ -231,9 +236,8 @@ function App() {
       )}
       
       {isWalletConnected && !hasShip && !modalContent && (
-        <div style={{ display: 'none' }}>
-          {setTimeout(() => showModal('buyship'), 500)}
-        </div>
+        // This is a fallback in case the automatic modal showing doesn't work
+        <div style={{ display: 'none' }} />
       )}
 
       {modalContent && (
