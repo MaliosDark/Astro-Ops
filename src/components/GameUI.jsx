@@ -14,6 +14,8 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [status, setStatus] = useState('');
   const [energy, setEnergy] = useState(10);
   const [tokenBalance, setTokenBalance] = useState(0);
+  const [activeMission, setActiveMission] = useState(null);
+  const [missionTimeLeft, setMissionTimeLeft] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
   useEffect(() => {
@@ -72,6 +74,15 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     if (walletAddress) {
       loadInitialData();
     }
+    
+    // Set up global function to update active mission
+    window.updateActiveMission = (missionData) => {
+      setActiveMission(missionData);
+    };
+    
+    return () => {
+      window.updateActiveMission = null;
+    };
 
     // Expose AstroUI API globally for compatibility - EXACTLY like original
     window.AstroUI = {
@@ -135,6 +146,129 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     window.raidWins = 0;
   }, [walletAddress]);
 
+  // Mission timer effect
+  useEffect(() => {
+    if (!activeMission) {
+      setMissionTimeLeft(null);
+      return;
+    }
+    
+    const calculateTimeLeft = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const missionStart = activeMission.ts_start;
+      const cooldownSeconds = 8 * 3600; // 8 hours in seconds
+      
+      // If mission has a custom cooldown, use that instead
+      const missionCooldown = activeMission.cooldown_seconds || cooldownSeconds;
+      
+      const endTime = missionStart + missionCooldown;
+      const timeLeft = endTime - now;
+      
+      if (timeLeft <= 0) {
+        // Mission has completed
+        setMissionTimeLeft(null);
+        setActiveMission(null);
+        
+        // Refresh user profile to get updated balance
+        loadInitialData();
+        
+        if (window.AstroUI) {
+          window.AstroUI.setStatus('Mission completed!');
+        }
+        
+        return null;
+      }
+      
+      return timeLeft;
+    };
+    
+    // Initial calculation
+    setMissionTimeLeft(calculateTimeLeft());
+    
+    // Set up interval to update timer
+    const timerInterval = setInterval(() => {
+      const timeLeft = calculateTimeLeft();
+      setMissionTimeLeft(timeLeft);
+    }, 1000);
+    
+    return () => clearInterval(timerInterval);
+  }, [activeMission]);
+
+  const loadInitialData = async () => {
+    try {
+      // Load REAL user profile from server
+      const profile = await apiService.getUserProfile();
+      
+      // Also fetch token balance
+      const wallet = walletService.getConnectedWallet();
+      if (wallet) {
+        const balance = await getTokenBalance(wallet.publicKey);
+        setTokenBalance(balance);
+      }
+      
+      if (profile) {
+        // Update UI with REAL data from database
+        if (profile.ship) {
+          setBalance(profile.ship.balance || 0);
+        }
+        
+        if (profile.stats) {
+          setKills(profile.stats.total_kills || 0);
+          setRaidsWon(profile.stats.total_raids_won || 0);
+          
+          // Update global counters with REAL data
+          window.killCount = profile.stats.total_kills || 0;
+          window.raidWins = profile.stats.total_raids_won || 0;
+        }
+        
+        if (profile.energy) {
+          setEnergy(profile.energy.current || 10);
+        }
+        
+        // Check for active mission
+        if (profile.active_mission) {
+          setActiveMission(profile.active_mission);
+        } else {
+          // Check if there's a mission in localStorage
+          const storedMission = localStorage.getItem('bonkraiders_active_mission');
+          if (storedMission) {
+            try {
+              const missionData = JSON.parse(storedMission);
+              const now = Math.floor(Date.now() / 1000);
+              const missionStart = missionData.ts_start;
+              const cooldownSeconds = 8 * 3600; // 8 hours in seconds
+              
+              // If mission has a custom cooldown, use that instead
+              const missionCooldown = missionData.cooldown_seconds || cooldownSeconds;
+              
+              // Check if mission is still active
+              if (now < missionStart + missionCooldown) {
+                setActiveMission(missionData);
+              } else {
+                // Mission has expired, remove from localStorage
+                localStorage.removeItem('bonkraiders_active_mission');
+              }
+            } catch (e) {
+              // Invalid stored mission data
+              localStorage.removeItem('bonkraiders_active_mission');
+            }
+          }
+        }
+      }
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('💰 Loaded REAL user profile from database:', profile);
+      }
+    } catch (error) {
+      console.error('Failed to load REAL user profile:', error);
+      // Use zeros if loading fails (real starting values)
+      setBalance(0);
+      setKills(0);
+      setRaidsWon(0);
+      setEnergy(10);
+    }
+  };
+
   const handleMouseMove = (e, tip) => {
     if (tip) {
       setTooltip({
@@ -148,6 +282,21 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
   const handleMouseLeave = () => {
     setTooltip({ visible: false, text: '', x: 0, y: 0 });
+  };
+
+  // Format time left in HH:MM:SS
+  const formatTimeLeft = (seconds) => {
+    if (!seconds) return '--:--:--';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return [
+      hours.toString().padStart(2, '0'),
+      minutes.toString().padStart(2, '0'),
+      secs.toString().padStart(2, '0')
+    ].join(':');
   };
 
   const handleDisconnect = async () => {
@@ -238,14 +387,28 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel status-panel">
             <div className="panel-header">STATUS</div>
             <div className="panel-content status-grid">
-              <div className="status-item">
-                <span className="status-label">MODE</span>
-                <span className="status-value">{mode}</span>
-              </div>
-              <div className="status-item">
-                <span className="status-label">ENERGY</span>
-                <span className="status-value">{energy}/10</span>
-              </div>
+              {activeMission ? (
+                <div className="status-item mission-timer">
+                  <span className="status-label">MISSION</span>
+                  <span className="status-value mission-type">
+                    {activeMission.mission_type}
+                  </span>
+                  <span className="status-timer">
+                    {formatTimeLeft(missionTimeLeft)}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="status-item">
+                    <span className="status-label">MODE</span>
+                    <span className="status-value">{mode}</span>
+                  </div>
+                  <div className="status-item">
+                    <span className="status-label">ENERGY</span>
+                    <span className="status-value">{energy}/10</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
