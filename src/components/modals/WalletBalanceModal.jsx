@@ -63,6 +63,19 @@ const WalletBalanceModal = ({ onClose }) => {
       // Call the withdraw API with the total claimable amount
       const result = await apiService.withdrawTokens(claimableBalance, 'claim');
 
+      // Add to transaction history immediately
+      setTransactions(prev => [
+        {
+          id: Date.now(),
+          tx_type: 'claim',
+          amount: claimableBalance,
+          created_at: new Date().toISOString(),
+          status: 'completed',
+          tx_hash: result.tx_hash || `claim-${Date.now()}`
+        },
+        ...prev
+      ]);
+
       if (result && result.success) {
         // Update UI: claimable balance becomes 0, on-chain balance increases
         setClaimableBalance(0);
@@ -569,10 +582,10 @@ const WalletBalanceModal = ({ onClose }) => {
                     <div style={{
                       fontSize: '14px',
                       color: getTransactionColor(tx.tx_type || tx.type, tx.amount),
-                      fontWeight: 'bold',
+                      fontWeight: 'bold', 
                       whiteSpace: 'nowrap'
                     }}> 
-                      {tx.amount > 0 ? '+' : ''}{parseInt(tx.amount).toLocaleString()} BR
+                      {tx.amount > 0 ? '+' : ''}{parseInt(tx.amount || 0).toLocaleString()} BR
                     </div>
                   </div>
                 ))}

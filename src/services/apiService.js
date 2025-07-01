@@ -566,6 +566,9 @@ class ApiService {
    * Withdraw tokens to wallet
    */
   async withdrawTokens(amount, txType = 'withdraw') {
+    // Ensure amount is an integer
+    amount = parseInt(amount);
+    
     try {
       if (ENV.DEBUG_MODE) {
         console.log(`📤 ${txType === 'claim' ? 'Claiming' : 'Withdrawing'} tokens:`, amount);
@@ -573,7 +576,10 @@ class ApiService {
       
       const result = await this.request('/withdraw_tokens', {
         method: 'POST',
-        body: JSON.stringify({ amount, tx_type: txType })
+        body: JSON.stringify({ 
+          amount, 
+          tx_type: txType // Pass the transaction type to the API
+        })
       });
       
       if (ENV.DEBUG_MODE) {
@@ -583,8 +589,21 @@ class ApiService {
       // Update cached balance
       if (result.br_balance !== undefined) {
         const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) {
+        if (publicKey) { 
           userCacheService.updateCachedBalance(publicKey, result.br_balance);
+        }
+      }
+      
+      // Add transaction to history cache if available
+      if (result.tx_hash && publicKey) {
+        // This would be implemented in a real app
+        // For now we'll just log it
+        if (ENV.DEBUG_MODE) {
+          console.log(`📝 Added ${txType} transaction to history:`, {
+            tx_hash: result.tx_hash,
+            amount,
+            tx_type: txType
+          });
         }
       }
       

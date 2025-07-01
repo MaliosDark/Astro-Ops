@@ -461,13 +461,21 @@ export async function performClaim() {
     // Get pending rewards first to know how much we're claiming
     const { pending } = await apiService.getPendingRewards();
     const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount), 0) || 0;
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('🎮 Claiming rewards, total amount:', totalAmount);
+    }
 
     if (totalAmount <= 0) {
       throw new Error('No rewards to claim');
     }
 
     // Now we just withdraw the total amount directly
-    const result = await apiService.withdrawTokens(totalAmount, 'claim');
+    const result = await apiService.withdrawTokens(totalAmount, 'claim'); // Explicitly set tx_type to 'claim'
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('🎮 Claim result:', result);
+    }
     
     // Return the result for backward compatibility
     return { claimable_AT: totalAmount, ...result };
