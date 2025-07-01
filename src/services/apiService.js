@@ -616,6 +616,8 @@ class ApiService {
   }
   
   /**
+   * Get test tokens for development/testing
+   */
   async getTestTokens(amount) {
     try {
       return await this.request('/get_test_tokens', {
@@ -627,7 +629,6 @@ class ApiService {
       throw error;
     }
   }
-
   /**
    * Get transaction history
    */
