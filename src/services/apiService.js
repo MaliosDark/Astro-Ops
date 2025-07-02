@@ -444,7 +444,7 @@ class ApiService {
   /**
    * Buy ship
    */
-  async buyShip(paymentMethod = 'sol', signedTransaction = null) {
+  async buyShip(paymentMethod = 'test', signedTransaction = null) {
     try {
       // For test ships, we don't need a signed transaction
       const payload = {
@@ -463,6 +463,10 @@ class ApiService {
       
       // Update cache to reflect ship purchase
       if (result.ship_id) {
+        // Update global state
+        window.hasShip = true;
+        
+        // Update local cache
         const publicKey = this.getCurrentUserPublicKey();
         if (publicKey) {
           userCacheService.clearUserData(publicKey, 'ships');
@@ -581,6 +585,11 @@ class ApiService {
    */
   async sendMission(type, mode) {
     try {
+      // Check if user has a ship first
+      if (!window.hasShip) {
+        throw new Error('You need to get a ship first');
+      }
+      
       const result = await this.request('/send_mission', {
         method: 'POST',
         body: JSON.stringify({
@@ -599,12 +608,15 @@ class ApiService {
       
       // Store mission data in localStorage for timer
       if (result.success) {
+        // For testing, use a shorter cooldown (30 seconds)
+        const cooldownSeconds = ENV.DEBUG_MODE ? 30 : 8 * 3600; // 30 seconds in debug mode, 8 hours otherwise
+        
         const missionData = { 
           mission_type: type,
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
-          cooldown_seconds: 8 * 3600, // 8 hours in seconds
+          cooldown_seconds: cooldownSeconds,
           br_balance: result.br_balance // Store the updated balance
         };
         

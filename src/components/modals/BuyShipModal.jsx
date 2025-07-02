@@ -13,8 +13,8 @@ const BuyShipModal = ({ onClose }) => {
   const [success, setSuccess] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('sol');
-  const shipPriceBR = 1500; // Fixed BR token price for ship
-  const [showTestOptions, setShowTestOptions] = useState(ENV.DEBUG_MODE || ENV.SOLANA_NETWORK !== 'mainnet-beta');
+  const shipPriceBR = 0; // Free ship for testing
+  const [showTestOptions] = useState(true); // Always show test options
 
   // Check token balance on load
   React.useEffect(() => {
@@ -68,15 +68,14 @@ const BuyShipModal = ({ onClose }) => {
   };
 
   const handleTestShip = async () => {
-    // DEV ONLY: Add test ship without payment
     try {
       setIsLoading(true);
       
       // Close modal immediately to show animations if needed
       onClose();
       
-      // Call the API to add a test ship (0 tokens)
-      const result = await apiService.buyShip('test');
+      // Call the API to add a free test ship
+      await apiService.buyShip('test');
       
       // Mark that player now has a ship
       window.hasShip = true;
@@ -87,8 +86,8 @@ const BuyShipModal = ({ onClose }) => {
       }
     
       if (window.AstroUI) {
-        window.AstroUI.setBalance(1000); // Give some starting balance for testing
-        window.AstroUI.setStatus('Test ship added!');
+        window.AstroUI.setBalance(10000); // Give plenty of balance for testing
+        window.AstroUI.setStatus('Free ship added! You can now play all game features!');
       }
     } catch (error) {
       console.error('Test ship failed:', error);
@@ -119,10 +118,10 @@ const BuyShipModal = ({ onClose }) => {
       <h1 style={{
         margin: '0 0 16px',
         fontSize: '20px',
-        color: '#f0a'
+        color: '#ff0'
       }}
       >
-        BUY YOUR SHIP
+        GET YOUR SHIP
       </h1>
       
       <img 
@@ -141,10 +140,10 @@ const BuyShipModal = ({ onClose }) => {
       {!success && <p style={{
         fontSize: '14px',
         lineHeight: '1.5',
-        margin: '0 0 16px',
-        color: '#0cf'
+        margin: '0 0 12px',
+        color: '#fff'
       }}>
-        You need a ship to start playing Bonk Raiders!
+        Get a free ship to start playing Bonk Raiders!
       </p>
       }
       <div style={{
@@ -154,59 +153,9 @@ const BuyShipModal = ({ onClose }) => {
         padding: '12px',
         margin: '0 0 20px',
         fontSize: '12px'
-      }}>
-        {ENV.SOLANA_NETWORK === 'mainnet-beta' ? (
-          <div style={{ marginBottom: '8px', color: '#ff0' }}>
-            <strong>Ship Price:</strong> {ENV.SHIP_PRICE_SOL} SOL (~15 USDC)
-          </div>
-        ) : (
-          <div>
-            <div style={{ marginBottom: '12px', color: '#ff0' }}>
-              <strong>TEST ENVIRONMENT - Choose Payment Method:</strong>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              marginBottom: '16px',
-              gap: '10px'
-            }}>
-              <div 
-                onClick={() => setPaymentMethod('sol')}
-                style={{ 
-                  flex: 1, 
-                  padding: '8px', 
-                  border: `2px solid ${paymentMethod === 'sol' ? '#0f0' : '#666'}`,
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  background: paymentMethod === 'sol' ? 'rgba(0,40,0,0.3)' : 'rgba(0,0,0,0.3)'
-                }}>
-                <div style={{ color: paymentMethod === 'sol' ? '#0f0' : '#ccc' }}>{ENV.SHIP_PRICE_SOL} SOL</div>
-              </div>
-              <div 
-                onClick={() => setPaymentMethod('br')}
-                style={{ 
-                  flex: 1, 
-                  padding: '8px', 
-                  border: `2px solid ${paymentMethod === 'br' ? '#ff0' : '#666'}`,
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  background: paymentMethod === 'br' ? 'rgba(60,60,0,0.3)' : 'rgba(0,0,0,0.3)'
-                }}>
-                <div style={{ color: paymentMethod === 'br' ? '#ff0' : '#ccc' }}>{shipPriceBR} BR</div>
-                {paymentMethod === 'br' && (
-                  <div style={{ fontSize: '9px', marginTop: '4px', color: hasEnoughTokens ? '#0f0' : '#f00' }}>
-                    {isCheckingBalance ? 'Checking balance...' : 
-                     hasEnoughTokens ? `You have ${tokenBalance} BR` : `Insufficient balance (${tokenBalance} BR)`}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        
+      }}>        
         <div style={{ marginBottom: '8px', marginTop: '16px' }}>
-          <strong>Ship Includes:</strong>
+          <strong>Your Free Ship Includes:</strong>
         </div>
         <ul style={{
           listStyle: 'none',
@@ -218,7 +167,8 @@ const BuyShipModal = ({ onClose }) => {
           <li>• Access to all missions</li>
           <li>• Ability to raid other players</li>
           <li>• Ship upgrade system</li>
-          <li>• BR token rewards</li>
+          <li>• 10,000 BR tokens to start with</li>
+          <li>• All game features unlocked</li>
         </ul>
       </div>
 
@@ -253,95 +203,41 @@ const BuyShipModal = ({ onClose }) => {
         display: success ? 'none' : 'flex',
         gap: '12px',
         justifyContent: 'center',
-        flexWrap: 'wrap',
-        marginBottom: '16px'
+        flexWrap: 'wrap'
       }}>
         <button
-          onClick={handleBuyShip}
+          onClick={handleTestShip}
           disabled={isLoading}
-          style={{ 
-            background: isLoading ? 'rgba(0,20,0,0.3)' : 'rgba(0,20,0,0.7)',
+          style={{
+            background: isLoading ? 'rgba(0,60,0,0.3)' : 'rgba(0,100,0,0.7)',
             border: '2px solid #0f0',
-            borderRadius: '4px',
-            padding: '12px 16px',
+            borderRadius: '8px',
+            padding: '16px 24px',
             fontFamily: "'Press Start 2P', monospace",
-            fontSize: '12px',
-            color: isLoading ? '#666' : '#0f0',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: 'background .1s, color .1s',
-            minWidth: '120px' 
+            fontSize: '14px',
+            color: isLoading ? '#666' : '#fff',
+            cursor: isLoading ? 'not-allowed' : 'pointer', 
+            transition: 'all 0.3s ease',
+            minWidth: '280px',
+            boxShadow: '0 4px 8px rgba(0,255,0,0.3)'
           }}
           onMouseEnter={(e) => {
             if (!isLoading) {
-              e.target.style.background = 'rgba(0,20,0,1)';
+              e.target.style.background = 'rgba(0,120,0,0.9)';
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 6px 12px rgba(0,255,0,0.5)';
             }
           }}
           onMouseLeave={(e) => {
             if (!isLoading) {
-              e.target.style.background = 'rgba(0,20,0,0.7)';
+              e.target.style.background = 'rgba(0,100,0,0.7)';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 8px rgba(0,255,0,0.3)';
             }
           }}
         >
-          {isLoading ? 'BUYING...' : paymentMethod === 'sol' ? `BUY WITH ${ENV.SHIP_PRICE_SOL} SOL` : `BUY WITH ${shipPriceBR} BR`}
+          {isLoading ? '⏳ PREPARING SHIP...' : '🚀 GET FREE SHIP & START PLAYING'}
         </button>
-
-        {showTestOptions && (
-          <button
-            onClick={handleTestShip}
-            style={{
-              background: 'rgba(40,0,40,0.7)',
-              border: '2px solid #f0a',
-              borderRadius: '4px',
-              padding: '12px 16px',
-              fontFamily: "'Press Start 2P', monospace",
-              fontSize: '12px',
-              color: '#f0a',
-              cursor: 'pointer', 
-              transition: 'background .1s, color .1s',
-              minWidth: '120px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(40,0,40,1)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(40,0,40,0.7)';
-            }}
-          >
-            GET FREE TEST SHIP
-          </button>
-        )}
-
-        {/* Get Test Tokens Button (only in development) */}
-        {ENV.IS_DEVELOPMENT && ENV.SOLANA_NETWORK !== 'mainnet-beta' && (
-          <button
-            onClick={() => {
-              onClose();
-              if (window.showModal) {
-                window.showModal('getTestTokens');
-              }
-            }}
-            style={{
-              background: 'rgba(0,40,80,0.7)',
-              border: '2px solid #0cf',
-              borderRadius: '4px',
-              padding: '12px 16px',
-              fontFamily: "'Press Start 2P', monospace",
-              fontSize: '12px',
-              color: '#0cf',
-              cursor: 'pointer', 
-              transition: 'background .1s, color .1s',
-              minWidth: '120px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(0,60,100,0.8)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(0,40,80,0.7)';
-            }}
-          >
-            GET TEST TOKENS
-          </button>
-        )}
       </div>
 
       <p style={{
@@ -350,11 +246,11 @@ const BuyShipModal = ({ onClose }) => {
         color: '#888',
         lineHeight: '1.4' 
       }}>
-        One-time purchase • Secure Solana transaction
-        {showTestOptions && <br />}
-        {showTestOptions && <span style={{ color: '#f0a' }}>TEST MODE: Free test ship available</span>}
-        {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <br />}
-        {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <span style={{ color: '#0cf' }}>TEST NETWORK: {ENV.SOLANA_NETWORK}</span>}
+        Free test ship • Includes 10,000 BR tokens
+        <br />
+        <span style={{ color: '#0f0' }}>All game features unlocked for testing</span>
+        <br />
+        <span style={{ color: '#0cf' }}>TEST NETWORK: {ENV.SOLANA_NETWORK}</span>
       </p>
     </div>
   );
