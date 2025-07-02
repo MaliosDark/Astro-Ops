@@ -16,6 +16,7 @@ import apiService from '../services/apiService.js';
 import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
+import { formatTimeLeft } from './timeUtils.js';
 
 // Usar TextEncoder nativo del navegador
 const encoder = new TextEncoder();
@@ -276,6 +277,7 @@ export async function startMission(type, mode = 'Unshielded') {
       const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
       const missionData = {
         mission_type: type,
+        mission_type: type,
         mode: mode,
         ts_start: Math.floor(Date.now() / 1000),
         reward: reward,
@@ -324,18 +326,11 @@ export async function startMission(type, mode = 'Unshielded') {
           const missionStart = missionData.ts_start;
           const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours default
           const endTime = missionStart + cooldownSeconds; 
-          const timeLeft = Math.max(0, endTime - now);
+          const timeLeft = Math.max(0, endTime - now); 
           
           if (timeLeft > 0) {
             // Format time left as HH:MM:SS
-            const hours = Math.floor(timeLeft / 3600);
-            const minutes = Math.floor((timeLeft % 3600) / 60);
-            const seconds = timeLeft % 60;
-            const formattedTime = [
-              hours.toString().padStart(2, '0'),
-              minutes.toString().padStart(2, '0'),
-              seconds.toString().padStart(2, '0')
-            ].join(':');
+            const formattedTime = formatTimeLeft(timeLeft);
             
             cooldownMessage = `Cooldown active: ${formattedTime} remaining`;
             

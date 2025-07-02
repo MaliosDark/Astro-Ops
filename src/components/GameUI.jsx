@@ -5,6 +5,7 @@ import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import ENV from '../config/environment';
+import { formatTimeLeft } from './utils/timeUtils.js';
 
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
@@ -100,6 +101,13 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     // Set up global function to update active mission
     window.updateActiveMission = (missionData) => {
       setActiveMission(missionData);
+      
+      // Store in localStorage for persistence
+      if (missionData) {
+        localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
+      } else {
+        localStorage.removeItem('bonkraiders_active_mission');
+      }
     };
     
     return () => {
@@ -183,22 +191,16 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     const calculateTimeLeft = () => {
       const now = Math.floor(Date.now() / 1000);
       const missionStart = activeMission.ts_start;
-      const cooldownSeconds = 8 * 3600; // 8 hours in seconds
-
-      // If mission has a custom cooldown, use that instead
-      const missionCooldown = activeMission.cooldown_seconds || cooldownSeconds;
+      const cooldownSeconds = activeMission.cooldown_seconds || 8 * 3600; // 8 hours in seconds
       
-      const endTime = missionStart + missionCooldown;
-      const timeLeft = endTime - now;
+      const endTime = missionStart + cooldownSeconds;
+      const timeLeft = Math.max(0, endTime - now);
       
       if (timeLeft <= 0) {
         // Mission has completed
         setMissionTimeLeft(null);
         setActiveMission(null);
         
-        // Refresh user profile to get updated balance
-        loadInitialData();
-
         // Remove mission data from localStorage
         localStorage.removeItem('bonkraiders_active_mission');
 
@@ -267,13 +269,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
               const missionData = JSON.parse(storedMission);
               const now = Math.floor(Date.now() / 1000);
               const missionStart = missionData.ts_start;
-              const cooldownSeconds = 8 * 3600; // 8 hours in seconds
-              
-              // If mission has a custom cooldown, use that instead
-              const missionCooldown = missionData.cooldown_seconds || cooldownSeconds;
+              const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours in seconds
               
               // Check if mission is still active
-              if (now < missionStart + missionCooldown) {
+              if (now < missionStart + cooldownSeconds) {
                 setActiveMission(missionData);
               } else {
                 // Mission has expired, remove from localStorage
@@ -313,21 +312,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 
   const handleMouseLeave = () => {
     setTooltip({ visible: false, text: '', x: 0, y: 0 });
-  };
-
-  // Format time left in HH:MM:SS
-  const formatTimeLeft = (seconds) => {
-    if (!seconds) return '--:--:--';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    return [
-      hours.toString().padStart(2, '0'), 
-      minutes.toString().padStart(2, '0'),
-      secs.toString().padStart(2, '0')
-    ].join(':');
   };
 
   const handleDisconnect = async () => {
@@ -418,7 +402,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           <div className="info-panel status-panel">
             <div className="panel-header">STATUS</div>
             <div className="panel-content status-grid">
-              {activeMission ? ( 
+              {activeMission && missionTimeLeft ? ( 
                 <div className="status-item mission-timer">
                   <span className="status-label">MISSION</span>
                   <span className="status-value mission-type">
@@ -460,7 +444,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           id="btn-mission"
           data-tip="Send your ship on a mission"
           onClick={() => onShowModal('mission')}
-          onMouseMove={(e) => handleMouseMove(e, 'Send your ship on a mission')}
+          onMouseMove={(e) => handleMouseMove(e, activeMission ? 'Mission in progress' : 'Send your ship on a mission')}
           onMouseLeave={handleMouseLeave}
           disabled={!!activeMission}
           style={{ opacity: activeMission ? 0.5 : 1, cursor: activeMission ? 'not-allowed' : 'pointer' }}
