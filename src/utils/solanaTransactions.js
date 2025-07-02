@@ -2,9 +2,6 @@
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import ENV from '../config/environment.js';
 
-// Import SystemProgram for SOL transfers
-import { SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
-
 // Token Program IDs
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
@@ -163,30 +160,25 @@ export async function createSolTransferTransaction(userPublicKey, recipientPubli
 /**
  * Create a token transfer transaction for ship purchase with BR tokens
  * @param {string} userPublicKey - User's wallet public key
- * @param {string} recipientTokenAccount - Recipient's token account address
+ * @param {string} recipientPublicKey - Recipient's wallet public key (game treasury)
  * @param {number} amount - Amount of tokens to transfer
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
-export async function createTokenTransferTransaction(userPublicKey, recipientTokenAccount, amount) {
+export async function createTokenTransferTransaction(userPublicKey, recipientPublicKey, amount) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
-    const recipientAta = new PublicKey(recipientTokenAccount);
+    const recipientPubkey = new PublicKey(recipientPublicKey || "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf");
     
     // Get user's associated token account for the game token
     const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
     
-    if (ENV.DEBUG_MODE) {
-      console.log('🔍 Token transfer details:', {
-        from: userTokenAccount.toString(),
-        to: recipientAta.toString(),
-        amount: amount
-      });
-    }
+    // Get recipient's associated token account
+    const recipientTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, recipientPubkey);
     
     // Create transfer instruction
     const transferInstruction = createTransferInstruction(
       userTokenAccount,       // source
-      recipientAta,           // destination (already an ATA)
+      recipientTokenAccount,  // destination
       userPubkey,             // owner
       amount                  // amount
     );
@@ -285,27 +277,8 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
   }
 }
 
-/**
- * Check if user has enough SOL for purchase
- * @param {string} userPublicKey - User's wallet public key
- * @param {number} amount - Amount needed in SOL
- * @returns {Promise<boolean>} - Whether user has enough SOL
- */
-export async function checkSolBalance(userPublicKey, amount = ENV.SHIP_PRICE_SOL) {
-  try {
-    const userPubkey = new PublicKey(userPublicKey);
-    
-    // Get SOL balance
-    const balance = await connection.getBalance(userPubkey);
-    const solBalance = balance / LAMPORTS_PER_SOL;
-    
-    // Add buffer for transaction fees (0.000005 SOL)
-    return solBalance >= (amount + 0.000005);
-  } catch (error) {
-    console.error('Error checking SOL balance:', error);
-    return false;
-  }
-}
+// Import SystemProgram for SOL transfers
+import { SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 /**
  * Check if user has enough tokens to burn
@@ -341,20 +314,24 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
 }
 
 /**
- * Get user's current SOL balance
+ * Check if user has enough SOL for purchase
  * @param {string} userPublicKey - User's wallet public key
- * @returns {Promise<number>} - Current SOL balance
+ * @param {number} amount - Amount needed in SOL
+ * @returns {Promise<boolean>} - Whether user has enough SOL
  */
-export async function getSolBalance(userPublicKey) {
+export async function checkSolBalance(userPublicKey, amount = ENV.SHIP_PRICE_SOL) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
     // Get SOL balance
     const balance = await connection.getBalance(userPubkey);
-    return balance / LAMPORTS_PER_SOL;
+    const solBalance = balance / LAMPORTS_PER_SOL;
+    
+    // Add buffer for transaction fees (0.000005 SOL)
+    return solBalance >= (amount + 0.000005);
   } catch (error) {
-    console.error('Error getting SOL balance:', error);
-    return 0;
+    console.error('Error checking SOL balance:', error);
+    return false;
   }
 }
 
@@ -403,6 +380,24 @@ export async function getTokenBalance(userPublicKey) {
     }
     
     // Default fallback
+    return 0;
+  }
+}
+
+/**
+ * Get user's current SOL balance
+ * @param {string} userPublicKey - User's wallet public key
+ * @returns {Promise<number>} - Current SOL balance
+ */
+export async function getSolBalance(userPublicKey) {
+  try {
+    const userPubkey = new PublicKey(userPublicKey);
+    
+    // Get SOL balance
+    const balance = await connection.getBalance(userPubkey);
+    return balance / LAMPORTS_PER_SOL;
+  } catch (error) {
+    console.error('Error getting SOL balance:', error);
     return 0;
   }
 }

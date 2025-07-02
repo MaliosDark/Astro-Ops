@@ -84,8 +84,16 @@ function App() {
           shipOwned = !!profile?.ship; // Check if user has a ship in their profile
         } catch (profileError) {
           console.warn('Failed to get user profile:', profileError);
-          // Don't fail connection if profile check fails
-          setHasShip(false);
+        }
+        
+        // If no ship found in profile, try to get ship status directly
+        if (!shipOwned) {
+          try {
+            const shipStatus = await apiService.request('/ship_status');
+            shipOwned = shipStatus?.has_ship || false;
+          } catch (shipError) {
+            console.warn('Failed to get ship status:', shipError);
+          }
         }
         
         // Update state and global variables

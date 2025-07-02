@@ -5,9 +5,6 @@ import walletService from './walletService.js';
 import ENV from '../config/environment.js';
 import userCacheService from './userCacheService.js';
 
-// Cache for community ATA
-let communityAtaCache = null;
-
 // API endpoints mapping for Node.js server
 const API_ENDPOINTS = {
   'auth/nonce': '/auth/nonce',
@@ -136,38 +133,6 @@ class ApiService {
       }
       this.clearToken();
       throw error;
-    }
-  }
-
-  /**
-   * Get community ATA for token transfers
-   * This fetches the correct Associated Token Account for the community treasury
-   */
-  async getCommunityAta() {
-    // Return cached value if available
-    if (communityAtaCache) {
-      return communityAtaCache;
-    }
-    
-    try {
-      // Fetch the community ATA from the verify server
-      const result = await this.verifyRequest('/community_ata');
-      
-      if (!result || !result.communityAta) {
-        throw new Error('Invalid response from server');
-      }
-      
-      // Cache the result
-      communityAtaCache = result.communityAta;
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🔍 Fetched community ATA:', communityAtaCache);
-      }
-      
-      return communityAtaCache;
-    } catch (error) {
-      console.error('Failed to fetch community ATA:', error);
-      throw new Error('Failed to get community token account');
     }
   }
 
@@ -481,8 +446,7 @@ class ApiService {
    */
   async buyShip(paymentMethod = 'sol', signedTransaction = null) {
     try {
-      // Call the verify server's purchase_ship endpoint instead of the main API
-      const result = await this.verifyRequest('/purchase_ship', {
+      const result = await this.request('/buy_ship', {
         method: 'POST',
         body: JSON.stringify({ 
           payment_method: paymentMethod,

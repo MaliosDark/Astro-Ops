@@ -260,20 +260,9 @@ export async function buyShip(paymentMethod = 'sol') {
         window.AstroUI.setStatus('Creating token transfer transaction...');
       }
       
-      // Fetch the community ATA from the server
-      const communityAta = await apiService.getCommunityAta();
-      
-      if (!communityAta) {
-        throw new Error('Failed to get community token account');
-      }
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🔍 Using community ATA for token transfer:', communityAta);
-      }
-      
       const tokenTx = await createTokenTransferTransaction(
         userPublicKey,
-        communityAta, // Use the fetched ATA instead of deriving it
+        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
         shipPriceBR
       );
       
@@ -363,7 +352,7 @@ export async function startMission(type, mode = 'Unshielded') {
       window.AstroUI.setBalance(parseInt(br_balance));
     }
 
-        // Store mission data in localStorage for timer
+    // Store mission data in localStorage for timer
     if (success) {
       const missionData = {
         mission_type: type,
@@ -379,22 +368,7 @@ export async function startMission(type, mode = 'Unshielded') {
       if (window.updateActiveMission) {
         window.updateActiveMission(missionData);
       }
-
-      // Add a small delay and re-verify the mission state in UI
-      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for 500ms
-      const storedMissionAfterDelay = localStorage.getItem('bonkraiders_active_mission');
-      if (storedMissionAfterDelay) {
-        try {
-          const reVerifiedMissionData = JSON.parse(storedMissionAfterDelay);
-          if (window.updateActiveMission) {
-            window.updateActiveMission(reVerifiedMissionData);
-          }
-        } catch (e) {
-          console.warn('Error re-verifying mission data from localStorage:', e);
-        }
-      }
     }
-
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(success ? `Mission success! +${parseInt(reward).toLocaleString()} BR` : 'Mission failed - no rewards');
@@ -680,14 +654,22 @@ export async function performClaim() {
     }
 
     // Now we just withdraw the total amount directly
-    const result = await withdrawTokens(totalAmount);
+    const result = await apiService.withdrawTokens(totalAmount, 'claim'); // Explicitly set tx_type to 'claim'
     
     // Refresh user profile to get updated balance
     try {
       const profile = await apiService.getUserProfile();
-    } catch (error) {
-      // Ignore profile refresh errors
+      if (profile?.ship && window.AstroUI) {
+        window.AstroUI.setBalance(profile.ship.balance || 0);
+      }
+    } catch (error) {}
+    
+    if (ENV.DEBUG_MODE) {
+      console.log('🎮 Claim result:', result);
     }
+    
+    // Return the result for backward compatibility
+    return { claimable_AT: totalAmount, ...result };
     
     return result;
   } catch (error) {
