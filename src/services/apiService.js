@@ -154,6 +154,28 @@ class ApiService {
     }
     
     let url = `${this.baseURL}${nodeEndpoint}`;
+
+    // Skip token refresh for authentication endpoints
+    if (nodeEndpoint === '/auth/nonce' || nodeEndpoint === '/auth/login') {
+      if (ENV.DEBUG_MODE) {
+        console.log(`🔑 Skipping token refresh for authentication endpoint: ${nodeEndpoint}`);
+      }
+      // Proceed directly to making the request without checking/refreshing token
+      const defaultHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': `BonkRaiders/${ENV.APP_VERSION}`,
+      };
+
+      const requestOptions = {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...options.headers
+        }
+      };
+      return await this._makeRequest(url, requestOptions, null); // Pass null for currentToken
+    }
     
     // Check if we need to refresh the token before making the request
     let currentToken = this.getToken();
