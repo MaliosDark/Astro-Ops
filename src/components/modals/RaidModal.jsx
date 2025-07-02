@@ -1,10 +1,9 @@
-// Here's the fixed version with missing closing brackets and required whitespace added:
-
 import React, { useEffect, useState } from 'react';
 import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogic';
 import UserStatusIndicator from '../UserStatusIndicator';
 import RaidNotification from '../RaidNotification';
 import websocketService from '../../services/websocketService';
+import { formatTimeHuman } from '../../utils/timeUtils'; // Import for human-readable time
 import ENV from '../../config/environment';
 
 const RaidModal = ({ onClose }) => {
@@ -353,6 +352,9 @@ const RaidModal = ({ onClose }) => {
                 const playerExp = getPlayerExperience(mission);
                 const isSelected = selectedTarget?.id === mission.id;
                 
+                // Calculate time since mission started (or completed, if backend provides ts_complete)
+                const timeSinceMission = Math.floor((Date.now() / 1000 - mission.ts_start) / 60); // Using ts_start as proxy for now
+                
                 return (
                   <div 
                     key={mission.id} 
@@ -484,7 +486,7 @@ const RaidModal = ({ onClose }) => {
                             {playerExp.icon} {playerExp.level}
                           </span>
                           <span style={{ color: '#888' }}>
-                            Completed: {Math.floor((Date.now() / 1000 - mission.ts_start) / 60)} min ago
+                            Active for: {formatTimeHuman(timeSinceMission * 60)}
                           </span>
                         </div>
                       </div>
@@ -509,7 +511,7 @@ const RaidModal = ({ onClose }) => {
                           fontSize: '9px',
                           color: '#888'
                         }}>
-                          Potential Loot
+                          Exact Loot
                         </div>
                       </div>
                     </div>
@@ -599,7 +601,7 @@ const RaidModal = ({ onClose }) => {
               <div>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛰️</div>
                 <p>Initiate deep scan to detect vulnerable targets.</p>
-                <p style={{ fontSize: '10px', color: '#666' }}>
+                <p style={{ fontSize: '10px', color: '#666' }>
                   Scanning reveals unshielded missions ripe for raiding.
                 </p>
               </div>
