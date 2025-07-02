@@ -3,7 +3,7 @@ import { performRaid, scanForRaids, getPlayerEnergy } from '../../utils/gameLogi
 import UserStatusIndicator from '../UserStatusIndicator';
 import RaidNotification from '../RaidNotification';
 import websocketService from '../../services/websocketService';
-import { formatTimeHuman } from '../../utils/timeUtils'; // Import for human-readable time
+import { formatTimeLeft, calculateMissionTimeRemaining } from '../../utils/timeUtils'; // Import formatTimeLeft and calculateMissionTimeRemaining
 import ENV from '../../config/environment';
 
 const RaidModal = ({ onClose }) => {
@@ -352,8 +352,11 @@ const RaidModal = ({ onClose }) => {
                 const playerExp = getPlayerExperience(mission);
                 const isSelected = selectedTarget?.id === mission.id;
                 
-                // Calculate time since mission started (or completed, if backend provides ts_complete)
-                const timeSinceMission = Math.floor((Date.now() / 1000 - mission.ts_start) / 60); // Using ts_start as proxy for now
+                // Calculate time remaining for the mission
+                const timeLeft = calculateMissionTimeRemaining({
+                  ts_start: mission.ts_start,
+                  cooldown_seconds: mission.ts_complete - mission.ts_start // Calculate cooldown from ts_start and ts_complete
+                });
                 
                 return (
                   <div 
@@ -486,7 +489,7 @@ const RaidModal = ({ onClose }) => {
                             {playerExp.icon} {playerExp.level}
                           </span>
                           <span style={{ color: '#888' }}>
-                            Active for: {formatTimeHuman(timeSinceMission * 60)}
+                            Time Remaining: {formatTimeLeft(timeLeft)}
                           </span>
                         </div>
                       </div>
