@@ -4,8 +4,8 @@ import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
+import { formatTimeLeft } from '../utils/timeUtils';
 import ENV from '../config/environment';
-import { formatTimeLeft } from '../utils/timeUtils.js';
 
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
@@ -93,7 +93,11 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       
       // Set up periodic refresh to keep balance in sync with server
       const refreshInterval = setInterval(() => {
-        loadInitialData();
+        try {
+          loadInitialData();
+        } catch (error) {
+          console.warn('Failed to refresh profile after mission completion:', error);
+        }
       }, 30000); // Refresh every 30 seconds
       return () => clearInterval(refreshInterval);
     }
@@ -184,15 +188,12 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   // Mission timer effect
   useEffect(() => {
     if (!activeMission) {
-      setMissionTimeLeft(null);
+      setMissionTimeLeft(null); 
       return;
     }
     
     const calculateTimeLeft = () => {
       const now = Math.floor(Date.now() / 1000);
-      const missionStart = activeMission.ts_start;
-      const cooldownSeconds = activeMission.cooldown_seconds || 8 * 3600; // 8 hours in seconds
-      
       const endTime = missionStart + cooldownSeconds;
       const timeLeft = Math.max(0, endTime - now);
       
@@ -445,7 +446,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           data-tip="Send your ship on a mission"
           onClick={() => onShowModal('mission')}
           onMouseMove={(e) => handleMouseMove(e, activeMission ? 'Mission in progress' : 'Send your ship on a mission')}
-          onMouseLeave={handleMouseLeave}
+          onMouseLeave={handleMouseLeave} 
           disabled={!!activeMission}
           style={{ opacity: activeMission ? 0.5 : 1, cursor: activeMission ? 'not-allowed' : 'pointer' }}
         > 

@@ -17,6 +17,7 @@ import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
 import { formatTimeLeft } from './timeUtils.js';
+import { formatTimeLeft } from './timeUtils.js';
 
 // Usar TextEncoder nativo del navegador
 const encoder = new TextEncoder();
@@ -250,6 +251,14 @@ export async function startMission(type, mode = 'Unshielded') {
       window.AstroUI.setStatus(`Preparing ${type} mission...`);
     }
 
+    // Get connected wallet
+    const connectedWallet = walletService.getConnectedWallet();
+    if (!connectedWallet) {
+      throw new Error('Wallet not connected');
+    }
+    
+    // Create a dummy signedBurnTx for now (this is a temporary fix)
+    const signedBurnTx = "dummy_transaction";
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
     }
@@ -275,10 +284,9 @@ export async function startMission(type, mode = 'Unshielded') {
     if (success) {
       // For testing, use a shorter cooldown (10 minutes)
       const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
-      const missionData = {
         mission_type: type,
         mission_type: type,
-        mode: mode,
+        mode,
         ts_start: Math.floor(Date.now() / 1000),
         reward: reward,
         cooldown_seconds: 8 * 3600 // 8 hours in seconds
@@ -313,8 +321,8 @@ export async function startMission(type, mode = 'Unshielded') {
     let userMessage = error.message;
     
     // Special handling for cooldown violation or burn transaction replay
-    if (error.message?.includes('cooldown violation') || error.message?.includes('burn transaction replay detected')) {
-      // Calculate remaining cooldown time if possible
+    // Special handling for cooldown violation or burn transaction replay
+    if (error.message?.includes('cooldown violation') || error.message?.includes('burn transaction replay')) {
       let cooldownMessage = 'Mission cooldown active - please wait';
       
       // Try to get the active mission from localStorage
@@ -332,10 +340,8 @@ export async function startMission(type, mode = 'Unshielded') {
             // Format time left as HH:MM:SS
             const formattedTime = formatTimeLeft(timeLeft);
             
-            cooldownMessage = `Cooldown active: ${formattedTime} remaining`;
-            
             // For burn transaction replay, add more context
-            if (error.message?.includes('burn transaction replay detected')) {
+            if (error.message?.includes('burn transaction replay')) {
               cooldownMessage = `Transaction already used. Cooldown: ${formattedTime} remaining`;
             }
           }
@@ -350,6 +356,15 @@ export async function startMission(type, mode = 'Unshielded') {
       }
       
       userMessage = cooldownMessage;
+    }
+    // Special handling for burn transaction replay without active mission
+    else if (error.message?.includes('burn transaction replay')) {
+      userMessage = 'This transaction has already been used. Please wait for cooldown to complete.';
+      
+      // Show cooldown notification
+      if (window.showCooldownNotification) {
+        window.showCooldownNotification(userMessage);
+      }
     }
     // Special handling for burn transaction replay without active mission
     else if (error.message?.includes('burn transaction replay detected')) {

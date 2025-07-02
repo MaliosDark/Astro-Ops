@@ -611,7 +611,8 @@ class ApiService {
       const result = await this.request('/send_mission', {
         method: 'POST',
         body: JSON.stringify({
-          type,
+          type, 
+          mode,
           mode,
           signedBurnTx
         })
@@ -628,8 +629,6 @@ class ApiService {
       // Store mission data in localStorage for timer
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
-        const missionData = { 
-          mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
           cooldown_seconds: cooldownSeconds,
