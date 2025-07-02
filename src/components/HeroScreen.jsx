@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import walletService from '../services/walletService.js';
 import ENV from '../config/environment';
 import DocumentationModal from './DocumentationModal';
-import BuyShipModal from './modals/BuyShipModal'; 
-import GetTestTokensModal from './modals/GetTestTokensModal'; 
+import BuyShipModal from './modals/BuyShipModal';
+import GetTestTokensModal from './modals/GetTestTokensModal';
 
 const HeroScreen = ({ onConnect, isLoading }) => {
   const [walletProviders, setWalletProviders] = useState([]);
@@ -157,38 +157,8 @@ const HeroScreen = ({ onConnect, isLoading }) => {
       )}
 
       {/* Test Environment Buttons */}
-      {ENV.SOLANA_NETWORK !== 'mainnet-beta' && !isLoading && !isScanning && (
-        <div style={{ 
-          marginTop: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          <button 
-            className="gb-btn"
-            onClick={handleShowGetTokens}
-            style={{
-              background: 'rgba(0,40,80,0.7)',
-              border: '2px solid #0cf',
-              color: '#0cf',
-              fontSize: '12px',
-              padding: '8px 16px'
-            }}
-          >
-            🪙 GET TEST TOKENS
-          </button>
-          <div style={{ 
-            fontSize: '10px', 
-            color: '#888',
-            textAlign: 'center',
-            maxWidth: '300px'
-          }}>
-            This is a {ENV.SOLANA_NETWORK} environment.
-            <br />
-            Get free test tokens to try the game.
-          </div>
-        </div>
+      {ENV.SOLANA_NETWORK !== 'mainnet-beta' && !isLoading && !isScanning && walletProviders.length > 0 && (
+        <div style={{ display: 'none' }}></div>
       )}
       
       {/* Documentation Button */}

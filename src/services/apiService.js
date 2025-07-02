@@ -444,48 +444,22 @@ class ApiService {
   /**
    * Buy ship
    */
-  async buyShip(paymentMethod = 'sol', signedTransaction = null) {
-    try {
-      const result = await this.request('/buy_ship', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          payment_method: paymentMethod,
-          signed_transaction: signedTransaction
-        })
-      });
-      
-      // Update cache to reflect ship purchase
-      if (result.ship_id) {
-        const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) {
-          userCacheService.clearUserData(publicKey, 'ships');
-          userCacheService.clearUserData(publicKey, 'profile');
-        }
+  async buyShip(paymentMethod = 'sol') {
+    const result = await this.request('/buy_ship', {
+      method: 'POST',
+      body: JSON.stringify({ payment_method: paymentMethod })
+    });
+    
+    // Update cache to reflect ship purchase
+    if (result.ship_id) {
+      const publicKey = this.getCurrentUserPublicKey();
+      if (publicKey) {
+        userCacheService.clearUserData(publicKey, 'ships');
+        userCacheService.clearUserData(publicKey, 'profile');
       }
-      
-      // Refresh user profile to get updated data
-      try {
-        await this.getUserProfile();
-      } catch (profileError) {
-        console.warn('Failed to refresh profile after ship purchase:', profileError);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Buy ship error:', error);
-      
-      // Provide more specific error messages
-      if (error.message?.includes('Transaction cancelled by user')) {
-        throw new Error('Ship purchase cancelled - transaction not approved');
-      } else if (error.message?.includes('Insufficient')) {
-        throw error; // Keep the specific insufficient funds message
-      } else if (error.message?.includes('already purchased')) {
-        throw new Error('You already own a ship');
-      }
-      
-      throw error;
     }
     
+    return result;
   }
 
   /**
@@ -743,37 +717,20 @@ class ApiService {
   /**
    * Get test tokens for development/testing
    */
-  async getTestTokens(amount = 10000) {
+  async getTestTokens(amount) {
     // This should call the verify API, not the main API
     const wallet = walletService.getConnectedWallet();
     if (!wallet) {
       throw new Error('No wallet connected');
     }
     
-    try {
-      const result = await this.verifyRequest('/get_test_tokens', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          recipient: wallet.publicKey,
-          amount: amount 
-        })
-      });
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🪙 Get test tokens result:', result);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Get test tokens error:', error);
-      
-      // Handle rate limiting
-      if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
-        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
-      }
-      
-      throw error;
-    }
+    return await this.verifyRequest('/get_test_tokens', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        recipient: wallet.publicKey,
+        amount: amount 
+      })
+    });
   }
   /**
    * Get transaction history
