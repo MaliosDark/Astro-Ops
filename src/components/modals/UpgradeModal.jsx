@@ -34,21 +34,6 @@ const UpgradeModal = ({ onClose }) => {
     } finally {
       setIsUpgrading(false);
     }
-    try {
-      // Close modal immediately to show animations if needed
-      onClose();
-      
-      // Perform the upgrade
-      await performUpgrade(level);
-    } catch (error) {
-      console.error('Upgrade failed:', error);
-      
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Upgrade failed: ${error.message}`);
-      }
-    } finally {
-      setIsUpgrading(false);
-    }
   };
 
   const getBenefitColor = (level) => {
@@ -197,7 +182,7 @@ const UpgradeModal = ({ onClose }) => {
             }}
             onMouseLeave={(e) => {
               if (selectedLevel !== upgrade.level) {
-                e.target.style.background = 'rgba(40,0,80,0.4)';
+                e.target.style.background = 'rgba(40,0,80,0.3)';
                 e.target.style.transform = 'translateY(0)';
               }
             }}
@@ -344,7 +329,6 @@ const UpgradeModal = ({ onClose }) => {
       {selectedLevel && (
         <button
           onClick={() => handleUpgrade(selectedLevel)}
-          disabled={isUpgrading}
           disabled={isUpgrading}
           style={{
             width: '100%',
