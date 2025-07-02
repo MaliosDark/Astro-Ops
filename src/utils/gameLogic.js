@@ -17,7 +17,7 @@ import websocketService from '../services/websocketService.js';
 import ENV from '../config/environment.js';
 import { createRaidTransition } from './raidAnimations.js';
 
-// Usar TextEncoder nativo del navegador
+// Use native browser TextEncoder
 const encoder = new TextEncoder();
 
 /**
@@ -52,20 +52,20 @@ async function reAuthenticate() {
 window.triggerReAuthentication = reAuthenticate;
 
 /**
- * Función mejorada para convertir diferentes tipos de firma a base64
+ * Improved function to convert various signature types to base64
  */
 function signatureToBase64(signature) {
   try {
-    // Si ya es string, asumimos que es base64
+    // If already string, assume it's base64
     if (typeof signature === 'string') {
-      // Verificar si es base64 válido
+      // Verify if it's valid base64
       try {
         atob(signature);
         return signature;
       } catch {
-        // Si no es base64 válido, convertir desde hex u otro formato
+        // If not valid base64, try converting from hex or other format
         if (signature.match(/^[0-9a-fA-F]+$/)) {
-          // Es hex, convertir a Uint8Array y luego a base64
+          // It's hex, convert to Uint8Array then to base64
           const bytes = new Uint8Array(signature.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
           return uint8ArrayToBase64(bytes);
         }
@@ -73,32 +73,32 @@ function signatureToBase64(signature) {
       }
     }
     
-    // Si es Uint8Array o similar
+    // If Uint8Array or similar
     if (signature instanceof Uint8Array) {
       return uint8ArrayToBase64(signature);
     }
     
-    // Si es ArrayBuffer
+    // If ArrayBuffer
     if (signature instanceof ArrayBuffer) {
       return uint8ArrayToBase64(new Uint8Array(signature));
     }
     
-    // Si es Array normal
+    // If regular Array
     if (Array.isArray(signature)) {
       return uint8ArrayToBase64(new Uint8Array(signature));
     }
     
-    // Si tiene propiedad signature (algunos wallets)
+    // If it has a signature property (some wallets)
     if (signature.signature) {
       return signatureToBase64(signature.signature);
     }
     
-    // Si tiene método toBytes o similar
+    // If it has a toBytes method or similar
     if (typeof signature.toBytes === 'function') {
       return uint8ArrayToBase64(signature.toBytes());
     }
     
-    // Si tiene propiedad data (algunos wallets)
+    // If it has a data property (some wallets)
     if (signature.data) {
       return signatureToBase64(signature.data);
     }
@@ -111,7 +111,7 @@ function signatureToBase64(signature) {
 }
 
 /**
- * Función para convertir Uint8Array a base64 sin Buffer
+ * Function to convert Uint8Array to base64 without Buffer
  */
 function uint8ArrayToBase64(uint8Array) {
   if (!(uint8Array instanceof Uint8Array)) {
@@ -274,15 +274,15 @@ export async function startMission(type, mode = 'Unshielded') {
 
     // Store mission data in localStorage for timer
     if (success) {
-      // For testing, use a shorter cooldown (30 seconds)
       const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
       
-      const missionData = {
+      const missionData = { 
         mission_type: type,
         mode: mode,
         ts_start: Math.floor(Date.now() / 1000),
         reward: reward,
-        cooldown_seconds: cooldownSeconds
+        cooldown_seconds: cooldownSeconds,
+        br_balance: result.br_balance // Store the updated balance
       };
       
       localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
@@ -318,8 +318,12 @@ export async function startMission(type, mode = 'Unshielded') {
     // Handle user-friendly error messages
     let userMessage = error.message;
     
+    // Specific handling for "Not enough BR" error
+    if (error.message?.includes('Not enough BR')) {
+      userMessage = 'Not enough BR tokens for this mission. Earn more by completing other missions or claiming rewards.';
+    }
     // Special handling for cooldown violation
-    if (error.message?.includes('cooldown violation')) {
+    else if (error.message?.includes('cooldown violation')) {
       // Calculate remaining cooldown time if possible
       let cooldownMessage = 'Mission cooldown active - please wait';
       
@@ -360,7 +364,7 @@ export async function startMission(type, mode = 'Unshielded') {
       userMessage = cooldownMessage;
     }
     
-    if (error.message?.includes('Transaction cancelled by user')) {
+    else if (error.message?.includes('Transaction cancelled by user')) {
       userMessage = 'Mission cancelled - transaction not approved';
     } else if (error.message?.includes('Insufficient tokens')) {
       userMessage = error.message; // Keep the specific token message
@@ -430,7 +434,7 @@ export async function performRaid(missionId) {
       timestamp: Date.now()
     });
     
-    // Crear transición de raid con animaciones completas Y batalla
+    // Create raid transition with full animations AND battle
     await createRaidTransition(async () => {
       // REAL API CALL to Node.js server
       let result;
@@ -438,7 +442,7 @@ export async function performRaid(missionId) {
         result = await apiService.raidMission(missionId);
         const { stolen, br_balance } = result;
         
-        // Iniciar batalla durante el raid
+        // Start battle during the raid
         if (window.startRaidBattle) {
           await window.startRaidBattle();
         }
