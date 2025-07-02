@@ -17,8 +17,7 @@ const API_ENDPOINTS = {
   'claim_rewards': '/claim_rewards',
   'withdraw_tokens': '/withdraw_tokens',
   'transaction_history': '/transaction_history',
-  'wallet_bal      }
-ance': '/wallet_balance',
+  'wallet_ance': '/wallet_balance',
   'list_missions': '/list_missions',
   'pending_missions': '/pending_missions',
   'raid/scan': '/raid/scan',
