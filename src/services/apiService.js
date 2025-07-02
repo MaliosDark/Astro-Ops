@@ -717,20 +717,37 @@ class ApiService {
   /**
    * Get test tokens for development/testing
    */
-  async getTestTokens(amount) {
+  async getTestTokens(amount = 10000) {
     // This should call the verify API, not the main API
     const wallet = walletService.getConnectedWallet();
     if (!wallet) {
       throw new Error('No wallet connected');
     }
     
-    return await this.verifyRequest('/get_test_tokens', {
-      method: 'POST',
-      body: JSON.stringify({ 
-        recipient: wallet.publicKey,
-        amount: amount 
-      })
-    });
+    try {
+      const result = await this.verifyRequest('/get_test_tokens', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          recipient: wallet.publicKey,
+          amount: amount 
+        })
+      });
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('🪙 Get test tokens result:', result);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Get test tokens error:', error);
+      
+      // Handle rate limiting
+      if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+        throw new Error('Rate limit exceeded. Please try again in a few minutes.');
+      }
+      
+      throw error;
+    }
   }
   /**
    * Get transaction history
