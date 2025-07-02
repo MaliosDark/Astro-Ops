@@ -4,7 +4,7 @@ import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
-import { formatTimeLeft } from '../utils/timeUtils';
+import { formatTimeLeft, calculateMissionTimeRemaining } from '../utils/timeUtils'; // Importar funciones de timeUtils
 import ENV from '../config/environment';
 
 
@@ -20,6 +20,79 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [missionTimeLeft, setMissionTimeLeft] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
+  // Función para cargar datos iniciales del servidor
+  const loadInitialData = async () => {
+    try {
+      // Load REAL user profile from server
+      const profile = await apiService.getUserProfile();
+      
+      // Also fetch token balance
+      const wallet = walletService.getConnectedWallet();
+      if (wallet) {
+        const balance = await getTokenBalance(wallet.publicKey);
+        setTokenBalance(balance);
+      }
+      
+      if (profile) {
+        // Update UI with REAL data from database
+        if (profile.ship) {
+          // Always use the server's balance value for consistency
+          setBalance(parseInt(profile.ship.balance || 0));
+        }
+        
+        if (profile.stats) {
+          setKills(profile.stats.total_kills || 0);
+          setRaidsWon(profile.stats.total_raids_won || 0);
+          
+          // Update global counters with REAL data from database
+          window.killCount = profile.stats.total_kills || 0;
+          window.raidWins = profile.stats.total_raids_won || 0;
+        }
+        
+        if (profile.energy) {
+          setEnergy(profile.energy.current || 10);
+        }
+        
+        // Check for active mission from server
+        if (profile.active_mission) {
+          setActiveMission(profile.active_mission);
+        } else {
+          // Check if there's a mission in localStorage
+          const storedMission = localStorage.getItem('bonkraiders_active_mission');
+          if (storedMission) {
+            try {
+              const missionData = JSON.parse(storedMission);
+              const now = Math.floor(Date.now() / 1000);
+              const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours in seconds
+              
+              // Check if mission is still active
+              if (now < missionData.ts_start + cooldownSeconds) {
+                setActiveMission(missionData);
+              } else {
+                // Mission has expired, remove from localStorage
+                localStorage.removeItem('bonkraiders_active_mission');
+              }
+            } catch (e) {
+              // Invalid stored mission data
+              localStorage.removeItem('bonkraiders_active_mission'); 
+            }
+          }
+        }
+      }
+      
+      if (ENV.DEBUG_MODE) {
+        console.log('💰 Loaded REAL user profile from database:', profile);
+      } 
+    } catch (error) {
+      console.error('Failed to load REAL user profile:', error);
+      // Use zeros if loading fails (real starting values)
+      setBalance(0);
+      setKills(0);
+      setRaidsWon(0);
+      setEnergy(10);
+    } 
+  };
+
   useEffect(() => {
     // Show the game UI - EXACTLY like original
     const gameCanvas = document.getElementById('game-canvas');
@@ -28,66 +101,6 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
     if (gameCanvas) gameCanvas.style.display = 'block';
     if (gbUI) gbUI.style.display = 'flex';
 
-    // Load initial data from server
-    const loadInitialData = async () => {
-      try {
-        // Load REAL user profile from server
-        const profile = await apiService.getUserProfile();
-        
-        // Also fetch token balance
-        const wallet = walletService.getConnectedWallet();
-        if (wallet) {
-          const balance = await getTokenBalance(wallet.publicKey);
-          setTokenBalance(balance);
-        }
-        
-        if (profile) {
-          // Update UI with REAL data from database
-          if (profile.ship) {
-            // Always use the server's balance value for consistency
-            setBalance(profile.ship.balance || 0);
-          }
-          
-          if (profile.stats) {
-            setKills(profile.stats.total_kills || 0);
-            setRaidsWon(profile.stats.total_raids_won || 0);
-            
-            // Update global counters with REAL data
-            window.killCount = profile.stats.total_kills || 0;
-            window.raidWins = profile.stats.total_raids_won || 0;
-          }
-          
-          if (profile.energy) {
-            setEnergy(profile.energy.current || 10);
-          }
-          
-          // Check for active mission from server
-          if (profile.active_mission) {
-            setActiveMission(profile.active_mission);
-            
-            // Update localStorage to match server data
-            localStorage.setItem('bonkraiders_active_mission', JSON.stringify(profile.active_mission));
-            
-            // Update global state
-            if (window.updateActiveMission) {
-              window.updateActiveMission(profile.active_mission);
-            }
-          }
-        }
-        
-        if (ENV.DEBUG_MODE) {
-          console.log('💰 Loaded REAL user profile from database:', profile);
-        }
-      } catch (error) {
-        console.error('Failed to load REAL user profile:', error);
-        // Use zeros if loading fails (real starting values)
-        setBalance(0);
-        setKills(0);
-        setRaidsWon(0);
-        setEnergy(10);
-      }
-    };
-    
     if (walletAddress) {
       loadInitialData();
       
@@ -192,114 +205,31 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       return;
     }
     
-    const calculateTimeLeft = () => {
-      const now = Math.floor(Date.now() / 1000);
-      const endTime = missionStart + cooldownSeconds;
-      const timeLeft = Math.max(0, endTime - now);
+    const updateMissionTime = () => {
+      const timeLeft = calculateMissionTimeRemaining(activeMission);
+      setMissionTimeLeft(timeLeft);
       
       if (timeLeft <= 0) {
         // Mission has completed
-        setMissionTimeLeft(null);
         setActiveMission(null);
-        
-        // Remove mission data from localStorage
         localStorage.removeItem('bonkraiders_active_mission');
-
         if (window.AstroUI) {
           window.AstroUI.setStatus('Mission completed!');
         }
-        
-        return null;
+        // Refresh user profile to get updated balance and status
+        loadInitialData();
       }
-      
-      return timeLeft;
     };
     
     // Initial calculation
-    setMissionTimeLeft(calculateTimeLeft());
+    updateMissionTime();
     
     // Set up interval to update timer
-    const timerInterval = setInterval(() => {
-      const timeLeft = calculateTimeLeft();
-      setMissionTimeLeft(timeLeft);
-    }, 1000);
+    const timerInterval = setInterval(updateMissionTime, 1000);
     
     return () => clearInterval(timerInterval);
-  }, [activeMission]);
+  }, [activeMission, loadInitialData]); // Dependency on activeMission and loadInitialData
   
-  const loadInitialData = async () => {
-    try {
-      // Load REAL user profile from server
-      const profile = await apiService.getUserProfile();
-      
-      // Also fetch token balance
-      const wallet = walletService.getConnectedWallet();
-      if (wallet) {
-        const balance = await getTokenBalance(wallet.publicKey);
-        setTokenBalance(balance);
-      }
-      
-      if (profile) {
-        // Update UI with REAL data from database
-        if (profile.ship) {
-          // Always use the server's balance value for consistency
-          setBalance(parseInt(profile.ship.balance || 0));
-        }
-        
-        if (profile.stats) {
-          setKills(profile.stats.total_kills || 0);
-          setRaidsWon(profile.stats.total_raids_won || 0);
-          
-          // Update global counters with REAL data from database
-          window.killCount = profile.stats.total_kills || 0;
-          window.raidWins = profile.stats.total_raids_won || 0;
-        }
-        
-        if (profile.energy) {
-          setEnergy(profile.energy.current || 10);
-        }
-        
-        // Check for active mission from server
-        if (profile.active_mission) {
-          setActiveMission(profile.active_mission);
-        } else {
-          // Check if there's a mission in localStorage
-          const storedMission = localStorage.getItem('bonkraiders_active_mission');
-          if (storedMission) {
-            try {
-              const missionData = JSON.parse(storedMission);
-              const now = Math.floor(Date.now() / 1000);
-              const missionStart = missionData.ts_start;
-              const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours in seconds
-              
-              // Check if mission is still active
-              if (now < missionStart + cooldownSeconds) {
-                setActiveMission(missionData);
-              } else {
-                // Mission has expired, remove from localStorage
-                localStorage.removeItem('bonkraiders_active_mission');
-              }
-            } catch (e) {
-              // Invalid stored mission data
-              localStorage.removeItem('bonkraiders_active_mission'); 
-            }
-          }
-        }
-      }
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('💰 Loaded REAL user profile from database:', profile);
-      } 
-    } catch (error) {
-      console.error('Failed to load REAL user profile:', error);
-      // Use zeros if loading fails (real starting values)
-      setBalance(0);
-      setKills(0);
-      setRaidsWon(0);
-      setEnergy(10);
-    } 
-  };
-
   const handleMouseMove = (e, tip) => {
     if (tip) {
       setTooltip({
