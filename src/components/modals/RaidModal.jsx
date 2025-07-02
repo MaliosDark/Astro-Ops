@@ -601,7 +601,7 @@ const RaidModal = ({ onClose }) => {
               <div>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛰️</div>
                 <p>Initiate deep scan to detect vulnerable targets.</p>
-                <p style={{ fontSize: '10px', color: '#666' }>
+                <p style={{ fontSize: '10px', color: '#666' }}>
                   Scanning reveals unshielded missions ripe for raiding.
                 </p>
               </div>
