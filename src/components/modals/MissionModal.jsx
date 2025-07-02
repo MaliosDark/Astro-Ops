@@ -417,7 +417,6 @@ const MissionModal = ({ onClose }) => {
         <button
           type="submit"
           disabled={isLoading}
-          disabled={isLoading}
           style={{
             width: '100%',
             padding: '16px',
