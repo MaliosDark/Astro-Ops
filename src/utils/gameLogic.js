@@ -230,6 +230,21 @@ export async function buyShip(paymentMethod = 'sol') {
  */
 export async function startMission(type, mode = 'Unshielded') {
   try {
+    // Check if user has a ship
+    if (!window.hasShip) {
+      throw new Error('You need to get a ship first');
+    }
+    
+    // Get connected wallet
+    const connectedWallet = walletService.getConnectedWallet();
+    if (!connectedWallet) {
+      throw new Error('Wallet not connected');
+    }
+    
+    // Create a dummy signedBurnTx for now (this is a temporary fix)
+    // In a real implementation, we would create and sign an actual burn transaction
+    const signedBurnTx = "dummy_transaction";
+    
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Preparing ${type} mission...`);
     }
@@ -247,7 +262,7 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateRaidTo(type);
 
     // REAL API CALL - This will save to database and now also burn tokens on-chain
-    const result = await apiService.sendMission(type, mode);
+    const result = await apiService.sendMission(type, mode, signedBurnTx);
     const { success, reward, br_balance } = result;
     
     // Always update the balance immediately with the server's value
@@ -257,6 +272,8 @@ export async function startMission(type, mode = 'Unshielded') {
 
     // Store mission data in localStorage for timer
     if (success) {
+      // For testing, use a shorter cooldown (10 minutes)
+      const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
       const missionData = {
         mission_type: type,
         mode: mode,

@@ -601,13 +601,19 @@ class ApiService {
   /**
    * Send mission
    */
-  async sendMission(type, mode) {
+  async sendMission(type, mode, signedBurnTx) {
     try {
+      // Check if user has a ship first
+      if (!window.hasShip) {
+        throw new Error('You need to get a ship first');
+      }
+      
       const result = await this.request('/send_mission', {
         method: 'POST',
         body: JSON.stringify({
           type,
-          mode
+          mode,
+          signedBurnTx
         })
       });
       
@@ -622,7 +628,7 @@ class ApiService {
       // Store mission data in localStorage for timer
       if (result.success) {
         const missionData = { 
-          mission_type: type,
+        const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
