@@ -5,7 +5,7 @@ import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import ENV from '../config/environment';
-import { formatTimeLeft } from './utils/timeUtils.js';
+import { formatTimeLeft } from '../utils/timeUtils.js';
 
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
