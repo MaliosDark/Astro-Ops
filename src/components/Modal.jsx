@@ -29,8 +29,6 @@ const Modal = ({ content, onClose }) => {
         return <BuyShipModal onClose={onClose} />;
       case 'getTestTokens':
         return <GetTestTokensModal onClose={onClose} />;
-      case 'getTestTokens':
-        return <GetTestTokensModal onClose={onClose} />;
       default:
         return <div>Unknown modal content</div>;
     }
