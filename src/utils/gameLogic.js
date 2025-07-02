@@ -310,8 +310,8 @@ export async function startMission(type, mode = 'Unshielded') {
     // Handle user-friendly error messages
     let userMessage = error.message;
     
-    // Special handling for cooldown violation
-    if (error.message?.includes('cooldown violation')) {
+    // Special handling for cooldown violation or burn transaction replay
+    if (error.message?.includes('cooldown violation') || error.message?.includes('burn transaction replay detected')) {
       // Calculate remaining cooldown time if possible
       let cooldownMessage = 'Mission cooldown active - please wait';
       
@@ -323,8 +323,8 @@ export async function startMission(type, mode = 'Unshielded') {
           const now = Math.floor(Date.now() / 1000);
           const missionStart = missionData.ts_start;
           const cooldownSeconds = missionData.cooldown_seconds || 8 * 3600; // 8 hours default
-          const endTime = missionStart + cooldownSeconds;
-          const timeLeft = endTime - now;
+          const endTime = missionStart + cooldownSeconds; 
+          const timeLeft = Math.max(0, endTime - now);
           
           if (timeLeft > 0) {
             // Format time left as HH:MM:SS
@@ -338,6 +338,11 @@ export async function startMission(type, mode = 'Unshielded') {
             ].join(':');
             
             cooldownMessage = `Cooldown active: ${formattedTime} remaining`;
+            
+            // For burn transaction replay, add more context
+            if (error.message?.includes('burn transaction replay detected')) {
+              cooldownMessage = `Transaction already used. Cooldown: ${formattedTime} remaining`;
+            }
           }
         }
       } catch (e) {
@@ -350,6 +355,15 @@ export async function startMission(type, mode = 'Unshielded') {
       }
       
       userMessage = cooldownMessage;
+    }
+    // Special handling for burn transaction replay without active mission
+    else if (error.message?.includes('burn transaction replay detected')) {
+      userMessage = 'This transaction has already been used. Please wait for cooldown to complete.';
+      
+      // Show cooldown notification
+      if (window.showCooldownNotification) {
+        window.showCooldownNotification(userMessage);
+      }
     }
     
     if (error.message?.includes('Transaction cancelled by user')) {
