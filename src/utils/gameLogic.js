@@ -230,11 +230,6 @@ export async function buyShip(paymentMethod = 'sol') {
  */
 export async function startMission(type, mode = 'Unshielded') {
   try {
-    // Check if user has a ship
-    if (!window.hasShip) {
-      throw new Error('You need to get a ship first');
-    }
-    
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Preparing ${type} mission...`);
     }
@@ -262,15 +257,12 @@ export async function startMission(type, mode = 'Unshielded') {
 
     // Store mission data in localStorage for timer
     if (success) {
-      // For testing, use a shorter cooldown (30 seconds)
-      const cooldownSeconds = ENV.DEBUG_MODE ? 30 : 8 * 3600; // 30 seconds in debug mode, 8 hours otherwise
-      
       const missionData = {
         mission_type: type,
         mode: mode,
         ts_start: Math.floor(Date.now() / 1000),
         reward: reward,
-        cooldown_seconds: cooldownSeconds
+        cooldown_seconds: 8 * 3600 // 8 hours in seconds
       };
       
       localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
