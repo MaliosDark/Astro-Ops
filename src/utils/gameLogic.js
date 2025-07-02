@@ -198,96 +198,25 @@ export async function authenticateWallet(publicKey, signMessage) {
 export async function buyShip(paymentMethod = 'sol') {
   try {
     if (ENV.DEBUG_MODE) {
-      console.log(`🚢 Attempting to buy ship with ${paymentMethod}`, 
-        paymentMethod === 'sol' ? `${ENV.SHIP_PRICE_SOL} SOL` : '1500 BR tokens');
+      console.log(`🚢 Attempting to buy ship with ${paymentMethod}`);
     }
     
-    // Get wallet provider for signing
-    const wallet = walletService.getConnectedWallet();
-    if (!wallet) {
-      throw new Error('Wallet not connected');
-    }
-
-    const userPublicKey = wallet.publicKey;
+    // Call API with payment method
+    const result = await apiService.buyShip(paymentMethod);
     
-    // Check if user has enough balance based on payment method
-    if (paymentMethod === 'sol') {
-      // Check SOL balance
-      const hasEnoughSol = await checkSolBalance(userPublicKey, ENV.SHIP_PRICE_SOL);
-      if (!hasEnoughSol) {
-        throw new Error(`Insufficient SOL. You need ${ENV.SHIP_PRICE_SOL} SOL to buy a ship.`);
-      }
-      
-      // Create and sign SOL transfer transaction
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Creating SOL transfer transaction...');
-      }
-      
-      const solTx = await createSolTransferTransaction(
-        userPublicKey, 
-        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
-        ENV.SHIP_PRICE_SOL
-      );
-      
-      const signedSolTx = await signAndSerializeTransaction(solTx, wallet.provider.signTransaction);
-      
-      // Call API with the signed transaction
-      const result = await apiService.buyShip('sol', signedSolTx);
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🚢 Buy ship with SOL result:', result);
-      }
-      
-      // Mark that player now has a ship
-      window.hasShip = true;
-
-      // Update App state to show the ship in the game
-      if (window.updateHasShip) {
-        window.updateHasShip(true);
-      }
-      
-      return result;
-    } else if (paymentMethod === 'br') {
-      // Check BR token balance
-      const shipPriceBR = 1500; // Fixed BR token price
-      const hasEnoughTokens = await checkTokenBalance(userPublicKey, shipPriceBR);
-      if (!hasEnoughTokens) {
-        throw new Error(`Insufficient BR tokens. You need ${shipPriceBR} BR to buy a ship.`);
-      }
-      
-      // Create and sign token transfer transaction
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('Creating token transfer transaction...');
-      }
-      
-      const tokenTx = await createTokenTransferTransaction(
-        userPublicKey,
-        "BRTreasurywNz13QfBRKmZvEZ3oKZ4BPZ4CpNHpKJjaf", // Game treasury address
-        shipPriceBR
-      );
-      
-      const signedTokenTx = await signAndSerializeTransaction(tokenTx, wallet.provider.signTransaction);
-      
-      // Call API with the signed transaction
-      const result = await apiService.buyShip('br', signedTokenTx);
-      
-      if (ENV.DEBUG_MODE) {
-        console.log('🚢 Buy ship with BR tokens result:', result);
-      }
-      
-      // Mark that player now has a ship
-      window.hasShip = true;
-
-      // Update App state to show the ship in the game
-      if (window.updateHasShip) {
-        window.updateHasShip(true);
-      }
-      
-      return result;
-    } else {
-      throw new Error('Invalid payment method');
+    if (ENV.DEBUG_MODE) {
+      console.log('🚢 Buy ship result:', result);
     }
     
+    // Mark that player now has a ship
+    window.hasShip = true;
+
+    // Update App state to show the ship in the game
+    if (window.updateHasShip) {
+      window.updateHasShip(true);
+    }
+    
+    return result;
   } catch (error) {
     if (ENV.DEBUG_MODE) {
       console.error('🚢 Buy ship error:', error);
@@ -301,35 +230,9 @@ export async function buyShip(paymentMethod = 'sol') {
  */
 export async function startMission(type, mode = 'Unshielded') {
   try {
-    // Get wallet provider for signing
-    const wallet = walletService.getConnectedWallet();
-    if (!wallet) {
-      throw new Error('Wallet not connected');
-    }
-
-    const userPublicKey = wallet.publicKey;
-
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Preparing ${type} mission...`);
     }
-
-    // Check if participation fee is required
-    let signedBurnTx = '';
-    // The participation fee is 250, so a burn transaction is always required.
-    // The `if (ENV.PARTICIPATION_FEE > 0)` block is always true now.
-    if (window.AstroUI) {
-      window.AstroUI.setStatus('Creating burn transaction...');
-    }
-
-    // Check if user has enough tokens
-    const hasEnoughTokens = await checkTokenBalance(userPublicKey, ENV.PARTICIPATION_FEE);
-    if (!hasEnoughTokens) {
-      throw new Error(`Insufficient tokens. You need ${ENV.PARTICIPATION_FEE} BR to start this mission.`);
-    }
-
-    // Create and sign burn transaction
-    const burnTx = await createBurnTransaction(userPublicKey, ENV.PARTICIPATION_FEE);
-    signedBurnTx = await signAndSerializeTransaction(burnTx, wallet.provider.signTransaction);
 
     if (window.AstroUI) {
       window.AstroUI.setStatus(`Launching ${type}…`);
@@ -344,7 +247,7 @@ export async function startMission(type, mode = 'Unshielded') {
     await animateRaidTo(type);
 
     // REAL API CALL - This will save to database and now also burn tokens on-chain
-    const result = await apiService.sendMission(type, mode, signedBurnTx);
+    const result = await apiService.sendMission(type, mode);
     const { success, reward, br_balance } = result;
     
     // Always update the balance immediately with the server's value

@@ -14,6 +14,7 @@ const BuyShipModal = ({ onClose }) => {
   const [tokenBalance, setTokenBalance] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('sol');
   const shipPriceBR = 1500; // Fixed BR token price for ship
+  const [showTestOptions, setShowTestOptions] = useState(ENV.DEBUG_MODE || ENV.SOLANA_NETWORK !== 'mainnet-beta');
 
   // Check token balance on load
   React.useEffect(() => {
@@ -66,20 +67,35 @@ const BuyShipModal = ({ onClose }) => {
     }
   };
 
-  const handleTestShip = () => {
+  const handleTestShip = async () => {
     // DEV ONLY: Add test ship without payment
-    window.hasShip = true;
-
-    // Update App state to show the ship
-    if (window.updateHasShip) {
-      window.updateHasShip(true);
-    }
+    try {
+      setIsLoading(true);
+      
+      // Close modal immediately to show animations if needed
+      onClose();
+      
+      // Call the API to add a test ship (0 tokens)
+      const result = await apiService.buyShip('test');
+      
+      // Mark that player now has a ship
+      window.hasShip = true;
+      
+      // Update App state to show the ship
+      if (window.updateHasShip) {
+        window.updateHasShip(true);
+      }
     
-    if (window.AstroUI) {
-      window.AstroUI.setBalance(1000); // Give some starting balance for testing
-      window.AstroUI.setStatus('Test ship added!');
+      if (window.AstroUI) {
+        window.AstroUI.setBalance(1000); // Give some starting balance for testing
+        window.AstroUI.setStatus('Test ship added!');
+      }
+    } catch (error) {
+      console.error('Test ship failed:', error);
+      setError(error.message || 'Failed to add test ship');
+    } finally {
+      setIsLoading(false);
     }
-    onClose();
   };
 
   // Determine if user has enough BR tokens to buy ship
@@ -237,7 +253,8 @@ const BuyShipModal = ({ onClose }) => {
         display: success ? 'none' : 'flex',
         gap: '12px',
         justifyContent: 'center',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        marginBottom: '16px'
       }}>
         <button
           onClick={handleBuyShip}
@@ -268,7 +285,7 @@ const BuyShipModal = ({ onClose }) => {
           {isLoading ? 'BUYING...' : paymentMethod === 'sol' ? `BUY WITH ${ENV.SHIP_PRICE_SOL} SOL` : `BUY WITH ${shipPriceBR} BR`}
         </button>
 
-        {ENV.IS_DEVELOPMENT && (
+        {showTestOptions && (
           <button
             onClick={handleTestShip}
             style={{
@@ -290,10 +307,10 @@ const BuyShipModal = ({ onClose }) => {
               e.target.style.background = 'rgba(40,0,40,0.7)';
             }}
           >
-            TEST SHIP
+            GET FREE TEST SHIP
           </button>
         )}
-        
+
         {/* Get Test Tokens Button (only in development) */}
         {ENV.IS_DEVELOPMENT && ENV.SOLANA_NETWORK !== 'mainnet-beta' && (
           <button
@@ -334,8 +351,8 @@ const BuyShipModal = ({ onClose }) => {
         lineHeight: '1.4' 
       }}>
         One-time purchase • Secure Solana transaction
-        {ENV.DEBUG_MODE && <br />}
-        {ENV.DEBUG_MODE && <span style={{ color: '#f0a' }}>DEV MODE: Test ship available</span>}
+        {showTestOptions && <br />}
+        {showTestOptions && <span style={{ color: '#f0a' }}>TEST MODE: Free test ship available</span>}
         {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <br />}
         {ENV.SOLANA_NETWORK !== 'mainnet-beta' && <span style={{ color: '#0cf' }}>TEST NETWORK: {ENV.SOLANA_NETWORK}</span>}
       </p>
