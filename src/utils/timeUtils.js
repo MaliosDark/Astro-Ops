@@ -6,7 +6,7 @@
  * @returns {string} - Formatted time string
  */
 export function formatTimeLeft(seconds) {
-  if (!seconds) return '--:--:--';
+  if (seconds === null || seconds === undefined || isNaN(seconds)) return '--:--:--';
   
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -25,7 +25,7 @@ export function formatTimeLeft(seconds) {
  * @returns {string} - Human-readable time string
  */
 export function formatTimeHuman(seconds) {
-  if (!seconds) return 'unknown time';
+  if (seconds === null || seconds === undefined || isNaN(seconds)) return 'unknown time';
   
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
