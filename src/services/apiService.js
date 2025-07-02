@@ -627,12 +627,12 @@ class ApiService {
       
       // Store mission data in localStorage for timer
       if (result.success) {
-        const missionData = { 
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
+        const missionData = { 
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
-          cooldown_seconds: 8 * 3600, // 8 hours in seconds
+          cooldown_seconds: cooldownSeconds,
           br_balance: result.br_balance // Store the updated balance
         };
         
