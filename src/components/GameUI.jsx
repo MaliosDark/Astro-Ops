@@ -471,5 +471,3 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 };
 
 export default GameUI;
-
-
