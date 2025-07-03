@@ -323,7 +323,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         
         <div className="info-panel-group"> {/* New panel group for treasury */}
           <div className="info-panel balance-panel">
-            <div className="panel-header">TREASURY</div>
+            <div className="panel-header">GLOBAL REWARDS POOL</div>
             <div className="panel-content">
               <span className="balance-value">{parseInt(communityTreasury).toLocaleString()}</span>
               <span className="balance-unit">BR</span>
