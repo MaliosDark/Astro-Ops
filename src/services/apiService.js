@@ -608,32 +608,60 @@ class ApiService {
         throw new Error('You need to get a ship first');
       }
       
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Preparing ${type} mission...`);
+      }
+
+      // Get connected wallet for burn transaction
+      const connectedWallet = walletService.getConnectedWallet();
+      if (!connectedWallet) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Create burn transaction
+      const burnTransaction = await createBurnTransaction(connectedWallet.publicKey.toString(), ENV.PARTICIPATION_FEE);
+      
+      // Sign and serialize the transaction
+      const signedBurnTx = await signAndSerializeTransaction(burnTransaction, connectedWallet.provider.signTransaction);
+
+      if (window.AstroUI) {
+        window.AstroUI.setStatus(`Launching ${type}…`);
+      }
+
+      await animateShipLaunch();
+
+      if (window.AstroUI) {
+        window.AstroUI.setStatus('In transit…');
+      }
+
+      await animateRaidTo(type);
+
+      // REAL API CALL - This will save to database and now also burn tokens on-chain
       const result = await this.request('/send_mission', {
         method: 'POST',
         body: JSON.stringify({
           type, 
-          mode,
-          mode,
+          mode, // Removed duplicated 'mode'
           signedBurnTx
         })
       });
       
-      // Update cached balance
-      if (result.br_balance !== undefined) {
-        const publicKey = this.getCurrentUserPublicKey();
-        if (publicKey) {
-          userCacheService.updateCachedBalance(publicKey, result.br_balance);
-        }
+      // Always update the balance immediately with the server's value
+      if (window.AstroUI && result.br_balance !== undefined) { // Corrected to result.br_balance
+        window.AstroUI.setBalance(parseInt(result.br_balance)); // Corrected to result.br_balance
       }
-      
+
       // Store mission data in localStorage for timer
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
+        const missionData = { // Added missing '{'
+          mission_type: type,
+          mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
           cooldown_seconds: cooldownSeconds,
           br_balance: result.br_balance // Store the updated balance
-        };
+        }; 
         
         localStorage.setItem('bonkraiders_active_mission', JSON.stringify(missionData));
         
@@ -642,12 +670,12 @@ class ApiService {
           window.updateActiveMission(missionData);
           
           // Also update the balance immediately
-          if (window.AstroUI && result.br_balance !== undefined) {
-            window.AstroUI.setBalance(parseInt(result.br_balance));
+          if (window.AstroUI && result.br_balance !== undefined) { // Corrected to result.br_balance
+            window.AstroUI.setBalance(parseInt(result.br_balance)); // Corrected to result.br_balance
           }
         }
         
-        // Update balance in UI immediately
+        // Also update the balance immediately
         if (window.AstroUI && result.br_balance !== undefined) {
           window.AstroUI.setBalance(result.br_balance);
         }
@@ -659,6 +687,7 @@ class ApiService {
       throw error;
     }
   }
+
 
   /**
    * Upgrade ship
