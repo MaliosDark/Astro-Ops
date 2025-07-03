@@ -13,7 +13,7 @@ const BuyShipModal = ({ onClose }) => {
   const [success, setSuccess] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState('br'); // Default to BR payment
-  const shipPriceBR = 500000; // 500,000 BR as per requirement
+  const shipPriceBR = ENV.SHIP_PRICE_BR; // Use ENV variable
 
   // Check token balance on load
   React.useEffect(() => {
@@ -51,17 +51,11 @@ const BuyShipModal = ({ onClose }) => {
         throw new Error('Wallet not connected');
       }
 
-      // Create token transfer transaction for the ship price to the community wallet
-      const transferTransaction = await createTokenTransferTransactionToCommunity(connectedWallet.publicKey.toString(), shipPriceBR);
-      
-      // Sign and serialize the transaction
-      const signedTransferTx = await signAndSerializeTransaction(transferTransaction, connectedWallet.provider.signTransaction);
-
       // Close modal immediately to show animations if needed
       onClose();
       
       // Call the game logic function to buy a ship with the selected payment method
-      const result = await buyShip(paymentMethod, signedTransferTx);
+      const result = await buyShip(paymentMethod); // Pass paymentMethod, gameLogic.buyShip will handle the transaction
       
       // Mark that player now has a ship
       window.hasShip = true;
@@ -240,3 +234,4 @@ const BuyShipModal = ({ onClose }) => {
 };
 
 export default BuyShipModal;
+
