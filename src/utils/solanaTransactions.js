@@ -190,11 +190,6 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
  * @returns {Promise<boolean>} - Whether user has enough tokens
  */
 export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
-  // For development/testing, always return true
-  if (ENV.DEBUG_MODE && ENV.MOCK_API) {
-    return true;
-  }
-
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
@@ -229,11 +224,6 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
 export async function getTokenBalance(userPublicKey) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
-
-    // For development/testing, return mock balance if no real connection
-    if (ENV.DEBUG_MODE && ENV.MOCK_API) {
-      return Math.floor(Math.random() * 1000000); // Return a larger mock balance for testing ship purchase
-    }
     
     // Get user's associated token account
     try {
@@ -254,10 +244,6 @@ export async function getTokenBalance(userPublicKey) {
     console.error('Error getting token balance:', error.message);
     
     // Provide more user-friendly error
-    if (error.message?.includes('account not found')) {
-      return 0; // No token account means 0 balance
-    }
-    
     if (error.message?.includes('connect')) {
       throw new Error(
         'Unable to connect to Solana network. Please check your internet connection.'
@@ -425,15 +411,6 @@ export async function getTransactionHistory(userPublicKey) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
-    // For development/testing, return mock transactions
-    if (ENV.DEBUG_MODE) {
-      return [
-        { signature: 'mock1', blockTime: Date.now()/1000 - 3600, type: 'CLAIM', amount: 1000 },
-        { signature: 'mock2', blockTime: Date.now()/1000 - 7200, type: 'MISSION', amount: 500 },
-        { signature: 'mock3', blockTime: Date.now()/1000 - 86400, type: 'RAID', amount: 1500 }
-      ];
-    }
-    
     // Get recent transactions
     const transactions = await connection.getSignaturesForAddress(
       userPubkey,
@@ -469,4 +446,3 @@ export async function withdrawTokens(userPublicKey, amount) {
     throw new Error(`Failed to withdraw tokens: ${error.message}`);
   }
 }
-
