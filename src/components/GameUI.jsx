@@ -5,7 +5,7 @@ import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
 import { formatTimeLeft, calculateMissionTimeRemaining } from '../utils/timeUtils'; // Import formatTimeLeft and calculateMissionTimeRemaining
-import ENV from '../config/environment';
+import ENV from '../config/environment.js';
 
 
 const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
@@ -19,6 +19,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
   const [activeMission, setActiveMission] = useState(null);
   const [missionTimeLeft, setMissionTimeLeft] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+  const [communityTreasury, setCommunityTreasury] = useState(0); // New state variable
 
   // Función para cargar datos iniciales del servidor
   const loadInitialData = async () => {
@@ -32,6 +33,10 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
         const balance = await getTokenBalance(wallet.publicKey);
         setTokenBalance(balance);
       }
+
+      // Fetch community treasury balance
+      const treasuryBalance = await apiService.getCommunityTreasuryBalance();
+      setCommunityTreasury(treasuryBalance);
       
       if (profile) {
         // Update UI with REAL data from database
@@ -90,6 +95,7 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
       setKills(0);
       setRaidsWon(0);
       setEnergy(10);
+      setCommunityTreasury(0); // Set to 0 on error
     } 
   };
 
@@ -315,6 +321,16 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
           </div>
         </div>
         
+        <div className="info-panel-group"> {/* New panel group for treasury */}
+          <div className="info-panel balance-panel">
+            <div className="panel-header">TREASURY</div>
+            <div className="panel-content">
+              <span className="balance-value">{parseInt(communityTreasury).toLocaleString()}</span>
+              <span className="balance-unit">BR</span>
+            </div>
+          </div>
+        </div>
+
         <div className="stats-panel-group">
           <div className="info-panel stats-panel">
             <div className="panel-header">COMBAT</div>
@@ -350,8 +366,8 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
                     <span className="status-value">{mode}</span>
                   </div>
                   <div className="status-item">
-                    <span className="status-label">ENERGY</span> 
-                    <span className="status-value">{energy}/10</span>
+                    <span className="stat-label">ENERGY</span> 
+                    <span className="stat-value">{energy}/10</span>
                   </div>
                 </>
               )}
@@ -455,4 +471,5 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 };
 
 export default GameUI;
+
 
