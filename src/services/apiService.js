@@ -10,18 +10,20 @@ const API_ENDPOINTS = {
   'auth/nonce': '/auth/nonce',
   'auth/login': '/auth/login',
   'user_profile': '/user_profile',
-  'buy_ship': '/buy_ship',
+  'buy_ship': '/buy_ship', // Main game logic API endpoint for buying ship
   'send_mission': '/send_mission',
   'upgrade_ship': '/upgrade_ship',
   'raid_mission': '/raid_mission',
-  'claim_rewards': '/claim_rewards',
+  'claim_rewards': '/claim_rewards', // This endpoint is deprecated, but kept for reference
   'withdraw_tokens': '/withdraw_tokens',
   'transaction_history': '/transaction_history',
   'wallet_balance': '/wallet_balance',
   'list_missions': '/list_missions',
   'pending_missions': '/pending_missions',
   'raid/scan': '/raid/scan',
-  'player_energy': '/player_energy'
+  'player_energy': '/player_energy',
+  'community_balance': '/community_balance', // New endpoint for community treasury
+  'purchase_ship': '/purchase_ship' // Endpoint on SOLANA_API_URL for processing ship purchase transaction
 };
 
 /**
@@ -33,7 +35,7 @@ class ApiService {
     this.isRefreshing = false;
     this.refreshPromise = null;
     this.baseURL = ENV.API_BASE_URL;
-    this.verifyURL = ENV.VERIFY_API_URL;
+    this.verifyURL = ENV.VERIFY_API_URL; // This is typically verify.bonkraiders.com
   }
 
   /**
@@ -372,7 +374,7 @@ class ApiService {
   }
 
   /**
-   * Make request to verify API
+   * Make request to verify API (SOLANA_API_URL, typically verify.bonkraiders.com)
    */
   async verifyRequest(endpoint, options = {}) {
     const url = `${this.verifyURL}${endpoint}`;
@@ -465,6 +467,9 @@ class ApiService {
 
   /**
    * Buy ship (for main game logic API)
+   * @param {string} paymentMethod - 'sol', 'br', or 'test'
+   * @param {string} purchaseTxHash - Transaction hash if payment was on-chain (e.g., for 'br' payment)
+   * @param {string} signedSolTx - Signed SOL transaction if SOL payment involves one
    */
   async buyShipGameLogic(paymentMethod = 'sol', purchaseTxHash = null, signedSolTx = null) {
     try {
@@ -514,7 +519,9 @@ class ApiService {
   }
 
   /**
-   * Process ship purchase transaction on Solana (for Node.js Solana API)
+   * Process ship purchase transaction on Solana (for Node.js Solana API, verify.bonkraiders.com)
+   * This endpoint is responsible for verifying and processing the on-chain token transfer.
+   * @param {string} signedTransaction - Base64 encoded signed token transfer transaction
    */
   async processShipPurchaseTransaction(signedTransaction) {
     // This calls the Node.js Solana API's /purchase_ship endpoint
@@ -605,14 +612,14 @@ class ApiService {
       });
       
       // Always update the balance immediately with the server's value
-      if (window.AstroUI && result.br_balance !== undefined) { // Corrected to result.br_balance
-        window.AstroUI.setBalance(parseInt(result.br_balance)); // Corrected to result.br_balance
+      if (window.AstroUI && result.br_balance !== undefined) {
+        window.AstroUI.setBalance(parseInt(result.br_balance));
       }
 
       // Store mission data in localStorage for timer
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
-        const missionData = { // Added missing '{'
+        const missionData = {
           mission_type: type,
           mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
@@ -628,8 +635,8 @@ class ApiService {
           window.updateActiveMission(missionData);
           
           // Also update the balance immediately
-          if (window.AstroUI && result.br_balance !== undefined) { // Corrected to result.br_balance
-            window.AstroUI.setBalance(parseInt(result.br_balance)); // Corrected to result.br_balance
+          if (window.AstroUI && result.br_balance !== undefined) {
+            window.AstroUI.setBalance(parseInt(result.br_balance));
           }
         }
         
@@ -704,7 +711,7 @@ class ApiService {
   }
 
   /**
-   * Claim rewards
+   * Claim rewards (DEPRECATED - use withdrawTokens with tx_type='claim')
    */
   async claimRewards() {
     // This method is now deprecated - we use withdrawTokens instead
@@ -713,7 +720,7 @@ class ApiService {
     const totalAmount = pending?.reduce((sum, item) => sum + parseInt(item.amount), 0) || 0;
     
     // Then withdraw the total amount
-    return this.withdrawTokens(totalAmount);
+    return this.withdrawTokens(totalAmount, 'claim');
   }
   
   /**
@@ -933,4 +940,3 @@ class ApiService {
 const apiService = new ApiService();
 
 export default apiService;
-
