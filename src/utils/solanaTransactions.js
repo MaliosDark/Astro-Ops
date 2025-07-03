@@ -1,7 +1,7 @@
 // src/utils/solanaTransactions.js
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import {
-  TOKEN_PROGRAM_ID, // This is the correct import
+  TOKEN_PROGRAM_ID,
   getMint,
   getOrCreateAssociatedTokenAccount,
 } from '@solana/spl-token';
@@ -20,7 +20,6 @@ function uint8ArrayToBase64(uint8Array) {
 
 // Configuration from environment
 const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
-// Removed: const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'); // This line was causing the error
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const COMMUNITY_WALLET_PUBKEY = new PublicKey('7xiz4iWHkeTQ65gYCJZs2Rt26ajkkh7fJ8F7rfagPsiA'); // IMPORTANT: Replace with your actual community wallet public key
 
