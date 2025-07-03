@@ -194,14 +194,47 @@ export async function authenticateWallet(publicKey, signMessage) {
 /**
  * Buy ship (one-time purchase) - REAL API CALL
  */
-export async function buyShip(paymentMethod = 'sol', signedTransaction = null) {
+export async function buyShip(paymentMethod = 'sol') {
   try {
     if (ENV.DEBUG_MODE) {
       console.log(`🚢 Attempting to buy ship with ${paymentMethod}`);
     }
     
-    // Call API with payment method
-    const result = await apiService.buyShip(paymentMethod, signedTransaction);
+    let purchaseTxHash = null;
+
+    if (paymentMethod === 'br') {
+      // 1. Create and sign the token transfer transaction
+      const connectedWallet = walletService.getConnectedWallet();
+      if (!connectedWallet) {
+        throw new Error('Wallet not connected');
+      }
+      const transferTransaction = await createTokenTransferTransactionToCommunity(connectedWallet.publicKey.toString(), ENV.SHIP_PRICE_BR);
+      const signedTransferTx = await signAndSerializeTransaction(transferTransaction, connectedWallet.provider.signTransaction);
+
+      // 2. Send this signed transaction to the Node.js Solana API's /purchase_ship endpoint
+      if (window.AstroUI) {
+        window.AstroUI.setStatus('Processing on-chain payment...');
+      }
+      const solanaTxResult = await apiService.processShipPurchaseTransaction(signedTransferTx);
+      purchaseTxHash = solanaTxResult.signature; // Get the real transaction hash
+
+    } else if (paymentMethod === 'sol') {
+      // If SOL payment method is implemented with on-chain transaction
+      // This part is currently not fully implemented in the provided code,
+      // but would follow a similar pattern to BR payment.
+      // For now, we'll assume 'signedTransaction' is the hash if it's passed.
+      // If you have a signed SOL transaction, you would process it here
+      // For example:
+      // const solanaTxResult = await apiService.processSolPurchaseTransaction(signedSolTx);
+      // purchaseTxHash = solanaTxResult.signature;
+      purchaseTxHash = null; // Or the actual SOL transaction hash if implemented
+    } else if (paymentMethod === 'test') {
+      // For 'test' payment, no real on-chain transaction, so no hash
+      purchaseTxHash = null;
+    }
+
+    // 3. Call the main game logic API's /buy_ship endpoint
+    const result = await apiService.buyShipGameLogic(paymentMethod, purchaseTxHash);
     
     if (ENV.DEBUG_MODE) {
       console.log('🚢 Buy ship result:', result);
@@ -210,7 +243,7 @@ export async function buyShip(paymentMethod = 'sol', signedTransaction = null) {
     // Mark that player now has a ship
     window.hasShip = true;
 
-    // Update App state to show the ship in the game
+    // Update App state to show the ship
     if (window.updateHasShip) {
       window.updateHasShip(true);
     }
@@ -292,7 +325,7 @@ export async function startMission(type, mode = 'Unshielded') {
         
         // Also update the balance immediately
         if (window.AstroUI && result.br_balance !== undefined) {
-          window.AstroUI.setBalance(parseInt(result.br_balance));
+          window.AstroUI.setBalance(parseInt(br_balance));
         }
       }
     }
@@ -649,3 +682,4 @@ window.buyShip = buyShip;
 
 // Add a function to update the App state
 window.updateHasShip = null;
+
