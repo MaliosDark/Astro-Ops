@@ -502,6 +502,8 @@ export async function performRaid(missionId) {
         errorMessage = 'Target was shielded - raid failed';
       } else if (error.message?.includes('energy')) {
         errorMessage = 'Not enough energy for raid';
+      } else if (error.message?.includes('Reward already claimed')) {
+        errorMessage = 'Reward already claimed by owner';
       } else if (error.message) {
         errorMessage = error.message;
       }
