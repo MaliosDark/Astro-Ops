@@ -1,4 +1,3 @@
-// src/utils/gameLogic.js
 import { animateShipLaunch, animateRaidTo, animateShipReturn } from './shipAnimator';
 import { 
   createBurnTransaction, 
@@ -6,7 +5,7 @@ import {
   checkTokenBalance, 
   getTokenBalance,
   createSolTransferTransaction,
-  createTokenTransferTransaction,
+  createTokenTransferTransactionToCommunity, // Import the new function
   checkSolBalance,
   getSolBalance
 } from './solanaTransactions';
@@ -195,14 +194,14 @@ export async function authenticateWallet(publicKey, signMessage) {
 /**
  * Buy ship (one-time purchase) - REAL API CALL
  */
-export async function buyShip(paymentMethod = 'sol') {
+export async function buyShip(paymentMethod = 'sol', signedTransaction = null) {
   try {
     if (ENV.DEBUG_MODE) {
       console.log(`🚢 Attempting to buy ship with ${paymentMethod}`);
     }
     
     // Call API with payment method
-    const result = await apiService.buyShip(paymentMethod);
+    const result = await apiService.buyShip(paymentMethod, signedTransaction);
     
     if (ENV.DEBUG_MODE) {
       console.log('🚢 Buy ship result:', result);
@@ -246,7 +245,7 @@ export async function startMission(type, mode = 'Unshielded') {
     }
 
     // Create burn transaction
-    const burnTransaction = await createBurnTransaction(connectedWallet.publicKey.toString());
+    const burnTransaction = await createBurnTransaction(connectedWallet.publicKey.toString(), ENV.PARTICIPATION_FEE);
     
     // Sign and serialize the transaction
     const signedBurnTx = await signAndSerializeTransaction(burnTransaction, connectedWallet.provider.signTransaction);
@@ -621,7 +620,8 @@ export async function performClaim() {
 export async function getMissionsForRaid() {
   try {
     return await apiService.getMissions();
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Get missions error:', error);
     return [];
   }
