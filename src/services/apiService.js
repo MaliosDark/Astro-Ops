@@ -468,16 +468,20 @@ class ApiService {
    */
   async buyShip(paymentMethod = 'sol', signedTransaction = null) {
     try {
-      // For test ships, we don't need a signed transaction
       const payload = {
         payment_method: paymentMethod
       };
       
-      // Only include signed transaction if provided
-      if (signedTransaction) {
-        payload.signed_transaction = signedTransaction;
+      // Incluir la transacción firmada bajo el nombre correcto según el método de pago
+      if (paymentMethod === 'br' && signedTransaction) {
+        payload.purchase_tx_hash = signedTransaction;
+      } else if (paymentMethod === 'sol' && signedTransaction) {
+        // Si implementas la verificación de transferencia de SOL, este sería el lugar
+        // para enviar la transacción firmada como 'signed_transaction'.
+        payload.signed_transaction = signedTransaction; 
       }
-      
+      // Para 'test', no se necesita signedTransaction
+
       const result = await this.request('/buy_ship', {
         method: 'POST',
         body: JSON.stringify(payload)
