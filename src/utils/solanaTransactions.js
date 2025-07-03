@@ -1,6 +1,4 @@
-// src/utils/solanaTransactions.js
-import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { SystemProgram } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import ENV from '../config/environment.js';
 
 // Improved error handling for Solana transactions
@@ -31,6 +29,7 @@ function uint8ArrayToBase64(uint8Array) {
 const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+const COMMUNITY_WALLET_PUBKEY = new PublicKey('YOUR_COMMUNITY_WALLET_PUBLIC_KEY_HERE'); // IMPORTANT: Replace with your actual community wallet public key
 
 // Create connection with proper devnet endpoint
 const connection = new Connection(ENV.SOLANA_RPC_URL, {
@@ -139,21 +138,6 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
     return uint8ArrayToBase64(serialized);
   } catch (error) {
     console.error('Error signing transaction:', error);
-    
-    // Handle user rejection specifically
-    if (error.message?.includes('User rejected') || 
-        error.message?.includes('rejected') ||
-        error.message?.includes('cancelled') ||
-        error.message?.includes('denied') ||
-        error.code === 4001) {
-      throw new Error('Transaction cancelled by user');
-    }
-    
-    // Handle other wallet errors
-    if (error.message?.includes('Insufficient funds')) {
-      throw new Error('Insufficient SOL for transaction fees');
-    }
-    
     
     // Handle user rejection specifically
     if (error.message?.includes('User rejected') || 
@@ -357,26 +341,24 @@ function createTransferInstruction(source, destination, owner, amount) {
 }
 
 /**
- * Create a token transfer transaction
+ * Create a token transfer transaction from user to community wallet
  * @param {string} fromPublicKey - Sender's wallet public key
- * @param {string} toPublicKey - Recipient's wallet public key
  * @param {number} amount - Amount of tokens to transfer
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
-export async function createTokenTransferTransaction(fromPublicKey, toPublicKey, amount) {
+export async function createTokenTransferTransactionToCommunity(fromPublicKey, amount) {
   try {
     const fromPubkey = new PublicKey(fromPublicKey);
-    const toPubkey = new PublicKey(toPublicKey);
     
-    // Get associated token accounts
+    // Get associated token accounts for sender and community wallet
     const fromTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, fromPubkey);
-    const toTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, toPubkey);
+    const toTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, COMMUNITY_WALLET_PUBKEY);
     
     // Create transfer instruction
     const transferInstruction = createTransferInstruction(
       fromTokenAccount,    // source
-      toTokenAccount,      // destination
-      fromPubkey,          // owner
+      toTokenAccount,      // destination (community ATA)
+      fromPubkey,          // owner (user)
       amount               // amount
     );
     
@@ -391,8 +373,8 @@ export async function createTokenTransferTransaction(fromPublicKey, toPublicKey,
     
     return transaction;
   } catch (error) {
-    console.error('Error creating token transfer transaction:', error);
-    throw new Error(`Failed to create token transfer transaction: ${error.message}`);
+    console.error('Error creating token transfer transaction to community:', error);
+    throw new Error(`Failed to create token transfer transaction to community: ${error.message}`);
   }
 }
 
