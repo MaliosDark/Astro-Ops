@@ -56,3 +56,4 @@ export function calculateMissionTimeRemaining(mission) {
   
   return timeLeft > 0 ? timeLeft : null;
 }
+
