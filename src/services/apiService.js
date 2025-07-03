@@ -17,8 +17,7 @@ const API_ENDPOINTS = {
   'claim_rewards': '/claim_rewards',
   'withdraw_tokens': '/withdraw_tokens',
   'transaction_history': '/transaction_history',
-  'wallet_bal      }
-ance': '/wallet_balance',
+  'wallet_balance': '/wallet_balance',
   'list_missions': '/list_missions',
   'pending_missions': '/pending_missions',
   'raid/scan': '/raid/scan',
@@ -469,20 +468,45 @@ class ApiService {
    */
   async buyShip(paymentMethod = 'sol', signedTransaction = null) {
     try {
-      // For test ships, we don't need a signed transaction
-      const payload = {
-        payment_method: paymentMethod
-      };
-      
-      // Only include signed transaction if provided
-      if (signedTransaction) {
-        payload.signed_transaction = signedTransaction;
+      let result;
+      let purchaseTxHash = null;
+
+      if (paymentMethod === 'br') {
+        if (!signedTransaction) {
+          throw new Error('signedTransaction is required for BR payment');
+        }
+        // Step 1: Send signed token transfer transaction to verify service
+        const verifyResponse = await this.verifyRequest('/purchase_ship', {
+          method: 'POST',
+          body: JSON.stringify({
+            signed_transaction: signedTransaction
+          })
+        });
+
+        if (!verifyResponse.success || !verifyResponse.signature) {
+          throw new Error(verifyResponse.error || 'Failed to verify BR payment transaction');
+        }
+        purchaseTxHash = verifyResponse.signature;
+
+        // Step 2: Notify main API server about the successful on-chain payment
+        result = await this.request('/buy_ship', {
+          method: 'POST',
+          body: JSON.stringify({
+            payment_method: paymentMethod,
+            purchase_tx_hash: purchaseTxHash // Pass the confirmed transaction hash
+          })
+        });
+
+      } else {
+        // For 'sol' or 'test' payment methods, directly call the main API server
+        result = await this.request('/buy_ship', {
+          method: 'POST',
+          body: JSON.stringify({
+            payment_method: paymentMethod,
+            // signed_transaction is not needed for sol/test here, main API handles it
+          })
+        });
       }
-      
-      const result = await this.request('/buy_ship', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
       
       // Update cache to reflect ship purchase
       if (result.ship_id) {
@@ -614,7 +638,6 @@ class ApiService {
         body: JSON.stringify({
           type, 
           mode,
-          mode,
           signedBurnTx
         })
       });
@@ -630,6 +653,9 @@ class ApiService {
       // Store mission data in localStorage for timer
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
+        const missionData = { 
+          mission_type: type,
+          mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
           cooldown_seconds: cooldownSeconds,
@@ -646,11 +672,6 @@ class ApiService {
           if (window.AstroUI && result.br_balance !== undefined) {
             window.AstroUI.setBalance(parseInt(result.br_balance));
           }
-        }
-        
-        // Update balance in UI immediately
-        if (window.AstroUI && result.br_balance !== undefined) {
-          window.AstroUI.setBalance(result.br_balance);
         }
       }
       
@@ -866,10 +887,11 @@ class ApiService {
    */
   async getPendingRewards() {
     try {
-      return await this.request('/pending_missions');
+      const { pending } = await apiService.getPendingRewards();
+      return pending || [];
     } catch (error) {
       console.error('Get pending rewards error:', error);
-      return { pending: [] };
+      return [];
     }
   }
 
