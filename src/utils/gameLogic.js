@@ -325,7 +325,7 @@ export async function startMission(type, mode = 'Unshielded') {
         
         // Also update the balance immediately
         if (window.AstroUI && result.br_balance !== undefined) {
-          window.AstroUI.setBalance(parseInt(br_balance));
+          window.AstroUI.setBalance(parseInt(result.br_balance));
         }
       }
     }
@@ -682,4 +682,3 @@ window.buyShip = buyShip;
 
 // Add a function to update the App state
 window.updateHasShip = null;
-
