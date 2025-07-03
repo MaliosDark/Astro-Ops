@@ -613,6 +613,7 @@ class ApiService {
         body: JSON.stringify({
           type, 
           mode,
+          mode,
           signedBurnTx
         })
       });
@@ -629,8 +630,8 @@ class ApiService {
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
         const missionData = {
-          mission_type: type,
-          mode: mode,
+          type,
+          mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
           cooldown_seconds: cooldownSeconds,
@@ -647,6 +648,11 @@ class ApiService {
           if (window.AstroUI && result.br_balance !== undefined) {
             window.AstroUI.setBalance(parseInt(result.br_balance));
           }
+        }
+        
+        // Update balance in UI immediately
+        if (window.AstroUI && result.br_balance !== undefined) {
+          window.AstroUI.setBalance(result.br_balance);
         }
       }
       
