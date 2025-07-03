@@ -4,7 +4,7 @@ import { getTokenBalance } from '../utils/solanaTransactions';
 import apiService from '../services/apiService';
 import sessionManager from '../services/sessionManager';
 import walletService from '../services/walletService';
-import { formatTimeLeft, calculateMissionTimeRemaining } from '../utils/timeUtils'; // Importar funciones de timeUtils
+import { formatTimeLeft, calculateMissionTimeRemaining } from '../utils/timeUtils'; // Import formatTimeLeft and calculateMissionTimeRemaining
 import ENV from '../config/environment';
 
 
@@ -455,3 +455,4 @@ const GameUI = ({ walletAddress, onShowModal, onDisconnect }) => {
 };
 
 export default GameUI;
+
