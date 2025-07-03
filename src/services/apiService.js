@@ -926,8 +926,8 @@ class ApiService {
    */
   async getCommunityTreasuryBalance() {
     try {
-      // This calls the Node.js Solana API's /community_balance endpoint
-      const result = await this.verifyRequest('/community_balance'); // Using verifyRequest as it points to SOLANA_API_URL
+      // This calls the main API's /community_balance endpoint
+      const result = await this.request('/community_balance'); // Using request instead of verifyRequest
       return result.balance;
     } catch (error) {
       console.error('Get community treasury balance error:', error);
