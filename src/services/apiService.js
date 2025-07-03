@@ -354,7 +354,7 @@ class ApiService {
       return data;
     } catch (error) {
       // Special handling for cooldown violation
-      if (error.message?.includes('AntiCheat: cooldown violation')) {
+      if (error.message?.includes('cooldown violation')) {
         throw new Error('cooldown violation');
       }
       
@@ -464,24 +464,17 @@ class ApiService {
   // ===== Game Methods =====
 
   /**
-   * Buy ship
+   * Buy ship (for main game logic API)
    */
-  async buyShip(paymentMethod = 'sol', signedTransaction = null) {
+  async buyShipGameLogic(paymentMethod = 'sol', purchaseTxHash = null, signedSolTx = null) {
     try {
-      const payload = {
-        payment_method: paymentMethod
-      };
-      
-      // Incluir la transacción firmada bajo el nombre correcto según el método de pago
-      if (paymentMethod === 'br' && signedTransaction) {
-        payload.purchase_tx_hash = signedTransaction;
-      } else if (paymentMethod === 'sol' && signedTransaction) {
-        // Si implementas la verificación de transferencia de SOL, este sería el lugar
-        // para enviar la transacción firmada como 'signed_transaction'.
-        payload.signed_transaction = signedTransaction; 
+      const payload = { payment_method: paymentMethod };
+      if (paymentMethod === 'br' && purchaseTxHash) {
+        payload.purchase_tx_hash = purchaseTxHash;
+      } else if (paymentMethod === 'sol' && signedSolTx) {
+        payload.signed_transaction = signedSolTx; // If SOL payment involves a signed transaction
       }
-      // Para 'test', no se necesita signedTransaction
-
+      
       const result = await this.request('/buy_ship', {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -505,7 +498,7 @@ class ApiService {
       
       return result;
     } catch (error) {
-      console.error('Buy ship error:', error);
+      console.error('Buy ship game logic error:', error);
       
       // Provide more specific error messages
       if (error.message?.includes('Transaction cancelled by user')) {
@@ -521,24 +514,14 @@ class ApiService {
   }
 
   /**
-   * Buy ship (simplified version)
+   * Process ship purchase transaction on Solana (for Node.js Solana API)
    */
-  async buyShipSimple(paymentMethod = 'sol') {
-    const result = await this.request('/buy_ship', {
+  async processShipPurchaseTransaction(signedTransaction) {
+    // This calls the Node.js Solana API's /purchase_ship endpoint
+    return await this.verifyRequest('/purchase_ship', { // Using verifyRequest as it points to SOLANA_API_URL
       method: 'POST',
-      body: JSON.stringify({ payment_method: paymentMethod })
+      body: JSON.stringify({ signed_transaction: signedTransaction })
     });
-    
-    // Update cache to reflect ship purchase
-    if (result.ship_id) {
-      const publicKey = this.getCurrentUserPublicKey();
-      if (publicKey) {
-        userCacheService.clearUserData(publicKey, 'ships');
-        userCacheService.clearUserData(publicKey, 'profile');
-      }
-    }
-    
-    return result;
   }
 
   /**
@@ -607,45 +590,16 @@ class ApiService {
    */
   async sendMission(type, mode, signedBurnTx) {
     try {
-      // Check if user has a ship first
+      // Check if user has a ship
       if (!window.hasShip) {
         throw new Error('You need to get a ship first');
       }
       
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Preparing ${type} mission...`);
-      }
-
-      // Get connected wallet for burn transaction
-      const connectedWallet = walletService.getConnectedWallet();
-      if (!connectedWallet) {
-        throw new Error('Wallet not connected');
-      }
-
-      // Create burn transaction
-      const burnTransaction = await createBurnTransaction(connectedWallet.publicKey.toString(), ENV.PARTICIPATION_FEE);
-      
-      // Sign and serialize the transaction
-      const signedBurnTx = await signAndSerializeTransaction(burnTransaction, connectedWallet.provider.signTransaction);
-
-      if (window.AstroUI) {
-        window.AstroUI.setStatus(`Launching ${type}…`);
-      }
-
-      await animateShipLaunch();
-
-      if (window.AstroUI) {
-        window.AstroUI.setStatus('In transit…');
-      }
-
-      await animateRaidTo(type);
-
-      // REAL API CALL - This will save to database and now also burn tokens on-chain
       const result = await this.request('/send_mission', {
         method: 'POST',
         body: JSON.stringify({
           type, 
-          mode, // Removed duplicated 'mode'
+          mode,
           signedBurnTx
         })
       });
@@ -959,9 +913,24 @@ class ApiService {
   async getLeaderboard() {
     return await this.request('/leaderboard');
   }
+
+  /**
+   * Get community treasury token balance
+   */
+  async getCommunityTreasuryBalance() {
+    try {
+      // This calls the Node.js Solana API's /community_balance endpoint
+      const result = await this.verifyRequest('/community_balance'); // Using verifyRequest as it points to SOLANA_API_URL
+      return result.balance;
+    } catch (error) {
+      console.error('Get community treasury balance error:', error);
+      return 0; // Default to 0 on error
+    }
+  }
 }
 
 // Create singleton instance
 const apiService = new ApiService();
 
 export default apiService;
+
