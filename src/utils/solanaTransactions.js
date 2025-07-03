@@ -1,21 +1,12 @@
+// src/utils/solanaTransactions.js
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import ENV from '../config/environment.js';
 
-// Improved error handling for Solana transactions
-class SolanaTransactionError extends Error {
-  constructor(message, code, details = {}) {
-    super(message);
-    this.name = 'SolanaTransactionError';
-    this.code = code;
-    this.details = details;
-  }
-}
-
-// Usar TextEncoder/TextDecoder nativo del navegador
+// Use native browser TextEncoder/TextDecoder
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-// Función para convertir Uint8Array a base64 sin Buffer
+// Function to convert Uint8Array to base64 without Buffer
 function uint8ArrayToBase64(uint8Array) {
   let binary = '';
   const len = uint8Array.byteLength;
@@ -29,7 +20,7 @@ function uint8ArrayToBase64(uint8Array) {
 const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-const COMMUNITY_WALLET_PUBKEY = new PublicKey('YOUR_COMMUNITY_WALLET_PUBLIC_KEY_HERE'); // IMPORTANT: Replace with your actual community wallet public key
+const COMMUNITY_WALLET_PUBKEY = new PublicKey('11111111111111111111111111111111'); // IMPORTANT: Replace with your actual community wallet public key
 
 // Create connection with proper devnet endpoint
 const connection = new Connection(ENV.SOLANA_RPC_URL, {
@@ -172,7 +163,7 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
-    // Get user's associated token account
+    // Get user's associated token account for the game token
     const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
 
     // Get token account info
@@ -228,9 +219,8 @@ export async function getTokenBalance(userPublicKey) {
     }
     
     if (error.message?.includes('connect')) {
-      throw new SolanaTransactionError(
-        'Unable to connect to Solana network. Please check your internet connection.',
-        'NETWORK_ERROR'
+      throw new Error(
+        'Unable to connect to Solana network. Please check your internet connection.'
       );
     }
     
