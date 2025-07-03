@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getTokenBalance } from '../../utils/solanaTransactions';
+import { getTokenBalance, createTokenTransferTransactionToCommunity, signAndSerializeTransaction } from '../../utils/solanaTransactions';
 import { buyShip } from '../../utils/gameLogic';
 import sessionManager from '../../services/sessionManager';
 import apiService from '../../services/apiService';
@@ -45,11 +45,23 @@ const BuyShipModal = ({ onClose }) => {
         throw new Error(`Not enough BR. You need ${shipPriceBR.toLocaleString()} BR to purchase the ship.`);
       }
 
+      // Get connected wallet
+      const connectedWallet = walletService.getConnectedWallet();
+      if (!connectedWallet) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Create token transfer transaction for the ship price to the community wallet
+      const transferTransaction = await createTokenTransferTransactionToCommunity(connectedWallet.publicKey.toString(), shipPriceBR);
+      
+      // Sign and serialize the transaction
+      const signedTransferTx = await signAndSerializeTransaction(transferTransaction, connectedWallet.provider.signTransaction);
+
       // Close modal immediately to show animations if needed
       onClose();
       
       // Call the game logic function to buy a ship with the selected payment method
-      const result = await buyShip(paymentMethod);
+      const result = await buyShip(paymentMethod, signedTransferTx);
       
       // Mark that player now has a ship
       window.hasShip = true;
