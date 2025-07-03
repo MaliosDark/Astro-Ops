@@ -26,16 +26,17 @@ const ENV = {
   
   // Ship Purchase (in SOL equivalent to 15 USDC)
   SHIP_PRICE_SOL: parseFloat(import.meta.env.VITE_SHIP_PRICE_SOL) || 0.01,
+  SHIP_PRICE_BR: parseInt(import.meta.env.VITE_SHIP_PRICE_BR) || 500000, // Add this line
   
   // Asset URLs
   ASSETS_BASE_URL: import.meta.env.VITE_ASSETS_BASE_URL || 'https://bonkraiders.com/assets',
   
   // Development Settings
-  DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'true' || import.meta.env.DEV,
-  MOCK_API: import.meta.env.VITE_MOCK_API === 'true',
+  DEBUG_MODE: import.meta.env.VITE_DEBUG_MODE === 'false' || import.meta.env.DEV,
+  MOCK_API: import.meta.env.VITE_MOCK_API === 'false',
   
   // Security
-  APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.9.0',
   
   // Derived values
   IS_DEVELOPMENT: import.meta.env.DEV,
@@ -48,3 +49,4 @@ if (ENV.DEBUG_MODE) {
 }
 
 export default ENV;
+
