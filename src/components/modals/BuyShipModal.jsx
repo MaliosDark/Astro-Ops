@@ -45,17 +45,11 @@ const BuyShipModal = ({ onClose }) => {
         throw new Error(`Not enough BR. You need ${shipPriceBR.toLocaleString()} BR to purchase the ship.`);
       }
 
-      // Get connected wallet
-      const connectedWallet = walletService.getConnectedWallet();
-      if (!connectedWallet) {
-        throw new Error('Wallet not connected');
-      }
-
       // Close modal immediately to show animations if needed
       onClose();
       
       // Call the game logic function to buy a ship with the selected payment method
-      const result = await buyShip(paymentMethod); // Pass paymentMethod, gameLogic.buyShip will handle the transaction
+      const result = await buyShip(paymentMethod);
       
       // Mark that player now has a ship
       window.hasShip = true;
@@ -234,4 +228,3 @@ const BuyShipModal = ({ onClose }) => {
 };
 
 export default BuyShipModal;
-
