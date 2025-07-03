@@ -20,7 +20,7 @@ function uint8ArrayToBase64(uint8Array) {
 const GAME_TOKEN_MINT = new PublicKey(ENV.GAME_TOKEN_MINT);
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-const COMMUNITY_WALLET_PUBKEY = new PublicKey('11111111111111111111111111111111'); // IMPORTANT: Replace with your actual community wallet public key
+const COMMUNITY_WALLET_PUBKEY = new PublicKey('7xiz4iWHkeTQ65gYCJZs2Rt26ajkkh7fJ8F7rfagPsiA'); // IMPORTANT: Replace with your actual community wallet public key
 
 // Create connection with proper devnet endpoint
 const connection = new Connection(ENV.SOLANA_RPC_URL, {
