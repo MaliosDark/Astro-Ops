@@ -17,8 +17,7 @@ const API_ENDPOINTS = {
   'claim_rewards': '/claim_rewards',
   'withdraw_tokens': '/withdraw_tokens',
   'transaction_history': '/transaction_history',
-  'wallet_bal      }
-ance': '/wallet_balance',
+  'wallet_balance': '/wallet_balance',
   'list_missions': '/list_missions',
   'pending_missions': '/pending_missions',
   'raid/scan': '/raid/scan',
@@ -614,7 +613,6 @@ class ApiService {
         body: JSON.stringify({
           type, 
           mode,
-          mode,
           signedBurnTx
         })
       });
@@ -630,6 +628,9 @@ class ApiService {
       // Store mission data in localStorage for timer
       if (result.success) {
         const cooldownSeconds = ENV.DEBUG_MODE ? 600 : 8 * 3600; // 10 minutes in debug mode, 8 hours otherwise
+        const missionData = {
+          mission_type: type,
+          mode: mode,
           ts_start: Math.floor(Date.now() / 1000),
           reward: result.reward,
           cooldown_seconds: cooldownSeconds,
@@ -646,11 +647,6 @@ class ApiService {
           if (window.AstroUI && result.br_balance !== undefined) {
             window.AstroUI.setBalance(parseInt(result.br_balance));
           }
-        }
-        
-        // Update balance in UI immediately
-        if (window.AstroUI && result.br_balance !== undefined) {
-          window.AstroUI.setBalance(result.br_balance);
         }
       }
       
