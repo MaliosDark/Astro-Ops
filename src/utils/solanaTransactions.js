@@ -1,10 +1,12 @@
 // src/utils/solanaTransactions.js
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
-import ENV from '../config/environment.js';
+import {
+  TOKEN_PROGRAM_ID,
+  getMint,
+  getOrCreateAssociatedTokenAccount,
+} from '@solana/spl-token';
 
-// Use native browser TextEncoder/TextDecoder
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+import ENV from '../config/environment.js';
 
 // Function to convert Uint8Array to base64 without Buffer
 function uint8ArrayToBase64(uint8Array) {
@@ -31,6 +33,32 @@ const connection = new Connection(ENV.SOLANA_RPC_URL, {
 if (ENV.DEBUG_MODE) {
   console.log(`🔗 Solana connection created for: ${ENV.SOLANA_RPC_URL}`);
 }
+
+// --- Global variables for token decimals and mint info ---
+let tokenDecimals = -1;
+let mintInfo = null;
+
+/**
+ * Initialize Solana configuration by fetching token decimals.
+ * This should be called once at the start of the application.
+ */
+async function initSolanaConfig() {
+  try {
+    mintInfo = await getMint(connection, GAME_TOKEN_MINT);
+    tokenDecimals = mintInfo.decimals;
+    if (ENV.DEBUG_MODE) {
+      console.log(`✅ Game Token Decimals loaded: ${tokenDecimals}`);
+    }
+  } catch (e) {
+    console.error('❌ Error loading Game Token Decimals:', e);
+    // Fallback or throw error if essential config cannot be loaded
+    throw new Error('Failed to load essential Solana token configuration.');
+  }
+}
+
+// Call the initialization function immediately
+initSolanaConfig();
+// --- END NEW ---
 
 /**
  * Derive associated token account address manually
@@ -77,13 +105,21 @@ function createBurnInstruction(account, mint, owner, amount) {
 /**
  * Create a burn transaction for the participation fee
  * @param {string} userPublicKey - User's wallet public key
- * @param {number} amount - Amount to burn (default: PARTICIPATION_FEE)
+ * @param {number} amount - Amount to burn (UI amount, default: PARTICIPATION_FEE)
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
 export async function createBurnTransaction(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
+    // Ensure tokenDecimals is loaded
+    if (tokenDecimals === -1) {
+      await initSolanaConfig();
+    }
+
+    // Convert UI amount to raw amount
+    const rawAmount = BigInt(amount) * (10n ** BigInt(tokenDecimals));
+
     // Get user's associated token account for the game token
     const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
 
@@ -92,7 +128,7 @@ export async function createBurnTransaction(userPublicKey, amount = ENV.PARTICIP
       userTokenAccount,    // account to burn from
       GAME_TOKEN_MINT,     // mint
       userPubkey,          // owner
-      amount               // amount to burn
+      rawAmount            // raw amount to burn
     );
 
     // Create transaction
@@ -151,7 +187,7 @@ export async function signAndSerializeTransaction(transaction, signTransaction) 
 /**
  * Check if user has enough tokens to burn
  * @param {string} userPublicKey - User's wallet public key
- * @param {number} amount - Amount needed
+ * @param {number} amount - Amount needed (UI amount)
  * @returns {Promise<boolean>} - Whether user has enough tokens
  */
 export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATION_FEE) {
@@ -163,6 +199,11 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
   try {
     const userPubkey = new PublicKey(userPublicKey);
     
+    // Ensure tokenDecimals is loaded
+    if (tokenDecimals === -1) {
+      await initSolanaConfig();
+    }
+
     // Get user's associated token account for the game token
     const userTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, userPubkey);
 
@@ -184,7 +225,7 @@ export async function checkTokenBalance(userPublicKey, amount = ENV.PARTICIPATIO
 /**
  * Get user's current token balance
  * @param {string} userPublicKey - User's wallet public key
- * @returns {Promise<number>} - Current token balance
+ * @returns {Promise<number>} - Current token balance (UI amount)
  */
 export async function getTokenBalance(userPublicKey) {
   try {
@@ -192,7 +233,7 @@ export async function getTokenBalance(userPublicKey) {
 
     // For development/testing, return mock balance if no real connection
     if (ENV.DEBUG_MODE && ENV.MOCK_API) {
-      return Math.floor(Math.random() * 10000);
+      return Math.floor(Math.random() * 1000000); // Return a larger mock balance for testing ship purchase
     }
     
     // Get user's associated token account
@@ -333,13 +374,21 @@ function createTransferInstruction(source, destination, owner, amount) {
 /**
  * Create a token transfer transaction from user to community wallet
  * @param {string} fromPublicKey - Sender's wallet public key
- * @param {number} amount - Amount of tokens to transfer
+ * @param {number} amount - Amount of tokens to transfer (UI amount)
  * @returns {Promise<Transaction>} - Unsigned transaction
  */
 export async function createTokenTransferTransactionToCommunity(fromPublicKey, amount) {
   try {
     const fromPubkey = new PublicKey(fromPublicKey);
     
+    // Ensure tokenDecimals is loaded
+    if (tokenDecimals === -1) {
+      await initSolanaConfig();
+    }
+
+    // Convert UI amount to raw amount
+    const rawAmount = BigInt(amount) * (10n ** BigInt(tokenDecimals));
+
     // Get associated token accounts for sender and community wallet
     const fromTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, fromPubkey);
     const toTokenAccount = await getAssociatedTokenAddress(GAME_TOKEN_MINT, COMMUNITY_WALLET_PUBKEY);
@@ -349,7 +398,7 @@ export async function createTokenTransferTransactionToCommunity(fromPublicKey, a
       fromTokenAccount,    // source
       toTokenAccount,      // destination (community ATA)
       fromPubkey,          // owner (user)
-      amount               // amount
+      rawAmount            // raw amount
     );
     
     // Create transaction
