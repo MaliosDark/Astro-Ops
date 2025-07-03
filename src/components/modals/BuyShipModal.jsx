@@ -12,9 +12,8 @@ const BuyShipModal = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [tokenBalance, setTokenBalance] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('sol');
-  const shipPriceBR = 0; // Free ship for testing
-  const [showTestOptions] = useState(true); // Always show test options
+  const [paymentMethod, setPaymentMethod] = useState('br'); // Default to BR payment
+  const shipPriceBR = 500000; // 500,000 BR as per requirement
 
   // Check token balance on load
   React.useEffect(() => {
@@ -41,6 +40,11 @@ const BuyShipModal = ({ onClose }) => {
       setIsLoading(true);
       setError('');
       
+      // Check if user has enough BR tokens
+      if (tokenBalance < shipPriceBR) {
+        throw new Error(`Not enough BR. You need ${shipPriceBR.toLocaleString()} BR to purchase the ship.`);
+      }
+
       // Close modal immediately to show animations if needed
       onClose();
       
@@ -54,44 +58,14 @@ const BuyShipModal = ({ onClose }) => {
       if (window.updateHasShip) {
         window.updateHasShip(true);
       }
-    } catch (error) {
-      console.error('Ship purchase failed:', error);
-      setError(error.message || 'Failed to purchase ship');
-    } finally {
-      setIsLoading(false);
-      
+
       // Show success message in HUD
       if (window.AstroUI) {
         window.AstroUI.setStatus('Ship purchased successfully!');
       }
-    }
-  };
-
-  const handleTestShip = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Close modal immediately to show animations if needed
-      onClose();
-      
-      // Call the API to add a free test ship
-      await apiService.buyShip('test');
-      
-      // Mark that player now has a ship
-      window.hasShip = true;
-      
-      // Update App state to show the ship
-      if (window.updateHasShip) {
-        window.updateHasShip(true);
-      }
-    
-      if (window.AstroUI) {
-        window.AstroUI.setBalance(10000); // Give plenty of balance for testing
-        window.AstroUI.setStatus('Free ship added! You can now play all game features!');
-      }
     } catch (error) {
-      console.error('Test ship failed:', error);
-      setError(error.message || 'Failed to add test ship');
+      console.error('Ship purchase failed:', error);
+      setError(error.message || 'Failed to purchase ship');
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +117,7 @@ const BuyShipModal = ({ onClose }) => {
         margin: '0 0 12px',
         color: '#fff'
       }}>
-        Get a free ship to start playing Bonk Raiders!
+        Purchase your ship for <strong style={{color: '#ff0'}}>{shipPriceBR.toLocaleString()} BR</strong> to start playing Bonk Raiders!
       </p>
       }
       <div style={{
@@ -155,7 +129,7 @@ const BuyShipModal = ({ onClose }) => {
         fontSize: '12px'
       }}>        
         <div style={{ marginBottom: '8px', marginTop: '16px' }}>
-          <strong>Your Free Ship Includes:</strong>
+          <strong>Your Ship Includes:</strong>
         </div>
         <ul style={{
           listStyle: 'none',
@@ -167,7 +141,6 @@ const BuyShipModal = ({ onClose }) => {
           <li>• Access to all missions</li>
           <li>• Ability to raid other players</li>
           <li>• Ship upgrade system</li>
-          <li>• 10,000 BR tokens to start with</li>
           <li>• All game features unlocked</li>
         </ul>
       </div>
@@ -206,37 +179,37 @@ const BuyShipModal = ({ onClose }) => {
         flexWrap: 'wrap'
       }}>
         <button
-          onClick={handleTestShip}
-          disabled={isLoading}
+          onClick={handleBuyShip}
+          disabled={isLoading || !hasEnoughTokens || isCheckingBalance}
           style={{
-            background: isLoading ? 'rgba(0,60,0,0.3)' : 'rgba(0,100,0,0.7)',
+            background: isLoading || !hasEnoughTokens || isCheckingBalance ? 'rgba(0,60,0,0.3)' : 'rgba(0,100,0,0.7)',
             border: '2px solid #0f0',
             borderRadius: '8px',
             padding: '16px 24px',
             fontFamily: "'Press Start 2P', monospace",
             fontSize: '14px',
-            color: isLoading ? '#666' : '#fff',
-            cursor: isLoading ? 'not-allowed' : 'pointer', 
+            color: isLoading || !hasEnoughTokens || isCheckingBalance ? '#666' : '#fff',
+            cursor: isLoading || !hasEnoughTokens || isCheckingBalance ? 'not-allowed' : 'pointer', 
             transition: 'all 0.3s ease',
             minWidth: '280px',
             boxShadow: '0 4px 8px rgba(0,255,0,0.3)'
           }}
           onMouseEnter={(e) => {
-            if (!isLoading) {
+            if (!isLoading && hasEnoughTokens && !isCheckingBalance) {
               e.target.style.background = 'rgba(0,120,0,0.9)';
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 12px rgba(0,255,0,0.5)';
             }
           }}
           onMouseLeave={(e) => {
-            if (!isLoading) {
+            if (!isLoading && hasEnoughTokens && !isCheckingBalance) {
               e.target.style.background = 'rgba(0,100,0,0.7)';
               e.target.style.transform = 'translateY(0)';
               e.target.style.boxShadow = '0 4px 8px rgba(0,255,0,0.3)';
             }
           }}
         >
-          {isLoading ? '⏳ PREPARING SHIP...' : '🚀 GET FREE SHIP & START PLAYING'}
+          {isCheckingBalance ? 'CHECKING BALANCE...' : isLoading ? '⏳ PURCHASING SHIP...' : `🚀 PURCHASE SHIP (${shipPriceBR.toLocaleString()} BR)`}
         </button>
       </div>
 
@@ -246,11 +219,9 @@ const BuyShipModal = ({ onClose }) => {
         color: '#888',
         lineHeight: '1.4' 
       }}>
-        Free test ship • Includes 10,000 BR tokens
+        Your current BR balance: <span style={{color: '#ff0'}}>{tokenBalance.toLocaleString()} BR</span>
         <br />
-        <span style={{ color: '#0f0' }}>All game features unlocked for testing</span>
-        <br />
-        <span style={{ color: '#0cf' }}>TEST NETWORK: {ENV.SOLANA_NETWORK}</span>
+        <span style={{ color: '#0cf' }}>{ENV.SOLANA_NETWORK} Network</span>
       </p>
     </div>
   );
